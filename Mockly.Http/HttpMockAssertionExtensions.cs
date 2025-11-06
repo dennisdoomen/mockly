@@ -99,11 +99,12 @@ public class RequestCollectionAssertions
         var unexpectedRequests = subject.Requests.Where(r => !r.WasExpected).ToList();
 
         (!unexpectedRequests.Any()).Should().BeTrue(
-            because + " no unexpected requests should exist, but found {0} unexpected request(s):\n{1}",
+            because + " no unexpected requests should exist, but found {0} unexpected request(s):{1}{2}",
             becauseArgs.Concat(new object[] 
             { 
                 unexpectedRequests.Count,
-                string.Join("\n", unexpectedRequests.Select(r => $"  {r.Method} {r.Request.RequestUri}"))
+                Environment.NewLine,
+                string.Join(Environment.NewLine, unexpectedRequests.Select(r => $"  {r.Method} {r.Request.RequestUri}"))
             }).ToArray());
     }
 

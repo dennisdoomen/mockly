@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
@@ -10,6 +11,8 @@ namespace Mockly.Http;
 /// </summary>
 internal class RequestMock
 {
+    private static readonly ConcurrentDictionary<string, Regex> RegexCache = new(StringComparer.OrdinalIgnoreCase);
+
     public HttpMethod Method { get; set; } = HttpMethod.Get;
 
     public string? PathPattern { get; set; }
@@ -66,13 +69,14 @@ internal class RequestMock
 
     private static bool MatchesPattern(string value, string pattern)
     {
-        // Convert wildcard pattern to regex
+        // Convert wildcard pattern to regex and cache it
 #if NET47 || NETSTANDARD2_0
         var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$";
 #else
         var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*", StringComparison.Ordinal) + "$";
 #endif
-        return Regex.IsMatch(value, regexPattern, RegexOptions.IgnoreCase);
+        var regex = RegexCache.GetOrAdd(regexPattern, p => new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled));
+        return regex.IsMatch(value);
     }
 
     /// <summary>
