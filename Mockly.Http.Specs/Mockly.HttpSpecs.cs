@@ -3,7 +3,7 @@ using Xunit;
 
 namespace Mockly.Http.Specs;
 
-public class Mockly.HttpSpecs
+public class MocklyHttpSpecs
 {
     // To group tests related to a certain API or capability and avoid having to use long test names
     public class Capability
