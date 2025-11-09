@@ -198,8 +198,31 @@ class Build : NukeBuild
                 p.Rename(".nuspec", ExistsPolicy.FileOverwrite);
             });
 
+            // Pack main Mockly.Http library
             DotNetPack(s => s
                 .SetProject(Solution.GetProject("Mockly.Http"))
+                .SetOutputDirectory(ArtifactsDirectory)
+                .SetConfiguration(Configuration)
+                .EnableNoBuild()
+                .EnableNoLogo()
+                .EnableNoRestore()
+                .EnableContinuousIntegrationBuild() // Necessary for deterministic builds
+                .SetVersion(SemVer));
+
+            // Pack FluentAssertions.Mockly.Http.v7 extension
+            DotNetPack(s => s
+                .SetProject(Solution.GetProject("FluentAssertions.Mockly.Http.v7"))
+                .SetOutputDirectory(ArtifactsDirectory)
+                .SetConfiguration(Configuration)
+                .EnableNoBuild()
+                .EnableNoLogo()
+                .EnableNoRestore()
+                .EnableContinuousIntegrationBuild() // Necessary for deterministic builds
+                .SetVersion(SemVer));
+
+            // Pack FluentAssertions.Mockly.Http.v8 extension
+            DotNetPack(s => s
+                .SetProject(Solution.GetProject("FluentAssertions.Mockly.Http.v8"))
                 .SetOutputDirectory(ArtifactsDirectory)
                 .SetConfiguration(Configuration)
                 .EnableNoBuild()
@@ -227,6 +250,24 @@ class Build : NukeBuild
                 .EnableNoSymbols()
                 .CombineWith(packages,
                     (v, path) => v.SetTargetPath(path)));
+
+            // Attest packages for provenance (requires GitHub CLI and OIDC token)
+            if (GitHubActions != null)
+            {
+                foreach (var package in packages)
+                {
+                    try
+                    {
+                        Information($"Attesting package: {package}");
+                        ProcessTasks.StartProcess("gh", $"attestation attest --predicate-type https://slsa.dev/provenance/v1 {package}")
+                            .AssertZeroExitCode();
+                    }
+                    catch (Exception ex)
+                    {
+                        Warning($"Failed to attest package {package}: {ex.Message}");
+                    }
+                }
+            }
         });
 
     Target Default => _ => _

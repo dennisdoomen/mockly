@@ -19,6 +19,10 @@ public class RequestMock
 
     public string? QueryPattern { get; set; }
 
+    public string? Scheme { get; set; }
+
+    public string? HostPattern { get; set; }
+
     public Func<HttpRequestMessage, bool>? CustomMatcher { get; set; }
 
     public Func<HttpRequestMessage, HttpResponseMessage> Responder { get; set; } = _ => new HttpResponseMessage();
@@ -36,6 +40,25 @@ public class RequestMock
         if (!request.Method.Equals(Method))
         {
             return false;
+        }
+
+        // Check scheme if specified
+        if (Scheme != null && request.RequestUri != null)
+        {
+            if (!string.Equals(request.RequestUri.Scheme, Scheme, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        // Check host pattern if specified
+        if (HostPattern != null && request.RequestUri != null)
+        {
+            var host = request.RequestUri.Host;
+            if (!MatchesPattern(host, HostPattern))
+            {
+                return false;
+            }
         }
 
         // Check path pattern if specified

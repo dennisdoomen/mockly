@@ -35,6 +35,10 @@
     <None Include="..\PackageReadme.md" Pack="true" PackagePath="Readme.md"/>
   </ItemGroup>
 
+  <ItemGroup Label="Shared files">
+    <Compile Include="..\Shared\HttpMockAssertionExtensions.cs" Link="HttpMockAssertionExtensions.cs" />
+  </ItemGroup>
+
   <ItemGroup Label="Dependencies">
     <PackageReference Include="FluentAssertions" Version="8.0.0" />
     <ProjectReference Include="..\Mockly.Http\Mockly.Http.csproj" />

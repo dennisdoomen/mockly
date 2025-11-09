@@ -12,9 +12,11 @@ namespace Mockly.Http;
 public class RequestBuilder
 {
     private readonly HttpMock mockBuilder;
-    private readonly HttpMethod method;
+    private HttpMethod method;
     private string? pathPattern;
     private string? queryPattern;
+    private string? scheme;
+    private string? hostPattern;
     private Func<HttpRequestMessage, bool>? customMatcher;
     private RequestCollection? requestCollection;
 
@@ -22,6 +24,27 @@ public class RequestBuilder
     {
         this.mockBuilder = mockBuilder;
         this.method = method;
+    }
+
+    /// <summary>
+    /// Copy constructor to reuse settings from another builder.
+    /// </summary>
+    internal RequestBuilder(HttpMock mockBuilder, RequestBuilder previous)
+    {
+        this.mockBuilder = mockBuilder;
+        method = previous.method;
+        pathPattern = previous.pathPattern;
+        queryPattern = previous.queryPattern;
+        scheme = previous.scheme;
+        hostPattern = previous.hostPattern;
+        customMatcher = previous.customMatcher;
+        requestCollection = previous.requestCollection;
+    }
+
+    internal HttpMethod Method
+    {
+        get => method;
+        set => method = value;
     }
 
     /// <summary>
@@ -39,6 +62,42 @@ public class RequestBuilder
     public RequestBuilder ForQuery(string queryPattern)
     {
         this.queryPattern = queryPattern;
+        return this;
+    }
+
+    /// <summary>
+    /// Specifies that the request must use HTTP scheme.
+    /// </summary>
+    public RequestBuilder ForHttp()
+    {
+        scheme = "http";
+        return this;
+    }
+
+    /// <summary>
+    /// Specifies that the request must use HTTPS scheme.
+    /// </summary>
+    public RequestBuilder ForHttps()
+    {
+        scheme = "https";
+        return this;
+    }
+
+    /// <summary>
+    /// Specifies the host pattern to match. Supports wildcards (*).
+    /// </summary>
+    public RequestBuilder ForHost(string hostPattern)
+    {
+        this.hostPattern = hostPattern;
+        return this;
+    }
+
+    /// <summary>
+    /// Matches any host.
+    /// </summary>
+    public RequestBuilder ForAnyHost()
+    {
+        hostPattern = "*";
         return this;
     }
 
@@ -70,6 +129,8 @@ public class RequestBuilder
             Method = method,
             PathPattern = pathPattern,
             QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
             CustomMatcher = customMatcher,
             RequestCollection = requestCollection,
             Responder = _ => new HttpResponseMessage(statusCode)
@@ -89,6 +150,8 @@ public class RequestBuilder
             Method = method,
             PathPattern = pathPattern,
             QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
             CustomMatcher = customMatcher,
             RequestCollection = requestCollection,
             Responder = _ =>
@@ -115,6 +178,8 @@ public class RequestBuilder
             Method = method,
             PathPattern = pathPattern,
             QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
             CustomMatcher = customMatcher,
             RequestCollection = requestCollection,
             Responder = _ => new HttpResponseMessage(statusCode)
@@ -137,6 +202,8 @@ public class RequestBuilder
             Method = method,
             PathPattern = pathPattern,
             QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
             CustomMatcher = customMatcher,
             RequestCollection = requestCollection,
             Responder = _ => new HttpResponseMessage(statusCode)
@@ -156,6 +223,8 @@ public class RequestBuilder
             Method = method,
             PathPattern = pathPattern,
             QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
             CustomMatcher = customMatcher,
             RequestCollection = requestCollection,
             Responder = responder

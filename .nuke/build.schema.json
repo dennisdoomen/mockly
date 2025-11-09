@@ -26,13 +26,15 @@
       "enum": [
         "ApiChecks",
         "CalculateNugetVersion",
-        "CodeCoverage",
         "Compile",
         "Default",
+        "GenerateCodeCoverageReport",
         "Pack",
         "Push",
         "Restore",
-        "RunTests"
+        "RunInspectCode",
+        "RunTests",
+        "ScanPackages"
       ]
     },
     "Verbosity": {
@@ -114,10 +116,19 @@
             "Release"
           ]
         },
-        "NuGetApiKey": {
+        "GitHubApiKey": {
           "type": "string",
-          "description": "The key to push to Nuget",
+          "description": "The key to use for scanning packages on GitHub",
           "default": "Secrets must be entered via 'nuke :secrets [profile]'"
+        },
+        "NugetArtifactsApiKey": {
+          "type": "string",
+          "description": "The API key used to authenticate and authorize access to the NuGet artifacts API",
+          "default": "Secrets must be entered via 'nuke :secrets [profile]'"
+        },
+        "NugetArtifactsApiUri": {
+          "type": "string",
+          "description": "Set the URI specifying the location of the NuGet artifacts API, which is used to publish packages generated during the build process"
         },
         "Solution": {
           "type": "string",

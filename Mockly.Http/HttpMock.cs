@@ -17,6 +17,7 @@ public class HttpMock : IDisposable
     private readonly RequestCollection allRequests = new();
     private MockHttpMessageHandler? handler;
     private bool failOnUnexpectedCalls = true;
+    private RequestBuilder? previousBuilder;
 
     /// <summary>
     /// Gets or sets whether to fail when unexpected HTTP requests are detected.
@@ -35,42 +36,77 @@ public class HttpMock : IDisposable
 
     /// <summary>
     /// Starts building a mock for GET requests.
+    /// Reuses settings from the previous request if available.
     /// </summary>
     public RequestBuilder ForGet()
     {
-        return new RequestBuilder(this, HttpMethod.Get);
+        var builder = previousBuilder != null 
+            ? new RequestBuilder(this, previousBuilder) { Method = HttpMethod.Get }
+            : new RequestBuilder(this, HttpMethod.Get);
+        previousBuilder = builder;
+        return builder;
     }
 
     /// <summary>
     /// Starts building a mock for POST requests.
+    /// Reuses settings from the previous request if available.
     /// </summary>
     public RequestBuilder ForPost()
     {
-        return new RequestBuilder(this, HttpMethod.Post);
+        var builder = previousBuilder != null 
+            ? new RequestBuilder(this, previousBuilder) { Method = HttpMethod.Post }
+            : new RequestBuilder(this, HttpMethod.Post);
+        previousBuilder = builder;
+        return builder;
     }
 
     /// <summary>
     /// Starts building a mock for PUT requests.
+    /// Reuses settings from the previous request if available.
     /// </summary>
     public RequestBuilder ForPut()
     {
-        return new RequestBuilder(this, HttpMethod.Put);
+        var builder = previousBuilder != null 
+            ? new RequestBuilder(this, previousBuilder) { Method = HttpMethod.Put }
+            : new RequestBuilder(this, HttpMethod.Put);
+        previousBuilder = builder;
+        return builder;
     }
 
     /// <summary>
     /// Starts building a mock for PATCH requests.
+    /// Reuses settings from the previous request if available.
     /// </summary>
     public RequestBuilder ForPatch()
     {
-        return new RequestBuilder(this, new HttpMethod("PATCH"));
+        var builder = previousBuilder != null 
+            ? new RequestBuilder(this, previousBuilder) { Method = new HttpMethod("PATCH") }
+            : new RequestBuilder(this, new HttpMethod("PATCH"));
+        previousBuilder = builder;
+        return builder;
     }
 
     /// <summary>
     /// Starts building a mock for DELETE requests.
+    /// Reuses settings from the previous request if available.
     /// </summary>
     public RequestBuilder ForDelete()
     {
-        return new RequestBuilder(this, HttpMethod.Delete);
+        var builder = previousBuilder != null 
+            ? new RequestBuilder(this, previousBuilder) { Method = HttpMethod.Delete }
+            : new RequestBuilder(this, HttpMethod.Delete);
+        previousBuilder = builder;
+        return builder;
+    }
+
+    /// <summary>
+    /// Resets the previous request builder settings.
+    /// Successive ForXxx calls will start fresh without inheriting settings.
+    /// </summary>
+    public HttpMock Reset()
+    {
+        previousBuilder = null;
+        return this;
     }
 
     /// <summary>
@@ -79,6 +115,7 @@ public class HttpMock : IDisposable
     public void Clear()
     {
         mocks.Clear();
+        previousBuilder = null;
     }
 
     /// <summary>
