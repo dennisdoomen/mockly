@@ -11,14 +11,14 @@ namespace Mockly.Http;
 /// </summary>
 public class RequestBuilder
 {
-    private readonly HttpMockBuilder mockBuilder;
+    private readonly HttpMock mockBuilder;
     private readonly HttpMethod method;
     private string? pathPattern;
     private string? queryPattern;
     private Func<HttpRequestMessage, bool>? customMatcher;
     private RequestCollection? requestCollection;
 
-    internal RequestBuilder(HttpMockBuilder mockBuilder, HttpMethod method)
+    internal RequestBuilder(HttpMock mockBuilder, HttpMethod method)
     {
         this.mockBuilder = mockBuilder;
         this.method = method;
@@ -63,7 +63,7 @@ public class RequestBuilder
     /// <summary>
     /// Responds with the specified HTTP status code.
     /// </summary>
-    public HttpMockBuilder RespondsWithStatus(HttpStatusCode statusCode = HttpStatusCode.OK)
+    public HttpMock RespondsWithStatus(HttpStatusCode statusCode = HttpStatusCode.OK)
     {
         var mock = new RequestMock
         {
@@ -82,7 +82,7 @@ public class RequestBuilder
     /// <summary>
     /// Responds with JSON content serialized from the specified object.
     /// </summary>
-    public HttpMockBuilder RespondsWithJsonContent(object content, HttpStatusCode statusCode = HttpStatusCode.OK)
+    public HttpMock RespondsWithJsonContent(object content, HttpStatusCode statusCode = HttpStatusCode.OK)
     {
         var mock = new RequestMock
         {
@@ -108,7 +108,7 @@ public class RequestBuilder
     /// <summary>
     /// Responds with raw string content.
     /// </summary>
-    public HttpMockBuilder RespondsWithContent(string content, string contentType = "text/plain", HttpStatusCode statusCode = HttpStatusCode.OK)
+    public HttpMock RespondsWithContent(string content, string contentType = "text/plain", HttpStatusCode statusCode = HttpStatusCode.OK)
     {
         var mock = new RequestMock
         {
@@ -130,7 +130,7 @@ public class RequestBuilder
     /// <summary>
     /// Responds with empty content.
     /// </summary>
-    public HttpMockBuilder RespondsWithEmptyContent(HttpStatusCode statusCode = HttpStatusCode.NoContent)
+    public HttpMock RespondsWithEmptyContent(HttpStatusCode statusCode = HttpStatusCode.NoContent)
     {
         var mock = new RequestMock
         {
@@ -149,7 +149,7 @@ public class RequestBuilder
     /// <summary>
     /// Responds using a custom responder function.
     /// </summary>
-    public HttpMockBuilder RespondsWith(Func<HttpRequestMessage, HttpResponseMessage> responder)
+    public HttpMock RespondsWith(Func<HttpRequestMessage, HttpResponseMessage> responder)
     {
         var mock = new RequestMock
         {

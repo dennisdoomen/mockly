@@ -34,32 +34,31 @@ public class MvpIntegrationSpecs
             var existingWorkingScope = new WorkingScope { Id = 456, CollectiveSchemeId = 123 };
             var patches = new RequestCollection();
             
-            var builder = new HttpMockBuilder();
+            var mock = new HttpMock();
 
             // Configure it to fail on unexpected calls
-            builder.FailOnUnexpectedCalls = false; // default is true
+            mock.FailOnUnexpectedCalls = false; // default is true
 
-            builder
+            mock
                 .ForGet().ForPath($"/fnv_collectiveschemes({renamedCollectiveScheme.Id}*)") // Supports wildcards
                 .RespondsWithJsonContent(renamedCollectiveScheme);
 
-            builder
+            mock
                 .ForGet().ForPath($"/fnv_workingscopes")
                 .ForQuery($"?$filter=_fnv_collectivescheme_value eq {renamedCollectiveScheme.Id}*") // Supports wildcards
                 .RespondsWithJsonContent(new[] { existingWorkingScope }); // Serializes the object to JSON using System.Text.Json
 
-            builder
+            mock
                 .ForGet().ForPath($"/fnv_workingscopes")
                 .For(request => request.RequestUri?.Query.Contains("special") ?? false) // predicate on the HttpRequestMessage
                 .RespondsWithStatus(HttpStatusCode.Accepted);
 
-            builder
+            mock
                 .ForPatch().ForPath($"/fnv_workingscopes({existingWorkingScope.Id})")
                 .CollectingRequestIn(patches) // Collects the requests specific for this mocked HTTP call
                 .RespondsWithStatus(HttpStatusCode.NoContent);
 
-            var httpMock = builder.Build();
-            HttpClient httpClient = httpMock.Build();
+            HttpClient httpClient = mock.GetClient();
             
             // Act - Make various requests
             var getCollectiveSchemeResponse = await httpClient.GetAsync($"http://localhost/fnv_collectiveschemes({renamedCollectiveScheme.Id})");
@@ -86,9 +85,9 @@ public class MvpIntegrationSpecs
             patchResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
             // Assert - Verify mock invocations
-            httpMock.Should().HaveAllRequestsCalled();
+            mock.Should().HaveAllRequestsCalled();
             
-            var allRequests = httpMock.Requests;
+            var allRequests = mock.Requests;
             allRequests.Should().NotBeEmpty();
             allRequests.Should().NotContainUnexpectedCalls();
 
@@ -97,18 +96,16 @@ public class MvpIntegrationSpecs
             patchRequest1.WasExpected.Should().BeTrue();
             patchRequest1.Should().BeExpected();
 
-            // Continue using the previous builder
-            builder.ForPost().ForPath("/api/new").RespondsWithStatus(HttpStatusCode.Created);
+            // Continue using the previous mock
+            mock.ForPost().ForPath("/api/new").RespondsWithStatus(HttpStatusCode.Created);
             
-            // Verify we can rebuild with the additional mock
-            var httpMock2 = builder.Build();
-            var client2 = httpMock2.Build();
+            // Verify we can use the same mock with the additional configuration
+            var client2 = mock.GetClient();
             var postResponse = await client2.PostAsync("http://localhost/api/new", new StringContent("test"));
             postResponse.StatusCode.Should().Be(HttpStatusCode.Created);
             
             // Cleanup
-            httpMock.Dispose();
-            httpMock2.Dispose();
+            mock.Dispose();
         }
     }
 }

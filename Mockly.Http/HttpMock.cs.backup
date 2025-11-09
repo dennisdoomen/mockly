@@ -9,23 +9,22 @@ using System.Threading.Tasks;
 namespace Mockly.Http;
 
 /// <summary>
-/// HTTP mock that configures and intercepts HTTP requests based on configured mocks.
+/// HTTP mock that intercepts and responds to HTTP requests based on configured mocks.
 /// </summary>
 public class HttpMock : IDisposable
 {
-    private readonly List<RequestMock> mocks = new();
+    private readonly List<RequestMock> mocks;
     private readonly RequestCollection allRequests = new();
-    private MockHttpMessageHandler? handler;
-    private bool failOnUnexpectedCalls = true;
+    private readonly MockHttpMessageHandler handler;
+    private bool shouldFailOnUnexpectedCalls;
 
-    /// <summary>
-    /// Gets or sets whether to fail when unexpected HTTP requests are detected.
-    /// Default is true.
-    /// </summary>
-    public bool FailOnUnexpectedCalls
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("CSharp Guidelines", "AV1564:Avoid using bool parameters",
+        Justification = "Internal constructor - bool parameter is acceptable here")]
+    internal HttpMock(List<RequestMock> mocks, bool failOnUnexpectedCalls)
     {
-        get => failOnUnexpectedCalls;
-        set => failOnUnexpectedCalls = value;
+        this.mocks = mocks;
+        shouldFailOnUnexpectedCalls = failOnUnexpectedCalls;
+        handler = new MockHttpMessageHandler(this);
     }
 
     /// <summary>
@@ -34,71 +33,11 @@ public class HttpMock : IDisposable
     public RequestCollection Requests => allRequests;
 
     /// <summary>
-    /// Starts building a mock for GET requests.
+    /// Builds and returns an HttpClient configured with this mock.
     /// </summary>
-    public RequestBuilder ForGet()
+    public HttpClient Build()
     {
-        return new RequestBuilder(this, HttpMethod.Get);
-    }
-
-    /// <summary>
-    /// Starts building a mock for POST requests.
-    /// </summary>
-    public RequestBuilder ForPost()
-    {
-        return new RequestBuilder(this, HttpMethod.Post);
-    }
-
-    /// <summary>
-    /// Starts building a mock for PUT requests.
-    /// </summary>
-    public RequestBuilder ForPut()
-    {
-        return new RequestBuilder(this, HttpMethod.Put);
-    }
-
-    /// <summary>
-    /// Starts building a mock for PATCH requests.
-    /// </summary>
-    public RequestBuilder ForPatch()
-    {
-        return new RequestBuilder(this, new HttpMethod("PATCH"));
-    }
-
-    /// <summary>
-    /// Starts building a mock for DELETE requests.
-    /// </summary>
-    public RequestBuilder ForDelete()
-    {
-        return new RequestBuilder(this, HttpMethod.Delete);
-    }
-
-    /// <summary>
-    /// Clears all configured mocks.
-    /// </summary>
-    public void Clear()
-    {
-        mocks.Clear();
-    }
-
-    /// <summary>
-    /// Gets an HttpClient configured with this mock.
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1024:Use properties where appropriate",
-        Justification = "GetClient creates resources and should not be a property")]
-    public HttpClient GetClient()
-    {
-        if (handler == null)
-        {
-            handler = new MockHttpMessageHandler(this);
-        }
-
         return new HttpClient(handler);
-    }
-
-    internal void AddMock(RequestMock mock)
-    {
-        mocks.Add(mock);
     }
 
     internal HttpResponseMessage HandleRequest(HttpRequestMessage request)
@@ -125,7 +64,7 @@ public class HttpMock : IDisposable
 
         // No matching mock found - this is an unexpected request
         var unexpectedResponse = new HttpResponseMessage(
-            failOnUnexpectedCalls ? HttpStatusCode.InternalServerError : HttpStatusCode.NotFound)
+            shouldFailOnUnexpectedCalls ? HttpStatusCode.InternalServerError : HttpStatusCode.NotFound)
         {
             ReasonPhrase = "No matching mock found for this request"
         };
@@ -139,7 +78,7 @@ public class HttpMock : IDisposable
             Timestamp = DateTime.UtcNow
         });
 
-        if (failOnUnexpectedCalls)
+        if (shouldFailOnUnexpectedCalls)
         {
             throw new UnexpectedRequestException($"Unexpected {request.Method} request to {request.RequestUri}");
         }
