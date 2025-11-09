@@ -15,18 +15,18 @@ public class MocklyHttpSpecs
     public class WhenBuildingMocks
     {
         [Fact]
-        public void Can_create_basic_mock_for_get_request()
+        public async Task Can_create_basic_mock_for_get_request()
         {
             // Arrange
             var mock = new HttpMock();
-            
+
             // Act
             mock.ForGet().ForPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
-            // Build step removed;
-            var client = mock.GetClient();
-            
+
             // Assert
-            client.Should().NotBeNull();
+            HttpClient client = mock.GetClient();
+            var response = await client.GetAsync("http://localhost/api/data");
+            response.Should().Be200Ok();
         }
 
         [Fact]
@@ -35,18 +35,18 @@ public class MocklyHttpSpecs
             // Arrange
             var mock = new HttpMock();
             var testData = new { Id = 123, Name = "Test" };
-            
+
             mock.ForGet()
                 .ForPath("/api/data")
                 .RespondsWithJsonContent(testData);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             var response = await client.GetAsync("http://localhost/api/data");
             var content = await response.Content.ReadAsStringAsync();
-            
+
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             content.Should().Contain("123");
@@ -58,17 +58,17 @@ public class MocklyHttpSpecs
         {
             // Arrange
             var mock = new HttpMock();
-            
+
             mock.ForPost()
                 .ForPath("/api/create")
                 .RespondsWithStatus(HttpStatusCode.Created);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             var response = await client.PostAsync("http://localhost/api/create", new StringContent("test"));
-            
+
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Created);
         }
@@ -78,21 +78,21 @@ public class MocklyHttpSpecs
         {
             // Arrange
             var mock = new HttpMock();
-            
+
             mock.ForPatch()
                 .ForPath("/api/update")
                 .RespondsWithStatus(HttpStatusCode.NoContent);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             var request = new HttpRequestMessage(new HttpMethod("PATCH"), "http://localhost/api/update")
             {
                 Content = new StringContent("test")
             };
             var response = await client.SendAsync(request);
-            
+
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         }
@@ -105,18 +105,18 @@ public class MocklyHttpSpecs
         {
             // Arrange
             var mock = new HttpMock();
-            
+
             mock.ForGet()
                 .ForPath("/api/users/*")
                 .RespondsWithStatus(HttpStatusCode.OK);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             var response1 = await client.GetAsync("http://localhost/api/users/123");
             var response2 = await client.GetAsync("http://localhost/api/users/456");
-            
+
             // Assert
             response1.StatusCode.Should().Be(HttpStatusCode.OK);
             response2.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -127,18 +127,18 @@ public class MocklyHttpSpecs
         {
             // Arrange
             var mock = new HttpMock();
-            
+
             mock.ForGet()
                 .ForPath("/api/search")
                 .ForQuery("?q=*")
                 .RespondsWithStatus(HttpStatusCode.OK);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             var response = await client.GetAsync("http://localhost/api/search?q=test");
-            
+
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
@@ -151,18 +151,18 @@ public class MocklyHttpSpecs
         {
             // Arrange
             var mock = new HttpMock();
-            
+
             mock.ForGet()
                 .For(req => req.Headers.Contains("X-Custom-Header"))
                 .RespondsWithStatus(HttpStatusCode.OK);
-            
+
             // Build step removed;
             var client = mock.GetClient();
             client.DefaultRequestHeaders.Add("X-Custom-Header", "value");
-            
+
             // Act
             var response = await client.GetAsync("http://localhost/api/test");
-            
+
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
@@ -176,22 +176,22 @@ public class MocklyHttpSpecs
             // Arrange
             var mock = new HttpMock();
             var collection = new RequestCollection();
-            
+
             mock.ForPatch()
                 .ForPath("/api/update")
                 .CollectingRequestIn(collection)
                 .RespondsWithStatus(HttpStatusCode.NoContent);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             var request = new HttpRequestMessage(new HttpMethod("PATCH"), "http://localhost/api/update")
             {
                 Content = new StringContent("test")
             };
             await client.SendAsync(request);
-            
+
             // Assert
             collection.Count.Should().Be(1);
             var capturedRequest = collection.First();
@@ -204,16 +204,16 @@ public class MocklyHttpSpecs
         {
             // Arrange
             var mock = new HttpMock();
-            
+
             mock.ForGet().ForPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             await client.GetAsync("http://localhost/api/test");
             await client.GetAsync("http://localhost/api/test");
-            
+
             // Assert
             mock.Requests.Should().NotBeEmpty();
             mock.Requests.Count.Should().Be(2);
@@ -228,12 +228,12 @@ public class MocklyHttpSpecs
             // Arrange
             var mock = new HttpMock();
             mock.FailOnUnexpectedCalls = true;
-            
+
             mock.ForGet().ForPath("/api/expected").RespondsWithStatus(HttpStatusCode.OK);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act & Assert
             await Assert.ThrowsAsync<UnexpectedRequestException>(async () =>
             {
@@ -247,15 +247,15 @@ public class MocklyHttpSpecs
             // Arrange
             var mock = new HttpMock();
             mock.FailOnUnexpectedCalls = false;
-            
+
             mock.ForGet().ForPath("/api/expected").RespondsWithStatus(HttpStatusCode.OK);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             var response = await client.GetAsync("http://localhost/api/unexpected");
-            
+
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         }
@@ -268,17 +268,17 @@ public class MocklyHttpSpecs
         {
             // Arrange
             var mock = new HttpMock();
-            
+
             mock.ForGet().ForPath("/api/test1").RespondsWithStatus(HttpStatusCode.OK);
             mock.ForGet().ForPath("/api/test2").RespondsWithStatus(HttpStatusCode.OK);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             await client.GetAsync("http://localhost/api/test1");
             await client.GetAsync("http://localhost/api/test2");
-            
+
             // Assert
             mock.Should().HaveAllRequestsCalled();
         }
@@ -289,13 +289,13 @@ public class MocklyHttpSpecs
             // Arrange
             var mock = new HttpMock();
             mock.ForGet().ForPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             await client.GetAsync("http://localhost/api/test");
-            
+
             // Assert
             mock.Requests.Should().NotBeEmpty();
         }
@@ -306,13 +306,13 @@ public class MocklyHttpSpecs
             // Arrange
             var mock = new HttpMock();
             mock.ForGet().ForPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             await client.GetAsync("http://localhost/api/test");
-            
+
             // Assert
             mock.Requests.Should().NotContainUnexpectedCalls();
         }
@@ -323,13 +323,13 @@ public class MocklyHttpSpecs
             // Arrange
             var mock = new HttpMock();
             mock.ForGet().ForPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             await client.GetAsync("http://localhost/api/test");
-            
+
             // Assert
             var request = mock.Requests.First();
             request.Should().BeExpected();
@@ -341,13 +341,13 @@ public class MocklyHttpSpecs
             // Arrange
             var mock = new HttpMock();
             mock.FailOnUnexpectedCalls = false;
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             await client.GetAsync("http://localhost/api/unexpected");
-            
+
             // Assert
             var request = mock.Requests.First();
             request.Should().BeUnexpected();
@@ -361,19 +361,19 @@ public class MocklyHttpSpecs
         {
             // Arrange
             var mock = new HttpMock();
-            
+
             mock.ForGet().ForPath("/api/test1").RespondsWithStatus(HttpStatusCode.OK);
-            
+
             // Continue building
             mock.ForPost().ForPath("/api/test2").RespondsWithStatus(HttpStatusCode.Created);
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             var response1 = await client.GetAsync("http://localhost/api/test1");
             var response2 = await client.PostAsync("http://localhost/api/test2", new StringContent("test"));
-            
+
             // Assert
             response1.StatusCode.Should().Be(HttpStatusCode.OK);
             response2.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -385,10 +385,10 @@ public class MocklyHttpSpecs
             // Arrange
             var mock = new HttpMock();
             mock.ForGet().ForPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
-            
+
             // Act
             mock.Clear();
-            
+
             // No assertion needed - just verify it doesn't throw
         }
     }
@@ -400,18 +400,18 @@ public class MocklyHttpSpecs
         {
             // Arrange
             var mock = new HttpMock();
-            
+
             mock.ForGet()
                 .ForPath("/api/text")
                 .RespondsWithContent("Hello, World!");
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             var response = await client.GetAsync("http://localhost/api/text");
             var content = await response.Content.ReadAsStringAsync();
-            
+
             // Assert
             content.Should().Be("Hello, World!");
         }
@@ -421,17 +421,17 @@ public class MocklyHttpSpecs
         {
             // Arrange
             var mock = new HttpMock();
-            
+
             mock.ForGet()
                 .ForPath("/api/empty")
                 .RespondsWithEmptyContent();
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             var response = await client.GetAsync("http://localhost/api/empty");
-            
+
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         }
@@ -441,21 +441,21 @@ public class MocklyHttpSpecs
         {
             // Arrange
             var mock = new HttpMock();
-            
+
             mock.ForGet()
                 .ForPath("/api/custom")
                 .RespondsWith(req => new HttpResponseMessage(HttpStatusCode.Accepted)
                 {
                     Content = new StringContent("Custom response")
                 });
-            
+
             // Build step removed;
             var client = mock.GetClient();
-            
+
             // Act
             var response = await client.GetAsync("http://localhost/api/custom");
             var content = await response.Content.ReadAsStringAsync();
-            
+
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Accepted);
             content.Should().Be("Custom response");

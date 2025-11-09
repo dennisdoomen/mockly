@@ -122,7 +122,7 @@ public class RequestBuilder
     /// <summary>
     /// Responds with the specified HTTP status code.
     /// </summary>
-    public HttpMock RespondsWithStatus(HttpStatusCode statusCode = HttpStatusCode.OK)
+    public HttpMock RespondsWithStatus(HttpStatusCode statusCode)
     {
         var mock = new RequestMock
         {
