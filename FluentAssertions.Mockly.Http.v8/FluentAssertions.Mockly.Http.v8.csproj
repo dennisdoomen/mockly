@@ -14,19 +14,19 @@
   </PropertyGroup>
 
   <PropertyGroup Label="Package info">
-    <Authors>Your name</Authors>
+    <Authors>Dennis Doomen</Authors>
     <PackageDescription>
-      A nice description of your package as you want to see it on NuGet.
+      FluentAssertions extensions for Mockly.Http (compatible with FluentAssertions 8.x)
     </PackageDescription>
-    <PackageProjectUrl>https://url-to-your-landing-page</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/your-user-name/my-package</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/dennisdoomen/mockly.http</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dennisdoomen/mockly.http</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>some;tags;you;like</PackageTags>
+    <PackageTags>http;mock;testing;fluentassertions;assertions</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageIcon>PackageIcon.png</PackageIcon>
     <PackageReadmeFile>Readme.md</PackageReadmeFile>
-    <PackageReleaseNotes>https://github.com/your-user-name/my-package/releases</PackageReleaseNotes>
-    <Copyright>Copyright 2025-$([System.DateTime]::Now.ToString(yyyy)) Your Name</Copyright>
+    <PackageReleaseNotes>https://github.com/dennisdoomen/mockly.http/releases</PackageReleaseNotes>
+    <Copyright>Copyright 2025-$([System.DateTime]::Now.ToString(yyyy)) Dennis Doomen</Copyright>
   </PropertyGroup>
 
   <ItemGroup Label="Package files">
@@ -36,28 +36,16 @@
   </ItemGroup>
 
   <ItemGroup Label="Dependencies">
-    <PackageReference Include="System.Net.Http" Version="4.3.4" />
-    <PackageReference Include="System.Text.Json" Version="8.0.6" />
-  </ItemGroup>
-
-  <ItemGroup Label="Internals visible to">
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>Mockly.Http.Specs</_Parameter1>
-    </AssemblyAttribute>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>FluentAssertions.Mockly.Http.v7</_Parameter1>
-    </AssemblyAttribute>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>FluentAssertions.Mockly.Http.v8</_Parameter1>
-    </AssemblyAttribute>
+    <PackageReference Include="FluentAssertions" Version="8.0.0" />
+    <ProjectReference Include="..\Mockly.Http\Mockly.Http.csproj" />
   </ItemGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-      <DocumentationFile>bin\Debug\Mockly.Http.xml</DocumentationFile>
+      <DocumentationFile>bin\Debug\FluentAssertions.Mockly.Http.v8.xml</DocumentationFile>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-      <DocumentationFile>bin\Release\Mockly.Http.xml</DocumentationFile>
+      <DocumentationFile>bin\Release\FluentAssertions.Mockly.Http.v8.xml</DocumentationFile>
     </PropertyGroup>
 
 </Project>

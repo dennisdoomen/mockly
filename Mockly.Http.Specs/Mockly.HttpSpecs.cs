@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
+using FluentAssertions.Mockly.Http;
 using Xunit;
 
 namespace Mockly.Http.Specs;

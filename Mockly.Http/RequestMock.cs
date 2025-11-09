@@ -9,7 +9,7 @@ namespace Mockly.Http;
 /// <summary>
 /// Represents a configured HTTP request mock.
 /// </summary>
-internal class RequestMock
+public class RequestMock
 {
     private static readonly ConcurrentDictionary<string, Regex> RegexCache = new(StringComparer.OrdinalIgnoreCase);
 

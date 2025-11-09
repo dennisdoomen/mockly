@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
 using FluentAssertions.Primitives;
+using Mockly.Http;
 
-namespace Mockly.Http;
+namespace FluentAssertions.Mockly.Http;
 
 /// <summary>
 /// FluentAssertions extensions for HttpMock.
@@ -13,7 +15,7 @@ public static class HttpMockAssertionExtensions
     /// <summary>
     /// Returns an assertion object for the HttpMock.
     /// </summary>
-    public static HttpMockAssertions Should(this HttpMock mock)
+    public static HttpMockAssertions Should(this global::Mockly.Http.HttpMock mock)
     {
         return new HttpMockAssertions(mock);
     }
@@ -21,7 +23,7 @@ public static class HttpMockAssertionExtensions
     /// <summary>
     /// Returns an assertion object for the RequestCollection.
     /// </summary>
-    public static RequestCollectionAssertions Should(this RequestCollection collection)
+    public static RequestCollectionAssertions Should(this global::Mockly.Http.RequestCollection collection)
     {
         return new RequestCollectionAssertions(collection);
     }
@@ -29,7 +31,7 @@ public static class HttpMockAssertionExtensions
     /// <summary>
     /// Returns an assertion object for the CapturedRequest.
     /// </summary>
-    public static CapturedRequestAssertions Should(this CapturedRequest request)
+    public static CapturedRequestAssertions Should(this global::Mockly.Http.CapturedRequest request)
     {
         return new CapturedRequestAssertions(request);
     }
@@ -42,9 +44,9 @@ public static class HttpMockAssertionExtensions
     Justification = "Multiple assertion classes in one file for convenience")]
 public class HttpMockAssertions
 {
-    private readonly HttpMock subject;
+    private readonly global::Mockly.Http.HttpMock subject;
 
-    public HttpMockAssertions(HttpMock subject)
+    public HttpMockAssertions(global::Mockly.Http.HttpMock subject)
     {
         this.subject = subject;
     }
@@ -67,9 +69,9 @@ public class HttpMockAssertions
     Justification = "Multiple assertion classes in one file for convenience")]
 public class RequestCollectionAssertions
 {
-    private readonly RequestCollection subject;
+    private readonly global::Mockly.Http.RequestCollection subject;
 
-    public RequestCollectionAssertions(RequestCollection subject)
+    public RequestCollectionAssertions(global::Mockly.Http.RequestCollection subject)
     {
         this.subject = subject;
     }
@@ -124,9 +126,9 @@ public class RequestCollectionAssertions
     Justification = "Multiple assertion classes in one file for convenience")]
 public class CapturedRequestAssertions
 {
-    private readonly CapturedRequest subject;
+    private readonly global::Mockly.Http.CapturedRequest subject;
 
-    public CapturedRequestAssertions(CapturedRequest subject)
+    public CapturedRequestAssertions(global::Mockly.Http.CapturedRequest subject)
     {
         this.subject = subject;
     }

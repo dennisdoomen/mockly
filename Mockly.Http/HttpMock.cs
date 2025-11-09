@@ -158,9 +158,9 @@ public class HttpMock : IDisposable
     /// <summary>
     /// Gets mocks that have not been invoked.
     /// </summary>
-    internal IEnumerable<RequestMock> GetUninvokedMocks()
+    public IEnumerable<RequestMock> GetUninvokedMocks()
     {
-        return mocks.Where(m => m.InvocationCount == 0);
+        return mocks.Where(m => m.InvocationCount == 0).ToList();
     }
 
     /// <summary>
