@@ -1,0 +1,407 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Net;
+using System.Net.Http;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using Mockly.Common;
+#if NET472_OR_GREATER
+#endif
+
+namespace Mockly;
+
+/// <summary>
+/// Fluent builder for configuring HTTP request mocks.
+/// </summary>
+public class RequestMockBuilder
+{
+    private readonly HttpMock mockBuilder;
+    private readonly List<Matcher> customMatchers = new();
+    private readonly uint? maxInvocations;
+    private string? pathPattern;
+    private string? queryPattern;
+    private string? scheme;
+    private string? hostPattern;
+    private RequestCollection? requestCollection;
+
+    internal RequestMockBuilder(HttpMock mockBuilder, HttpMethod method)
+    {
+        this.mockBuilder = mockBuilder;
+        Method = method;
+    }
+
+    /// <summary>
+    /// Copy constructor to reuse settings from another builder.
+    /// </summary>
+    internal RequestMockBuilder(HttpMock mockBuilder, RequestMockBuilder predecessor)
+    {
+        this.mockBuilder = mockBuilder;
+        Method = predecessor.Method;
+        pathPattern = predecessor.pathPattern;
+        queryPattern = predecessor.queryPattern;
+        scheme = predecessor.scheme;
+        hostPattern = predecessor.hostPattern;
+        maxInvocations = predecessor.maxInvocations;
+    }
+
+    internal HttpMethod Method { get; set; }
+
+    /// <summary>
+    /// Specifies that the request must use HTTP scheme.
+    /// </summary>
+    public RequestMockBuilder ForHttp()
+    {
+        scheme = "http";
+        return this;
+    }
+
+    /// <summary>
+    /// Specifies that the request must use HTTPS scheme.
+    /// </summary>
+    public RequestMockBuilder ForHttps()
+    {
+        scheme = "https";
+        return this;
+    }
+
+    /// <summary>
+    /// Specifies the host pattern to match. Supports wildcards (*).
+    /// </summary>
+    public RequestMockBuilder ForHost(string hostPattern)
+    {
+        this.hostPattern = hostPattern;
+        return this;
+    }
+
+    /// <summary>
+    /// Matches any host.
+    /// </summary>
+    public RequestMockBuilder ForAnyHost()
+    {
+        hostPattern = "*";
+        return this;
+    }
+
+    /// <summary>
+    /// Specifies the path pattern to match. Supports wildcards (*).
+    /// </summary>
+    public RequestMockBuilder WithPath(string wildcardPattern)
+    {
+        pathPattern = wildcardPattern;
+        return this;
+    }
+
+    /// <summary>
+    /// Specifies the query string pattern to match. Supports wildcards (*).
+    /// </summary>
+    public RequestMockBuilder WithQuery(string wildcardPattern)
+    {
+        queryPattern = wildcardPattern;
+        return this;
+    }
+
+    /// <summary>
+    /// Resets the query string matching to match any query string.
+    /// </summary>
+    public RequestMockBuilder WithoutQuery()
+    {
+        queryPattern = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Configures the request mock to match the request body content against a specified regular expression.
+    /// </summary>
+    /// <param name="regex">
+    /// The regular expression to match the request body against.
+    /// </param>
+    public RequestMockBuilder WithBodyMatchingRegex([StringSyntax(StringSyntaxAttribute.Regex)] string regex)
+    {
+        return With(request => request.Body is not null && Regex.IsMatch(request.Body, regex));
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests whose body contains the JSON equivalent to the specified JSON,
+    /// ignoring differences in whitespace and layout.
+    /// </summary>
+    /// <param name="json">The JSON string to compare against the request body.</param>
+    /// <remarks>
+    /// The comparison is performed by parsing both the expected JSON and the request body and then serializing
+    /// them back to a canonical JSON representation. Any invalid JSON in the
+    /// request body causes this matcher to return <c>false</c>.
+    /// </remarks>
+    public RequestMockBuilder WithBodyMatchingJson(string json)
+    {
+        if (json is null)
+        {
+            throw new ArgumentNullException(nameof(json));
+        }
+
+        JsonElement expectedRoot;
+
+        using (var expectedDocument = JsonDocument.Parse(json))
+        {
+            expectedRoot = expectedDocument.RootElement.Clone();
+        }
+
+        return With(request =>
+            {
+                if (request.Body is null)
+                {
+                    return false;
+                }
+
+                try
+                {
+                    using var actualDocument = JsonDocument.Parse(request.Body);
+                    return expectedRoot.JsonEquals(actualDocument.RootElement);
+                }
+                catch (JsonException jsonException)
+                {
+                    throw new RequestMatchingException("Could not parse the request body as JSON", jsonException);
+                }
+            }, $"Body matches JSON: {json}");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests whose body content satisfies the specified wildcard pattern.
+    /// </summary>
+    /// <param name="wildcardPattern">
+    /// The wildcard pattern used to match the body of the request, where '?' represents any single character and '*' represents
+    /// any sequence of characters.
+    /// </param>
+    /// <returns>The current <see cref="RequestMockBuilder"/> instance, updated with the specified body matching condition.</returns>
+    public RequestMockBuilder WithBody(string wildcardPattern)
+    {
+        return With(request => request.Body is not null && request.Body.MatchesWildcard(wildcardPattern));
+    }
+
+    /// <summary>
+    /// Specifies a custom matcher predicate for the request.
+    /// </summary>
+    public RequestMockBuilder With(Func<RequestInfo, bool> matcher,
+        [CallerArgumentExpression(nameof(matcher))]
+        string? matcherText = null)
+    {
+        customMatchers.Add(new Matcher(request => Task.FromResult(matcher(request)), matcherText));
+        return this;
+    }
+
+    /// <summary>
+    /// Specifies a custom matcher predicate for the request.
+    /// </summary>
+    public RequestMockBuilder With(Func<RequestInfo, Task<bool>> matcher,
+        [CallerArgumentExpression(nameof(matcher))]
+        string? matcherText = null)
+    {
+        customMatchers.Add(new Matcher(matcher, matcherText));
+        return this;
+    }
+
+    /// <summary>
+    /// Collects captured requests in the specified collection.
+    /// </summary>
+    public RequestMockBuilder CollectingRequestIn(RequestCollection collection)
+    {
+        requestCollection = collection;
+        return this;
+    }
+
+    /// <summary>
+    /// Responds with the specified HTTP status code.
+    /// </summary>
+    public RequestMockResponseBuilder RespondsWithStatus(HttpStatusCode statusCode)
+    {
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            MaxInvocations = maxInvocations,
+            Responder = _ => new HttpResponseMessage(statusCode)
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
+    /// Responds with JSON content serialized from the specified object.
+    /// </summary>
+    public RequestMockResponseBuilder RespondsWithJsonContent(object content, HttpStatusCode statusCode = HttpStatusCode.OK)
+    {
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            MaxInvocations = maxInvocations,
+            Responder = _ =>
+            {
+                var json = JsonSerializer.Serialize(content);
+                return new HttpResponseMessage(statusCode)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json")
+                };
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
+    /// Responds with an OData v4 result envelope: { "value": [...] }.
+    /// </summary>
+    public RequestMockResponseBuilder RespondsWithODataResult<T>(IEnumerable<T> value,
+        HttpStatusCode statusCode = HttpStatusCode.OK)
+    {
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            MaxInvocations = maxInvocations,
+            Responder = _ =>
+            {
+                var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["value"] = value?.ToArray() ?? Array.Empty<T>()
+                };
+
+                string json = JsonSerializer.Serialize(payload);
+                return new HttpResponseMessage(statusCode)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json")
+                };
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
+    /// Responds with an OData v4 result envelope including the optional "@odata.context" value.
+    /// </summary>
+    public RequestMockResponseBuilder RespondsWithODataResult<T>(IEnumerable<T> value,
+        string odataContext,
+        HttpStatusCode statusCode)
+    {
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            MaxInvocations = maxInvocations,
+            Responder = _ =>
+            {
+                var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["value"] = value.ToArray()
+                };
+
+                if (!string.IsNullOrWhiteSpace(odataContext))
+                {
+                    payload["@odata.context"] = odataContext;
+                }
+
+                string json = JsonSerializer.Serialize(payload);
+                return new HttpResponseMessage(statusCode)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json")
+                };
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
+    /// Responds with raw string content.
+    /// </summary>
+    public RequestMockResponseBuilder RespondsWithContent(string content, string contentType = "text/plain",
+        HttpStatusCode statusCode = HttpStatusCode.OK)
+    {
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            MaxInvocations = maxInvocations,
+            Responder = _ => new HttpResponseMessage(statusCode)
+            {
+                Content = new StringContent(content, Encoding.UTF8, contentType)
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
+    /// Responds with empty content.
+    /// </summary>
+    public RequestMockResponseBuilder RespondsWithEmptyContent(HttpStatusCode statusCode = HttpStatusCode.NoContent)
+    {
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            MaxInvocations = maxInvocations,
+            Responder = _ => new HttpResponseMessage(statusCode)
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
+    /// Responds using a custom responder function.
+    /// </summary>
+    public RequestMockResponseBuilder RespondsWith(Func<RequestInfo, HttpResponseMessage> responder)
+    {
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            MaxInvocations = maxInvocations,
+            Responder = responder
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+}

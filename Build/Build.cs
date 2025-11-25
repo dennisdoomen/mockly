@@ -116,7 +116,7 @@ class Build : NukeBuild
         .DependsOn(Compile)
         .Executes(() =>
         {
-            InspectCode($"Mockly.Http.sln -o={ArtifactsDirectory / "CodeIssues.sarif"} --no-build");
+            InspectCode($"Mockly.sln -o={ArtifactsDirectory / "CodeIssues.sarif"} --no-build");
         });
 
     Target RunTests => _ => _
@@ -124,7 +124,7 @@ class Build : NukeBuild
         .Executes(() =>
         {
             TestResultsDirectory.CreateOrCleanDirectory();
-            var project = Solution.GetProject("Mockly.Http.Specs");
+            var project = Solution.GetProject("Mockly.Specs");
 
             DotNetTest(s => s
                 // We run tests in debug mode so that Fluent Assertions can show the names of variables
@@ -147,7 +147,7 @@ class Build : NukeBuild
         .DependsOn(Compile)
         .Executes(() =>
         {
-            var project = Solution.GetProject("Mockly.Http.ApiVerificationTests");
+            var project = Solution.GetProject("Mockly.ApiVerificationTests");
 
             DotNetTest(s => s
                 .SetConfiguration(Configuration)
@@ -179,9 +179,31 @@ class Build : NukeBuild
             Information($"Code coverage report: \x1b]8;;file://{link.Replace('\\', '/')}\x1b\\{link}\x1b]8;;\x1b\\");
         });
 
+    Target PreparePackageReadme => _ => _
+        .Executes(() =>
+        {
+            var content = (RootDirectory / "README.md").ReadAllText();
+            var sections = content.Split(["\n## "], StringSplitOptions.RemoveEmptyEntries);
+
+            string[] headersToInclude =
+            [
+                "About",
+                "Key Features",
+                "Quick Start",
+                "Additional notes",
+                "Versioning",
+                "Credits"
+            ];
+
+            var readmeContent = "## " + string.Join("\n## ", sections
+                .Where(section => headersToInclude.Any(header => section.StartsWith(header, StringComparison.OrdinalIgnoreCase))));
+
+            (ArtifactsDirectory / "Readme.md").WriteAllText(readmeContent);
+        });
 
     Target Pack => _ => _
         .DependsOn(ScanPackages)
+        .DependsOn(PreparePackageReadme)
         .DependsOn(CalculateNugetVersion)
         .DependsOn(ApiChecks)
         .DependsOn(GenerateCodeCoverageReport)
@@ -198,9 +220,9 @@ class Build : NukeBuild
                 p.Rename(".nuspec", ExistsPolicy.FileOverwrite);
             });
 
-            // Pack main Mockly.Http library
+            // Pack main Mockly library
             DotNetPack(s => s
-                .SetProject(Solution.GetProject("Mockly.Http"))
+                .SetProject(Solution.GetProject("Mockly"))
                 .SetOutputDirectory(ArtifactsDirectory)
                 .SetConfiguration(Configuration)
                 .EnableNoBuild()
@@ -209,9 +231,9 @@ class Build : NukeBuild
                 .EnableContinuousIntegrationBuild() // Necessary for deterministic builds
                 .SetVersion(SemVer));
 
-            // Pack FluentAssertions.Mockly.Http.v7 extension
+            // Pack FluentAssertions.Mockly.v7 extension
             DotNetPack(s => s
-                .SetProject(Solution.GetProject("FluentAssertions.Mockly.Http.v7"))
+                .SetProject(Solution.GetProject("FluentAssertions.Mockly.v7"))
                 .SetOutputDirectory(ArtifactsDirectory)
                 .SetConfiguration(Configuration)
                 .EnableNoBuild()
@@ -220,9 +242,9 @@ class Build : NukeBuild
                 .EnableContinuousIntegrationBuild() // Necessary for deterministic builds
                 .SetVersion(SemVer));
 
-            // Pack FluentAssertions.Mockly.Http.v8 extension
+            // Pack FluentAssertions.Mockly.v8 extension
             DotNetPack(s => s
-                .SetProject(Solution.GetProject("FluentAssertions.Mockly.Http.v8"))
+                .SetProject(Solution.GetProject("FluentAssertions.Mockly.v8"))
                 .SetOutputDirectory(ArtifactsDirectory)
                 .SetConfiguration(Configuration)
                 .EnableNoBuild()

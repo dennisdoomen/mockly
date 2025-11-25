@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net472;net8.0</TargetFrameworks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <LangVersion>default</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>1591;1573</NoWarn>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
+    <DefineConstants>FA8</DefineConstants>
+    <!-- Ensure NuGet dependencies are copied to the output so PublicApiGenerator (Mono.Cecil) can resolve them during API approval tests -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package info">
+    <Authors>Dennis Doomen</Authors>
+    <PackageDescription>
+      FluentAssertions extensions for Mockly (compatible with FluentAssertions 8.x)
+    </PackageDescription>
+    <PackageProjectUrl>https://github.com/dennisdoomen/mockly</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dennisdoomen/mockly</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>http;mock;testing;fluentassertions;assertions</PackageTags>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageIcon>PackageIcon.png</PackageIcon>
+    <PackageReadmeFile>Readme.md</PackageReadmeFile>
+    <PackageReleaseNotes>https://github.com/dennisdoomen/mockly/releases</PackageReleaseNotes>
+    <Copyright>Copyright 2025-$([System.DateTime]::Now.ToString(yyyy)) Dennis Doomen</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup Label="Package files">
+    <None Include="..\PackageIcon.png" Pack="true" Visible="false" PackagePath="" />
+    <None Include="..\LICENSE" Pack="true" PackagePath=""/>
+    <None Include="..\Artifacts\Readme.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup Label="Shared files">
+    <Compile Include="..\Shared\HttpMockAssertionExtensions.cs" Link="HttpMockAssertionExtensions.cs" />
+  </ItemGroup>
+
+  <ItemGroup Label="Dependencies">
+    <PackageReference Include="FluentAssertions" Version="[8.0.0,9.0.0)" />
+    <ProjectReference Include="..\Mockly\Mockly.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net472' ">
+    <PackageReference Include="System.Text.Json" Version="8.0.6" />
+  </ItemGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <DocumentationFile>bin\Debug\FluentAssertions.Mockly.v8.xml</DocumentationFile>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <DocumentationFile>bin\Release\FluentAssertions.Mockly.v8.xml</DocumentationFile>
+    </PropertyGroup>
+
+</Project>

@@ -30,6 +30,7 @@
         "Default",
         "GenerateCodeCoverageReport",
         "Pack",
+        "PreparePackageReadme",
         "Push",
         "Restore",
         "RunInspectCode",

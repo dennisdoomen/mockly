@@ -1,0 +1,131 @@
+﻿[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/dennisdoomen/mockly")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluentAssertions.Mockly.v7")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluentAssertions.Mockly.v8")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Mockly.Specs")]
+namespace Mockly
+{
+    public class CapturedRequest
+    {
+        public CapturedRequest(Mockly.RequestInfo request) { }
+        public string? Body { get; }
+        public System.Net.Http.Headers.HttpRequestHeaders Headers { get; }
+        public string Host { get; }
+        public System.Net.Http.HttpMethod Method { get; }
+        public System.Net.Http.HttpRequestOptions Options { get; }
+        public string Path { get; }
+        public string Query { get; }
+        public System.Net.Http.HttpResponseMessage Response { get; }
+        public string Scheme { get; }
+        public System.DateTime Timestamp { get; }
+        public System.Uri? Uri { get; }
+        public System.Version Version { get; }
+        public System.Net.Http.HttpVersionPolicy VersionPolicy { get; }
+        public bool WasExpected { get; }
+        public override string ToString() { }
+    }
+    public class HttpMock
+    {
+        public HttpMock() { }
+        public bool AllMocksInvoked { get; }
+        public bool FailOnUnexpectedCalls { get; set; }
+        public bool PrefetchBody { get; set; }
+        public Mockly.RequestCollection Requests { get; }
+        public void Clear() { }
+        public Mockly.RequestMockBuilder ForDelete() { }
+        public Mockly.RequestMockBuilder ForGet() { }
+        public Mockly.RequestMockBuilder ForPatch() { }
+        public Mockly.RequestMockBuilder ForPost() { }
+        public Mockly.RequestMockBuilder ForPut() { }
+        public System.Net.Http.HttpClient GetClient() { }
+        public System.Collections.Generic.IEnumerable<Mockly.RequestMock> GetUninvokedMocks() { }
+        public Mockly.HttpMock Reset() { }
+    }
+    public class Matcher
+    {
+        public Matcher(System.Func<Mockly.RequestInfo, System.Threading.Tasks.Task<bool>> predicate, string? displayText) { }
+        public System.Threading.Tasks.Task<bool> IsMatch(Mockly.RequestInfo request) { }
+        public override string ToString() { }
+    }
+    public class RequestCollection : System.Collections.Generic.IEnumerable<Mockly.CapturedRequest>, System.Collections.IEnumerable
+    {
+        public RequestCollection() { }
+        public int Count { get; }
+        public bool HasUnexpectedRequests { get; }
+        public bool IsEmpty { get; }
+        public Mockly.CapturedRequest? First() { }
+        public System.Collections.Generic.IEnumerator<Mockly.CapturedRequest> GetEnumerator() { }
+        public override string ToString() { }
+    }
+    public class RequestInfo
+    {
+        public RequestInfo(System.Net.Http.HttpRequestMessage request, string? body) { }
+        public string? Body { get; }
+        public System.Net.Http.Headers.HttpRequestHeaders Headers { get; }
+        public System.Net.Http.HttpMethod Method { get; set; }
+        public System.Net.Http.HttpRequestOptions Options { get; }
+        public System.Uri? Uri { get; }
+        public System.Version Version { get; set; }
+        public System.Net.Http.HttpVersionPolicy VersionPolicy { get; set; }
+    }
+    public class RequestMatchingException : System.Exception
+    {
+        public RequestMatchingException(string message, System.Text.Json.JsonException jsonException) { }
+    }
+    public class RequestMock
+    {
+        public RequestMock() { }
+        public System.Collections.Generic.IEnumerable<Mockly.Matcher> CustomMatchers { get; }
+        public string? HostPattern { get; init; }
+        public int InvocationCount { get; }
+        public uint? MaxInvocations { get; }
+        public System.Net.Http.HttpMethod Method { get; init; }
+        public string? PathPattern { get; init; }
+        public string? QueryPattern { get; init; }
+        public Mockly.RequestCollection? RequestCollection { get; init; }
+        public System.Func<Mockly.RequestInfo, System.Net.Http.HttpResponseMessage> Responder { get; set; }
+        public string? Scheme { get; init; }
+        public System.Threading.Tasks.Task<bool> Matches(Mockly.RequestInfo request) { }
+        public override string ToString() { }
+        public Mockly.CapturedRequest TrackRequest(Mockly.RequestInfo request) { }
+    }
+    public class RequestMockBuilder
+    {
+        public Mockly.RequestMockBuilder CollectingRequestIn(Mockly.RequestCollection collection) { }
+        public Mockly.RequestMockBuilder ForAnyHost() { }
+        public Mockly.RequestMockBuilder ForHost(string hostPattern) { }
+        public Mockly.RequestMockBuilder ForHttp() { }
+        public Mockly.RequestMockBuilder ForHttps() { }
+        public Mockly.RequestMockResponseBuilder RespondsWith(System.Func<Mockly.RequestInfo, System.Net.Http.HttpResponseMessage> responder) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithContent(string content, string contentType = "text/plain", System.Net.HttpStatusCode statusCode = 200) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithEmptyContent(System.Net.HttpStatusCode statusCode = 204) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithJsonContent(object content, System.Net.HttpStatusCode statusCode = 200) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithODataResult<T>(System.Collections.Generic.IEnumerable<T> value, System.Net.HttpStatusCode statusCode = 200) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithODataResult<T>(System.Collections.Generic.IEnumerable<T> value, string odataContext, System.Net.HttpStatusCode statusCode) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithStatus(System.Net.HttpStatusCode statusCode) { }
+        public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, System.Threading.Tasks.Task<bool>> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
+        public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, bool> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
+        public Mockly.RequestMockBuilder WithBody(string wildcardPattern) { }
+        public Mockly.RequestMockBuilder WithBodyMatchingJson(string json) { }
+        public Mockly.RequestMockBuilder WithBodyMatchingRegex([System.Diagnostics.CodeAnalysis.StringSyntax("Regex")] string regex) { }
+        public Mockly.RequestMockBuilder WithPath(string wildcardPattern) { }
+        public Mockly.RequestMockBuilder WithQuery(string wildcardPattern) { }
+        public Mockly.RequestMockBuilder WithoutQuery() { }
+    }
+    public class RequestMockResponseBuilder
+    {
+        public Mockly.RequestMockResponseBuilder Once() { }
+        public Mockly.RequestMockResponseBuilder Times(uint count) { }
+        public Mockly.RequestMockResponseBuilder Twice() { }
+    }
+    public class UnexpectedRequestException : System.Exception
+    {
+        public UnexpectedRequestException(string message) { }
+    }
+}
+namespace Mockly.Common
+{
+    public static class CollectionExtensions
+    {
+        public static System.Threading.Tasks.Task<T?> FirstOrDefaultAsync<T>(this System.Collections.Generic.IEnumerable<T> source, System.Func<T, System.Threading.Tasks.Task<bool>> predicate) { }
+    }
+}
