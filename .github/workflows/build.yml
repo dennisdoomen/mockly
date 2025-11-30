@@ -32,7 +32,7 @@ jobs:
     - name: Run NUKE
       run: ./build.ps1
       env:
-        NuGetApiKey: ${{ secrets.NUGETAPIKEY }}
+        NugetArtifactsApiKey: ${{ secrets.NUGETAPIKEY }}
         GitHubApiKey: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Check for 'lcov.info' existence
