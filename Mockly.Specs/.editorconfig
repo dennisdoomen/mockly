@@ -4,6 +4,10 @@
 # Reason: We don't care about this in tests
 dotnet_diagnostic.CA1034.severity = none
 
+# Purpose: Modify code to catch a more specific allowed exception type, or rethrow the exceptio
+# Reason: We don't care about this in tests
+dotnet_diagnostic.CA1031.severity = none
+
 # Purpose: Specify StringComparison for clarity
 # Reason: We don't care about this in tests
 dotnet_diagnostic.CA1307.severity = none
@@ -31,6 +35,10 @@ dotnet_diagnostic.CA1822.severity = none
 # Purpose: Type 'SuperClass' can be sealed
 # Reason: We don't care about this in tests
 dotnet_diagnostic.CA1852.severity = none
+
+# Purpose: Call System.IDisposable.Dispose on object
+# Reason: We don't care about this in tests
+dotnet_diagnostic.CA2000.severity = none
 
 # Purpose: XML comment analysis is disabled due to project configuration
 # Reason: We don't need the documentation from the tests

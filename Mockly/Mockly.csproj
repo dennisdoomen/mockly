@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Target frameworks:
+      - netstandard2.0/2.1 so FA extension packages (which also target netstandard) can reference this
+        project without cross-TFM resolution warnings (NU1702).
+      - net472 aligns with the specs project and has better package support than net47.
+      - net8.0 is our modern target with analyzers.
+    -->
+    <TargetFrameworks>net8.0;net472</TargetFrameworks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <LangVersion>default</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>1591;1573</NoWarn>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
+    <AssemblyName>Mockly</AssemblyName>
+    <RootNamespace>Mockly</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package info">
+    <Authors>Dennis Doomen</Authors>
+    <PackageDescription>
+      Fluent HTTP mocking for .NET like it should have done
+    </PackageDescription>
+    <PackageProjectUrl>https://github.com/dennisdoomen/mockly</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dennisdoomen/mockly</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>HTTP;mocking;assertions;fluent</PackageTags>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageIcon>PackageIcon.png</PackageIcon>
+    <PackageReadmeFile>Readme.md</PackageReadmeFile>
+    <PackageReleaseNotes>https://github.com/dennisdoomen/mockly/releases</PackageReleaseNotes>
+    <Copyright>Copyright 2025-$([System.DateTime]::Now.ToString(yyyy)) Dennis Doomen</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup Label="Package files">
+    <None Include="..\PackageIcon.png" Pack="true" Visible="false" PackagePath="" />
+    <None Include="..\LICENSE" Pack="true" PackagePath=""/>
+    <None Include="..\Artifacts\Readme.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup Label="Dependencies">
+    <PackageReference Include="PolySharp" Version="1.15.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <!-- System.Text.Json is used in the library; single version for all TFMs to keep assembly resolution consistent -->
+  </ItemGroup>
+
+  <!-- Only desktop framework needs System.Net.Http package; for netstandard/net8 it's provided by the framework -->
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net472' ">
+    <PackageReference Include="System.Net.Http" Version="4.3.4" />
+    <PackageReference Include="System.Text.Json" Version="8.0.6" />
+  </ItemGroup>
+
+  <ItemGroup Label="Internals visible to">
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>Mockly.Specs</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>FluentAssertions.Mockly.v7</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>FluentAssertions.Mockly.v8</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <DocumentationFile>bin\Debug\Mockly.xml</DocumentationFile>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <DocumentationFile>bin\Release\Mockly.xml</DocumentationFile>
+    </PropertyGroup>
+
+</Project>

@@ -229,6 +229,10 @@ dotnet_diagnostic.CA1062.severity = suggestion
 # Rationale: Very specific rule for localizable applications
 dotnet_diagnostic.CA1303.severity = suggestion
 
+# Purpose: The behavior of StringBuilder.Append could vary based on the current user's locale settings.
+# Rationale: We don't want to force this in all cases
+dotnet_diagnostic.CA1305.severity = suggestion
+
 # Purpose: Rename virtual/interface member so that it no longer conflicts with the reserved language keyword 'Throw'.
 # Rationale: We only support C#
 dotnet_diagnostic.CA1716.severity = none
@@ -401,4 +405,6 @@ dotnet_diagnostic.MA0069.severity = none # duplicate of CA2211
 dotnet_diagnostic.RCS1102.severity = none # duplicate of CA1052
 dotnet_diagnostic.RCS1188.severity = none # duplicate of CA1805
 dotnet_diagnostic.RCS1194.severity = none # duplicate of CA1032
+dotnet_diagnostic.RCS1075.severity = none # duplicate of CA1031
 dotnet_diagnostic.SA1401.severity = none # duplicate of CA1051
+dotnet_diagnostic.MA0048.severity = none # duplicate of SA1649
