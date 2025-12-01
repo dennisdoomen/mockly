@@ -23,7 +23,7 @@ public class HttpMockSpecs
 
             // Assert
             var response = await mock.GetClient().GetAsync("http://localhost/api/test");
-            HttpResponseMessageExtensions.Should(response).Be200Ok();
+            response.Should().Be200Ok();
         }
 
         [Fact]
@@ -37,7 +37,7 @@ public class HttpMockSpecs
 
             // Assert
             var response = await mock.GetClient().GetAsync("http://localhost/api/test");
-            HttpResponseMessageExtensions.Should(response).Be200Ok();
+            response.Should().Be200Ok();
         }
 
         [Fact]
@@ -78,6 +78,27 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Can_match_any_query()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/search")
+                .WithAnyQuery()
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            // Build step removed;
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("http://localhost/api/search?q=something with spaces");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
         public async Task Supports_spaces_in_the_query()
         {
             // Arrange
@@ -86,6 +107,27 @@ public class HttpMockSpecs
             mock.ForGet()
                 .WithPath("/api/search")
                 .WithQuery("?q=something with spaces")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            // Build step removed;
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("http://localhost/api/search?q=something with spaces");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task The_query_does_not_require_a_question_mark()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/search")
+                .WithQuery("q=something with spaces")
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             // Build step removed;
@@ -115,7 +157,33 @@ public class HttpMockSpecs
             var response = await mock.GetClient().GetAsync("http://localhost/api/data");
 
             // Assert
-            await HttpResponseMessageExtensions.Should(response).BeEquivalentTo(new
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            await response.Should().BeEquivalentTo(new
+            {
+                Id = 123,
+                Name = "Test"
+            });
+        }
+
+        [Fact]
+        public async Task Can_mock_get_request_with_json_response_and_status_code()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var testData = new
+            {
+                Id = 123,
+                Name = "Test"
+            };
+
+            mock.ForGet().WithPath("/api/data").RespondsWithJsonContent(HttpStatusCode.Found, testData);
+
+            // Act
+            var response = await mock.GetClient().GetAsync("http://localhost/api/data");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Found);
+            await response.Should().BeEquivalentTo(new
             {
                 Id = 123,
                 Name = "Test"
@@ -825,9 +893,57 @@ public class HttpMockSpecs
 
             // Act
             var response = await client.GetAsync("http://localhost/api/text");
-            var content = await response.Content.ReadAsStringAsync();
 
             // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var content = await response.Content.ReadAsStringAsync();
+            content.Should().Be("Hello, World!");
+        }
+
+        [Fact]
+        public async Task Can_respond_with_raw_string_and_status_code()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/api/text")
+                .RespondsWithContent(HttpStatusCode.Ambiguous, "Hello, World!");
+
+            // Build step removed;
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.PostAsync("http://localhost/api/text", new StringContent("something"));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Ambiguous);
+
+            var content = await response.Content.ReadAsStringAsync();
+            content.Should().Be("Hello, World!");
+        }
+
+        [Fact]
+        public async Task Can_respond_with_raw_string_status_code_and_content_type()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/text")
+                .RespondsWithContent(HttpStatusCode.Ambiguous, "Hello, World!", "text/json");
+
+            // Build step removed;
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("http://localhost/api/text");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Ambiguous);
+
+            var content = await response.Content.ReadAsStringAsync();
             content.Should().Be("Hello, World!");
         }
 
@@ -906,7 +1022,7 @@ public class HttpMockSpecs
             var response = await client.GetAsync("http://localhost/odata/items");
 
             // Assert
-            await HttpResponseMessageExtensions.Should(response).BeEquivalentTo(new
+            await response.Should().BeEquivalentTo(new
             {
                 value = new[]
                 {
@@ -940,7 +1056,7 @@ public class HttpMockSpecs
             var response = await client.GetAsync("http://localhost/odata/empty");
 
             // Assert
-            await HttpResponseMessageExtensions.Should(response).BeEquivalentTo(new
+            await response.Should().BeEquivalentTo(new
             {
                 value = Array.Empty<object>()
             });
@@ -964,7 +1080,7 @@ public class HttpMockSpecs
 
             mock.ForGet()
                 .WithPath("/odata/ctx")
-                .RespondsWithODataResult(items, context, HttpStatusCode.OK);
+                .RespondsWithODataResult(HttpStatusCode.OK, items, context);
 
             var client = mock.GetClient();
 
@@ -975,6 +1091,40 @@ public class HttpMockSpecs
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             content.Should().Contain("\"@odata.context\":\"" + context + "\"");
+        }
+
+        [Fact]
+        public async Task Can_respond_with_a_single_element_that_will_be_wrapped_in_an_odata_envelope()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            var item = new
+            {
+                Id = 1
+            };
+
+            mock.ForGet()
+                .WithPath("/odata/ctx")
+                .RespondsWithODataResult(HttpStatusCode.Found, item);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("http://localhost/odata/ctx");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Found);
+            await response.Should().BeEquivalentTo(new
+            {
+                value = new[]
+                {
+                    new
+                    {
+                        Id = 1
+                    }
+                }
+            });
         }
     }
 

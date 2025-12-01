@@ -299,6 +299,29 @@ public class RequestCollectionContainRequestSpecs
         }
 
         [Fact]
+        public async Task Fails_when_body_does_not_have_the_expected_property_and_value()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("http://localhost/api/test", new StringContent("{ \"id\":\"1\" }"));
+
+            var expected = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["id"] = "2"
+            };
+
+            var act = () => mock.Requests.Should().ContainRequest()
+                .WithBodyHavingProperty("id", "2");
+
+            // Assert
+            act.Should().Throw<XunitException>().WithMessage("Expected actual to contain value \"2\" at key \"id\", but found \"1\"*");
+        }
+
+        [Fact]
         public async Task Fails_when_body_is_not_json_object()
         {
             // Arrange
