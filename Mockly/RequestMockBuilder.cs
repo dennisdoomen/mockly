@@ -1,12 +1,13 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
-using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Mockly.Common;
+
 #if NET472_OR_GREATER
+using System.Net.Http;
 #endif
 
 namespace Mockly;
@@ -97,8 +98,21 @@ public class RequestMockBuilder
     /// </summary>
     public RequestMockBuilder WithQuery(string wildcardPattern)
     {
+        if (!wildcardPattern.StartsWith("?", StringComparison.Ordinal))
+        {
+            wildcardPattern = "?" + wildcardPattern;
+        }
+
         queryPattern = wildcardPattern;
         return this;
+    }
+
+    /// <summary>
+    /// Configures the request mock to match any query string in the request URI.
+    /// </summary>
+    public RequestMockBuilder WithAnyQuery()
+    {
+        return WithQuery("*");
     }
 
     /// <summary>
@@ -231,9 +245,17 @@ public class RequestMockBuilder
     }
 
     /// <summary>
-    /// Responds with JSON content serialized from the specified object.
+    /// Responds with JSON content serialized from the specified object and status code 200 (OK).
     /// </summary>
-    public RequestMockResponseBuilder RespondsWithJsonContent(object content, HttpStatusCode statusCode = HttpStatusCode.OK)
+    public RequestMockResponseBuilder RespondsWithJsonContent(object content)
+    {
+        return RespondsWithJsonContent(HttpStatusCode.OK, content);
+    }
+
+    /// <summary>
+    /// Responds with JSON content serialized from the specified object and a specific status code..
+    /// </summary>
+    public RequestMockResponseBuilder RespondsWithJsonContent(HttpStatusCode statusCode, object content)
     {
         var mock = new RequestMock
         {
@@ -260,10 +282,39 @@ public class RequestMockBuilder
     }
 
     /// <summary>
-    /// Responds with an OData v4 result envelope: { "value": [...] }.
+    /// Configures an HTTP response with an OData v4 result envelope containing a single entity of the specified type
+    /// and status code 200 (OK).
     /// </summary>
-    public RequestMockResponseBuilder RespondsWithODataResult<T>(IEnumerable<T> value,
-        HttpStatusCode statusCode = HttpStatusCode.OK)
+    /// <param name="value">The entity to include in the OData result.</param>
+    public RequestMockResponseBuilder RespondsWithODataResult(object value)
+    {
+        return RespondsWithODataResult(HttpStatusCode.OK, [value]);
+    }
+
+    /// <summary>
+    /// Configures an HTTP response with an OData v4 result envelope containing a single entity of the specified type.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code for the response.</param>
+    /// <param name="value">The entity to include in the OData result.</param>
+    public RequestMockResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode,
+        object value)
+    {
+        return RespondsWithODataResult(statusCode, [value]);
+    }
+
+    /// <summary>
+    /// Responds with an OData v4 result envelope: { "value": [...] } and status code 200 (OK).
+    /// </summary>
+    public RequestMockResponseBuilder RespondsWithODataResult(IEnumerable<object> value)
+    {
+        return RespondsWithODataResult(HttpStatusCode.OK, value);
+    }
+
+    /// <summary>
+    /// Responds with an OData v4 result envelope: { "value": [...] } and a specific status code.
+    /// </summary>
+    public RequestMockResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode,
+        IEnumerable<object> value)
     {
         var mock = new RequestMock
         {
@@ -279,7 +330,7 @@ public class RequestMockBuilder
             {
                 var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
-                    ["value"] = value?.ToArray() ?? Array.Empty<T>()
+                    ["value"] = value.ToArray()
                 };
 
                 string json = JsonSerializer.Serialize(payload);
@@ -297,9 +348,8 @@ public class RequestMockBuilder
     /// <summary>
     /// Responds with an OData v4 result envelope including the optional "@odata.context" value.
     /// </summary>
-    public RequestMockResponseBuilder RespondsWithODataResult<T>(IEnumerable<T> value,
-        string odataContext,
-        HttpStatusCode statusCode)
+    public RequestMockResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode, IEnumerable<object> value,
+        string odataContext)
     {
         var mock = new RequestMock
         {
@@ -336,10 +386,33 @@ public class RequestMockBuilder
     }
 
     /// <summary>
-    /// Responds with raw string content.
+    /// Configures the mock response to return the specified raw string content with a default HTTP status code of 200 (OK)
+    /// and a default content type of "text/plain".
     /// </summary>
-    public RequestMockResponseBuilder RespondsWithContent(string content, string contentType = "text/plain",
-        HttpStatusCode statusCode = HttpStatusCode.OK)
+    /// <param name="content">The body content to return in the HTTP response.</param>
+    public RequestMockResponseBuilder RespondsWithContent(string content)
+    {
+        return RespondsWithContent(HttpStatusCode.OK, content, "text/plain");
+    }
+
+    /// <summary>
+    /// Configures a response with the specified HTTP status code and content where the content type is set to text/plain.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code to send in the response.</param>
+    /// <param name="content">The content to include in the response body.</param>
+    public RequestMockResponseBuilder RespondsWithContent(HttpStatusCode statusCode, string content)
+    {
+        return RespondsWithContent(statusCode, content, "text/plain");
+    }
+
+    /// <summary>
+    /// Configures the mock to respond with a specific HTTP status code, content, and content type.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code to respond with.</param>
+    /// <param name="content">The response content as a string.</param>
+    /// <param name="contentType">The MIME type of the response content.</param>
+    public RequestMockResponseBuilder RespondsWithContent(HttpStatusCode statusCode, string content,
+        string contentType)
     {
         var mock = new RequestMock
         {

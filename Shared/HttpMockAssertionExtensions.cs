@@ -441,6 +441,42 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
         return this;
     }
 
+    /// <summary>
+    /// Asserts the body contains a top-level property with the given key and value.
+    /// </summary>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public ContainedRequestAssertions WithBodyHavingProperty(string key, string value, string because = "",
+        params object[] becauseArgs)
+    {
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(request.Body is not null)
+            .FailWith("Expected the request body to contain a property with key {0}, but the body is <null>", key);
+
+        var actual = JsonSerializer.Deserialize<IDictionary<string, string>>(request.Body!);
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(actual is not null)
+            .FailWith("Expected the request body to be deserializable to a dictionary{because}, but deserialization failed");
+
+        actual.Should().Contain(key, value);
+        return this;
+    }
+
     protected override string Identifier
     {
         get => "captured request";
