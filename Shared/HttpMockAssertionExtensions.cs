@@ -65,7 +65,7 @@ public class HttpMockAssertions(HttpMock subject) :
     /// <summary>
     /// Asserts that all configured request mocks have been invoked.
     /// </summary>
-    public void HaveAllRequestsCalled(string because = "", params object[] becauseArgs)
+    public AndConstraint<HttpMockAssertions> HaveAllRequestsCalled(string because = "", params object[] becauseArgs)
     {
         var uninvokedCount = subject.GetUninvokedMocks().Count();
 
@@ -77,6 +77,8 @@ public class HttpMockAssertions(HttpMock subject) :
             .BecauseOf(because, becauseArgs)
             .ForCondition(subject.AllMocksInvoked)
             .FailWith("all request mocks should have been called, but {0} mock(s) were not invoked", uninvokedCount);
+
+        return new AndConstraint<HttpMockAssertions>(this);
     }
 
     protected override string Identifier => "HTTP mock";
@@ -104,7 +106,7 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
     /// <summary>
     /// Asserts that the request collection does not contain any unexpected requests.
     /// </summary>
-    public void NotContainUnexpectedCalls(string because = "", params object[] becauseArgs)
+    public AndConstraint<RequestCollectionAssertions> NotContainUnexpectedCalls(string because = "", params object[] becauseArgs)
     {
         var unexpectedRequests = subject.Where(r => !r.WasExpected).ToList();
 
@@ -120,6 +122,8 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
                 unexpectedRequests.Count,
                 Environment.NewLine,
                 string.Join(Environment.NewLine, unexpectedRequests.Select(r => $"  {r.Method} {r.Uri}")));
+
+        return new AndConstraint<RequestCollectionAssertions>(this);
     }
 
     /// <summary>
@@ -207,6 +211,37 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
 
         return new ContainedRequestAssertions(found!);
     }
+
+    /// <summary>
+    /// Asserts that the collection does not contain a request matching the given URI.
+    /// </summary>
+    public AndConstraint<RequestCollectionAssertions> NotContainRequestFor(Uri uri, string because = "", params object[] becauseArgs)
+    {
+        return NotContainRequestFor(uri.ToString(), because, becauseArgs);
+    }
+
+    /// <summary>
+    /// Asserts that the collection does not contain a request matching the given URL pattern.
+    /// </summary>
+    public AndConstraint<RequestCollectionAssertions> NotContainRequestFor(string urlPattern, string because = "", params object[] becauseArgs)
+    {
+        var matches = subject.Where(r => r.Uri is not null && r.Uri.ToString().MatchesWildcard(urlPattern)).ToList();
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(!matches.Any())
+            .FailWith(
+                matches.Any()
+                    ? $"Did not expect a request for URL pattern \"{urlPattern}\"{{because}}, but found:{Environment.NewLine}{string.Join(Environment.NewLine, matches.Select(r => $" - {r}"))}"
+                    : $"Did not expect a request for URL pattern \"{urlPattern}\"{{because}}, but none were found")
+            ;
+
+        return new AndConstraint<RequestCollectionAssertions>(this);
+    }
 }
 
 /// <summary>
@@ -238,7 +273,7 @@ public class CapturedRequestAssertions : ObjectAssertions<CapturedRequest, Captu
     /// <param name="becauseArgs">
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
-    public void BeExpected(string because = "", params object[] becauseArgs)
+    public AndConstraint<CapturedRequestAssertions> BeExpected(string because = "", params object[] becauseArgs)
     {
 #if FA8
         AssertionChain.GetOrCreate()
@@ -248,6 +283,8 @@ public class CapturedRequestAssertions : ObjectAssertions<CapturedRequest, Captu
             .BecauseOf(because, becauseArgs)
             .ForCondition(subject.WasExpected)
             .FailWith("request should be expected, but it was unexpected");
+
+        return new AndConstraint<CapturedRequestAssertions>(this);
     }
 
     /// <summary>
@@ -260,7 +297,7 @@ public class CapturedRequestAssertions : ObjectAssertions<CapturedRequest, Captu
     /// <param name="becauseArgs">
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
-    public void BeUnexpected(string because = "", params object[] becauseArgs)
+    public AndConstraint<CapturedRequestAssertions> BeUnexpected(string because = "", params object[] becauseArgs)
     {
 #if FA8
         AssertionChain.GetOrCreate()
@@ -270,6 +307,8 @@ public class CapturedRequestAssertions : ObjectAssertions<CapturedRequest, Captu
             .BecauseOf(because, becauseArgs)
             .ForCondition(!subject.WasExpected)
             .FailWith("request should be unexpected, but it was expected");
+
+        return new AndConstraint<CapturedRequestAssertions>(this);
     }
 
     protected override string Identifier
@@ -305,7 +344,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     /// <param name="becauseArgs">
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
-    public ContainedRequestAssertions WithBody(string wildcard, string because = "", params object[] becauseArgs)
+    public AndConstraint<ContainedRequestAssertions> WithBody(string wildcard, string because = "", params object[] becauseArgs)
     {
         var body = request.Body;
 
@@ -318,7 +357,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
             .ForCondition(body is not null && body.MatchesWildcard(wildcard))
             .FailWith("Expected request body to match wildcard pattern {0}, but it was {1}", wildcard, body ?? "<null>");
 
-        return this;
+        return new AndConstraint<ContainedRequestAssertions>(this);
     }
 
     /// <summary>
@@ -331,7 +370,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     /// <param name="becauseArgs">
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
-    public ContainedRequestAssertions WithBodyMatchingJson(string json, string because = "", params object[] becauseArgs)
+    public AndConstraint<ContainedRequestAssertions> WithBodyMatchingJson(string json, string because = "", params object[] becauseArgs)
     {
         if (string.IsNullOrEmpty(json))
         {
@@ -368,7 +407,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
                 .FailWith("Request body is not valid JSON: {0}", request.Body ?? "<null>");
         }
 
-        return this;
+        return new AndConstraint<ContainedRequestAssertions>(this);
     }
 
     /// <summary>
@@ -381,7 +420,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     /// <param name="becauseArgs">
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
-    public ContainedRequestAssertions WithBodyEquivalentTo<T>(T expected, string because = "", params object[] becauseArgs)
+    public AndConstraint<ContainedRequestAssertions> WithBodyEquivalentTo<T>(T expected, string because = "", params object[] becauseArgs)
     {
         T? actualObj = default;
         try
@@ -402,7 +441,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
         }
 
         actualObj.Should().BeEquivalentTo(expected, because, becauseArgs);
-        return this;
+        return new AndConstraint<ContainedRequestAssertions>(this);
     }
 
     /// <summary>
@@ -415,7 +454,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     /// <param name="becauseArgs">
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
-    public ContainedRequestAssertions WithBodyHavingPropertiesOf(IDictionary<string, string> expectation, string because = "",
+    public AndConstraint<ContainedRequestAssertions> WithBodyHavingPropertiesOf(IDictionary<string, string> expectation, string because = "",
         params object[] becauseArgs)
     {
 #if FA8
@@ -438,7 +477,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
             .FailWith("Expected the request body to be deserializable to a dictionary{because}, but deserialization failed");
 
         actual.Should().BeEquivalentTo(expectation, because, becauseArgs);
-        return this;
+        return new AndConstraint<ContainedRequestAssertions>(this);
     }
 
     /// <summary>
@@ -451,7 +490,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     /// <param name="becauseArgs">
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
-    public ContainedRequestAssertions WithBodyHavingProperty(string key, string value, string because = "",
+    public AndConstraint<ContainedRequestAssertions> WithBodyHavingProperty(string key, string value, string because = "",
         params object[] becauseArgs)
     {
 #if FA8
@@ -474,7 +513,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
             .FailWith("Expected the request body to be deserializable to a dictionary{because}, but deserialization failed");
 
         actual.Should().Contain(key, value);
-        return this;
+        return new AndConstraint<ContainedRequestAssertions>(this);
     }
 
     protected override string Identifier
