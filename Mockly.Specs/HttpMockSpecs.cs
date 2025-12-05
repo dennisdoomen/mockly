@@ -22,7 +22,7 @@ public class HttpMockSpecs
             mock.ForGet().WithPath("api/test").RespondsWithStatus(HttpStatusCode.OK);
 
             // Assert
-            var response = await mock.GetClient().GetAsync("http://localhost/api/test");
+            var response = await mock.GetClient().GetAsync("https://localhost/api/test");
             response.Should().Be200Ok();
         }
 
@@ -36,7 +36,7 @@ public class HttpMockSpecs
             mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
 
             // Assert
-            var response = await mock.GetClient().GetAsync("http://localhost/api/test");
+            var response = await mock.GetClient().GetAsync("https://localhost/api/test");
             response.Should().Be200Ok();
         }
 
@@ -48,12 +48,12 @@ public class HttpMockSpecs
             mock.ForGet().WithPath("/api").RespondsWithStatus(HttpStatusCode.OK);
 
             // Act
-            var act = () => mock.GetClient().GetAsync("http://localhost/api/test");
+            var act = () => mock.GetClient().GetAsync("https://localhost/api/test");
 
             // Assert
             await act
                 .Should().ThrowAsync<UnexpectedRequestException>()
-                .WithMessage("Unexpected request to*GET http://localhost/api/test*");
+                .WithMessage("Unexpected request to*GET https://localhost/api/test*");
         }
 
         [Fact]
@@ -70,11 +70,11 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var act = () => client.GetAsync("http://localhost/api/search?q=something with spaces");
+            var act = () => client.GetAsync("https://localhost/api/search?q=something with spaces");
 
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>()
-                .WithMessage("Unexpected request to:*GET http://localhost/api/search?q=something with spaces*");
+                .WithMessage("Unexpected request to:*GET https://localhost/api/search?q=something with spaces*");
         }
 
         [Fact]
@@ -92,7 +92,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/api/search?q=something with spaces");
+            var response = await client.GetAsync("https://localhost/api/search?q=something with spaces");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -113,7 +113,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/api/search?q=something with spaces");
+            var response = await client.GetAsync("https://localhost/api/search?q=something with spaces");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -134,7 +134,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/api/search?q=something with spaces");
+            var response = await client.GetAsync("https://localhost/api/search?q=something with spaces");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -154,7 +154,7 @@ public class HttpMockSpecs
             mock.ForGet().WithPath("/api/data").RespondsWithJsonContent(testData);
 
             // Act
-            var response = await mock.GetClient().GetAsync("http://localhost/api/data");
+            var response = await mock.GetClient().GetAsync("https://localhost/api/data");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -179,7 +179,7 @@ public class HttpMockSpecs
             mock.ForGet().WithPath("/api/data").RespondsWithJsonContent(HttpStatusCode.Found, testData);
 
             // Act
-            var response = await mock.GetClient().GetAsync("http://localhost/api/data");
+            var response = await mock.GetClient().GetAsync("https://localhost/api/data");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Found);
@@ -204,7 +204,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.PostAsync("http://localhost/api/create", new StringContent("test"));
+            var response = await client.PostAsync("https://localhost/api/create", new StringContent("test"));
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -224,7 +224,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var request = new HttpRequestMessage(new HttpMethod("PATCH"), "http://localhost/api/update")
+            var request = new HttpRequestMessage(new HttpMethod("PATCH"), "https://localhost/api/update")
             {
                 Content = new StringContent("test")
             };
@@ -249,7 +249,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.PutAsync("http://localhost/api/update", new StringContent("payload"));
+            var response = await client.PutAsync("https://localhost/api/update", new StringContent("payload"));
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Accepted);
@@ -269,7 +269,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.DeleteAsync("http://localhost/api/delete");
+            var response = await client.DeleteAsync("https://localhost/api/delete");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -285,7 +285,7 @@ public class HttpMockSpecs
             var mock = new HttpMock();
 
             mock.ForGet()
-                .ForHttp()
+                .ForHttps()
                 .WithPath("/api/users/*")
                 .RespondsWithStatus(HttpStatusCode.OK);
 
@@ -293,8 +293,8 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response1 = await client.GetAsync("http://localhost/api/users/123");
-            var response2 = await client.GetAsync("http://localhost/api/users/456");
+            var response1 = await client.GetAsync("https://localhost/api/users/123");
+            var response2 = await client.GetAsync("https://localhost/api/users/456");
 
             // Assert
             response1.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -316,7 +316,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/api/search?q=test");
+            var response = await client.GetAsync("https://localhost/api/search?q=test");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -340,7 +340,7 @@ public class HttpMockSpecs
             client.DefaultRequestHeaders.Add("X-Custom-Header", "value");
 
             // Act
-            var response = await client.GetAsync("http://localhost/api/test");
+            var response = await client.GetAsync("https://localhost/api/test");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -360,7 +360,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.PostAsync("http://localhost/api/test",
+            var response = await client.PostAsync("https://localhost/api/test",
                 new StringContent("a body with something in it"));
 
             // Assert
@@ -385,7 +385,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/api/async?q=test");
+            var response = await client.GetAsync("https://localhost/api/async?q=test");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -409,11 +409,11 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var act = () => client.GetAsync("http://localhost/api/async?q=other");
+            var act = () => client.GetAsync("https://localhost/api/async?q=other");
 
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>()
-                .WithMessage("Unexpected request to*GET http://localhost/api/async?q=other*");
+                .WithMessage("Unexpected request to*GET https://localhost/api/async?q=other*");
         }
     }
 
@@ -433,7 +433,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.PostAsync("http://localhost/api/test",
+            var response = await client.PostAsync("https://localhost/api/test",
                 new StringContent("a body with something in it"));
 
             // Assert
@@ -454,7 +454,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.PostAsync("http://localhost/api/json", new StringContent(
+            var response = await client.PostAsync("https://localhost/api/json", new StringContent(
                 """
                 {
                 "name" : "John",
@@ -481,7 +481,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var act = () => client.PostAsync("http://localhost/api/json", new StringContent(
+            var act = () => client.PostAsync("https://localhost/api/json", new StringContent(
                 """
                 {
                 "name" : "John",
@@ -508,7 +508,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.PostAsync("http://localhost/api/test",
+            var response = await client.PostAsync("https://localhost/api/test",
                 new StringContent("a body with something in it"));
 
             // Assert
@@ -536,7 +536,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            await client.PostAsync("http://localhost/api/test",
+            await client.PostAsync("https://localhost/api/test",
                 new StringContent("a body with something in it"));
 
             // Assert
@@ -563,7 +563,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            await client.SendAsync(new HttpRequestMessage(new HttpMethod("PATCH"), "http://localhost/api/update")
+            await client.SendAsync(new HttpRequestMessage(new HttpMethod("PATCH"), "https://localhost/api/update")
             {
                 Content = new StringContent("test")
             });
@@ -572,7 +572,7 @@ public class HttpMockSpecs
             requests.HasUnexpectedRequests.Should().BeFalse();
             requests.IsEmpty.Should().BeFalse();
             requests.Count.Should().Be(1);
-            requests.Should().ContainSingle().Which.ToString().Should().Be("PATCH http://localhost/api/update");
+            requests.Should().ContainSingle().Which.ToString().Should().Be("PATCH https://localhost/api/update");
         }
 
         [Fact]
@@ -592,7 +592,7 @@ public class HttpMockSpecs
             try
             {
                 // Execute a GET request instead of a PATCH request
-                await client.SendAsync(new HttpRequestMessage(new HttpMethod("GET"), "http://localhost/api/update"));
+                await client.SendAsync(new HttpRequestMessage(new HttpMethod("GET"), "https://localhost/api/update"));
             }
             catch (Exception)
             {
@@ -610,15 +610,15 @@ public class HttpMockSpecs
             // Arrange
             var mock = new HttpMock();
 
-            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
-            mock.ForGet().WithPath("/api/test2").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForGet().ForHttp().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForGet().ForHttps().WithPath("/api/test2").RespondsWithStatus(HttpStatusCode.OK);
 
             // Build step removed;
             var client = mock.GetClient();
 
             // Act
             await client.GetAsync("http://localhost/api/test");
-            await client.GetAsync("http://localhost/api/test2");
+            await client.GetAsync("https://localhost/api/test2");
 
             // Assert
             mock.Requests.Should().BeEquivalentTo([
@@ -640,8 +640,8 @@ public class HttpMockSpecs
                     Path = "/api/test2",
                     Query = "",
                     Method = HttpMethod.Get,
-                    Scheme = "http",
-                    Uri = new Uri("http://localhost/api/test2"),
+                    Scheme = "https",
+                    Uri = new Uri("https://localhost/api/test2"),
                     WasExpected = true,
                 }
             ]);
@@ -663,7 +663,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var act = () => client.GetAsync("http://localhost/api/unexpected");
+            var act = () => client.GetAsync("https://localhost/api/unexpected");
 
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>();
@@ -682,7 +682,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/api/unexpected");
+            var response = await client.GetAsync("https://localhost/api/unexpected");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -720,14 +720,14 @@ public class HttpMockSpecs
             HttpClient httpClient = mock.GetClient();
 
             // Act
-            var act = () => httpClient.GetAsync("http://localhost/fnv_collectiveschemes(111)");
+            var act = () => httpClient.GetAsync("https://localhost/fnv_collectiveschemes(111)");
 
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>()
                 .WithMessage(
                     """
                     Unexpected request to:
-                      GET http://localhost/fnv_collectiveschemes(111)
+                      GET https://localhost/fnv_collectiveschemes(111)
 
                     Closest matching mock:
                       GET https://*/fnv_collectiveschemes(123*)
@@ -755,13 +755,13 @@ public class HttpMockSpecs
             HttpClient httpClient = mock.GetClient();
 
             // Act
-            var act = () => httpClient.GetAsync("http://localhost/fnv_collectiveschemes(111)");
+            var act = () => httpClient.GetAsync("https://localhost/fnv_collectiveschemes(111)");
 
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>()
                 .WithMessage("""
                              Unexpected request to:
-                               GET http://localhost/fnv_collectiveschemes(111)
+                               GET https://localhost/fnv_collectiveschemes(111)
 
                              Registered mocks:
                               - GET https://*/fnv_collectiveschemes
@@ -868,7 +868,7 @@ public class HttpMockSpecs
 
             // Act
             var httpsResponse = await client.GetAsync("https://somehost/api/test?q=test");
-            var httpResponse = await client.GetAsync("http://localhost/api/test?q=test");
+            var httpResponse = await client.GetAsync("https://localhost/api/test?q=test");
 
             // Assert
             httpsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -892,7 +892,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/api/text");
+            var response = await client.GetAsync("https://localhost/api/text");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -915,7 +915,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.PostAsync("http://localhost/api/text", new StringContent("something"));
+            var response = await client.PostAsync("https://localhost/api/text", new StringContent("something"));
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Ambiguous);
@@ -938,7 +938,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/api/text");
+            var response = await client.GetAsync("https://localhost/api/text");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Ambiguous);
@@ -961,7 +961,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/api/empty");
+            var response = await client.GetAsync("https://localhost/api/empty");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -984,7 +984,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/api/custom");
+            var response = await client.GetAsync("https://localhost/api/custom");
             var content = await response.Content.ReadAsStringAsync();
 
             // Assert
@@ -1019,7 +1019,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/odata/items");
+            var response = await client.GetAsync("https://localhost/odata/items");
 
             // Assert
             await response.Should().BeEquivalentTo(new
@@ -1053,7 +1053,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/odata/empty");
+            var response = await client.GetAsync("https://localhost/odata/empty");
 
             // Assert
             await response.Should().BeEquivalentTo(new
@@ -1076,7 +1076,7 @@ public class HttpMockSpecs
                 }
             };
 
-            const string context = "http://localhost/$metadata#Items";
+            const string context = "https://localhost/$metadata#Items";
 
             mock.ForGet()
                 .WithPath("/odata/ctx")
@@ -1085,7 +1085,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/odata/ctx");
+            var response = await client.GetAsync("https://localhost/odata/ctx");
             var content = await response.Content.ReadAsStringAsync();
 
             // Assert
@@ -1111,7 +1111,7 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act
-            var response = await client.GetAsync("http://localhost/odata/ctx");
+            var response = await client.GetAsync("https://localhost/odata/ctx");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Found);
@@ -1140,11 +1140,11 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act + Assert first call succeeds
-            var response1 = await client.GetAsync("http://localhost/api/once");
+            var response1 = await client.GetAsync("https://localhost/api/once");
             response1.StatusCode.Should().Be(HttpStatusCode.OK);
 
             // Second call should be unexpected (no matching non-exhausted mock)
-            Func<Task> act = async () => await client.GetAsync("http://localhost/api/once");
+            Func<Task> act = async () => await client.GetAsync("https://localhost/api/once");
             await act.Should().ThrowAsync<UnexpectedRequestException>();
         }
 
@@ -1158,15 +1158,15 @@ public class HttpMockSpecs
             var client = mock.GetClient();
 
             // Act: perform 2 out of 3 required calls
-            await client.GetAsync("http://localhost/api/times");
-            await client.GetAsync("http://localhost/api/times");
+            await client.GetAsync("https://localhost/api/times");
+            await client.GetAsync("https://localhost/api/times");
 
             // Assert: not all mocks invoked (needs 3)
             Action assertion = () => mock.Should().HaveAllRequestsCalled();
             assertion.Should().Throw<XunitException>();
 
             // Perform the third call
-            await client.GetAsync("http://localhost/api/times");
+            await client.GetAsync("https://localhost/api/times");
 
             // Now all mocks have been invoked the required number of times
             mock.Should().HaveAllRequestsCalled();
@@ -1183,6 +1183,110 @@ public class HttpMockSpecs
 
             // Assert
             act.Should().Throw<ArgumentException>().WithMessage("*to less than 1*");
+        }
+    }
+
+    public class WhenUsingUrlShortcuts
+    {
+        [Fact]
+        public async Task ForGet_with_full_https_url_and_query_wildcards_matches()
+        {
+            var mock = new HttpMock();
+
+            mock.ForGet("https://api.example.com/users/*?q=*")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var response = await mock.GetClient().GetAsync("https://api.example.com/users/123?q=abc");
+
+            response.Should().Be200Ok();
+        }
+
+        [Fact]
+        public async Task ForGet_with_wildcard_host_and_path_matches()
+        {
+            var mock = new HttpMock();
+
+            mock.ForGet("http://*.example.com/*")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var response = await mock.GetClient().GetAsync("http://shop.example.com/path/to/resource");
+
+            response.Should().Be200Ok();
+        }
+
+        [Fact]
+        public async Task ForPut_with_full_https_url_and_query_wildcards_matches()
+        {
+            var mock = new HttpMock();
+
+            mock.ForPut("https://api.example.com/users/*?q=*")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var response = await mock.GetClient().PutAsync("https://api.example.com/users/42?q=term", new StringContent(""));
+
+            response.Should().Be200Ok();
+        }
+
+        [Fact]
+        public async Task ForPatch_with_wildcard_host_and_path_matches()
+        {
+            var mock = new HttpMock();
+
+            mock.ForPatch("http://*.example.com/*")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+            var response = await client.SendAsync(new HttpRequestMessage(new HttpMethod("PATCH"), "http://admin.example.com/users/42")
+            {
+                Content = new StringContent("{}")
+            });
+
+            response.Should().Be200Ok();
+        }
+
+        [Fact]
+        public async Task ForDelete_without_query_in_pattern_does_not_match_request_with_query()
+        {
+            var mock = new HttpMock();
+
+            mock.ForDelete("https://localhost/api/items/*")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            Func<Task> act = () => mock.GetClient().DeleteAsync("https://localhost/api/items/123?force=true");
+
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("Unexpected request to*DELETE https://localhost/api/items/123?force=true*");
+        }
+
+        [Fact]
+        public async Task ForPost_without_query_in_pattern_does_not_match_request_with_query()
+        {
+            var mock = new HttpMock();
+
+            mock.ForPost("https://localhost/api/items")
+                .RespondsWithStatus(HttpStatusCode.Created);
+
+            Func<Task> act = () => mock.GetClient().PostAsync("https://localhost/api/items?x=1", new StringContent(""));
+
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("Unexpected request to*POST https://localhost/api/items?x=1*");
+        }
+    }
+
+    public class WhenCreatingHttpClientFactory
+    {
+        [Fact]
+        public async Task GetClientFactory_creates_clients_using_the_mock_handler()
+        {
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/ping").RespondsWithStatus(HttpStatusCode.OK);
+
+            var factory = mock.GetClientFactory();
+            var client = factory.CreateClient("any");
+
+            var response = await client.GetAsync("https://localhost/ping");
+
+            response.Should().Be200Ok();
         }
     }
 }

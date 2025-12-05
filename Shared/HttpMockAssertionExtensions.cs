@@ -466,16 +466,18 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
             .ForCondition(request.Body is not null)
             .FailWith("Expected the request body to be deserializable to a dictionary{because}, but the body is <null>");
 
-        var actual = JsonSerializer.Deserialize<IDictionary<string, string>>(request.Body!);
+        var objectDictionary = JsonSerializer.Deserialize<IDictionary<string, object>>(request.Body!);
+
 #if FA8
         AssertionChain.GetOrCreate()
 #else
         Execute.Assertion
 #endif
             .BecauseOf(because, becauseArgs)
-            .ForCondition(actual is not null)
+            .ForCondition(objectDictionary is not null)
             .FailWith("Expected the request body to be deserializable to a dictionary{because}, but deserialization failed");
 
+        var actual = objectDictionary!.ToDictionary(x => x.Key, x => x.Value.ToString());
         actual.Should().BeEquivalentTo(expectation, because, becauseArgs);
         return new AndConstraint<ContainedRequestAssertions>(this);
     }
