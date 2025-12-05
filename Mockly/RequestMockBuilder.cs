@@ -30,20 +30,29 @@ public class RequestMockBuilder
     {
         this.mockBuilder = mockBuilder;
         Method = method;
+
+        // Defaults: https and localhost
+        scheme = "https";
+        hostPattern = "localhost";
     }
 
     /// <summary>
     /// Copy constructor to reuse settings from another builder.
+    /// Only scheme and host are reused between calls; path, query, responders and invocation limits are not reused.
     /// </summary>
     internal RequestMockBuilder(HttpMock mockBuilder, RequestMockBuilder predecessor)
     {
         this.mockBuilder = mockBuilder;
         Method = predecessor.Method;
-        pathPattern = predecessor.pathPattern;
-        queryPattern = predecessor.queryPattern;
-        scheme = predecessor.scheme;
-        hostPattern = predecessor.hostPattern;
-        maxInvocations = predecessor.maxInvocations;
+
+        // Reuse only scheme and host
+        scheme = predecessor.scheme ?? "https";
+        hostPattern = predecessor.hostPattern ?? "localhost";
+
+        // Do NOT copy path/query/maxInvocations/custom matchers/response builders
+        pathPattern = null;
+        queryPattern = null;
+        maxInvocations = null;
     }
 
     internal HttpMethod Method { get; set; }

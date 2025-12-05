@@ -32,11 +32,17 @@ namespace Mockly
         public Mockly.RequestCollection Requests { get; }
         public void Clear() { }
         public Mockly.RequestMockBuilder ForDelete() { }
+        public Mockly.RequestMockBuilder ForDelete(string urlPattern) { }
         public Mockly.RequestMockBuilder ForGet() { }
+        public Mockly.RequestMockBuilder ForGet(string urlPattern) { }
         public Mockly.RequestMockBuilder ForPatch() { }
+        public Mockly.RequestMockBuilder ForPatch(string urlPattern) { }
         public Mockly.RequestMockBuilder ForPost() { }
+        public Mockly.RequestMockBuilder ForPost(string urlPattern) { }
         public Mockly.RequestMockBuilder ForPut() { }
+        public Mockly.RequestMockBuilder ForPut(string urlPattern) { }
         public System.Net.Http.HttpClient GetClient() { }
+        public System.Net.Http.IHttpClientFactory GetClientFactory() { }
         public System.Collections.Generic.IEnumerable<Mockly.RequestMock> GetUninvokedMocks() { }
         public Mockly.HttpMock Reset() { }
     }

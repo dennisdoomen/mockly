@@ -1,8 +1,13 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
+
+#if NET472_OR_GREATER
 using System.Net.Http;
+#endif
 using System.Text;
 using Mockly.Common;
+
+#pragma warning disable CA1054
 
 namespace Mockly;
 
@@ -54,6 +59,17 @@ public class HttpMock
     }
 
     /// <summary>
+    /// Shortcut overload that accepts a full URL pattern (supports wildcards) and configures scheme, host, path and query.
+    /// </summary>
+    public RequestMockBuilder ForGet(string urlPattern)
+    {
+        var builder = ForGet();
+        builder = ApplyUrlPattern(builder, urlPattern);
+        previousBuilder = builder;
+        return builder;
+    }
+
+    /// <summary>
     /// Starts building a mock for POST requests.
     /// Reuses settings from the previous request if available.
     /// </summary>
@@ -66,6 +82,17 @@ public class HttpMock
             }
             : new RequestMockBuilder(this, HttpMethod.Post);
 
+        previousBuilder = builder;
+        return builder;
+    }
+
+    /// <summary>
+    /// Shortcut overload that accepts a full URL pattern (supports wildcards) and configures scheme, host, path and query.
+    /// </summary>
+    public RequestMockBuilder ForPost(string urlPattern)
+    {
+        var builder = ForPost();
+        builder = ApplyUrlPattern(builder, urlPattern);
         previousBuilder = builder;
         return builder;
     }
@@ -88,6 +115,17 @@ public class HttpMock
     }
 
     /// <summary>
+    /// Shortcut overload that accepts a full URL pattern (supports wildcards) and configures scheme, host, path and query.
+    /// </summary>
+    public RequestMockBuilder ForPut(string urlPattern)
+    {
+        var builder = ForPut();
+        builder = ApplyUrlPattern(builder, urlPattern);
+        previousBuilder = builder;
+        return builder;
+    }
+
+    /// <summary>
     /// Starts building a mock for PATCH requests.
     /// Reuses settings from the previous request if available.
     /// </summary>
@@ -105,6 +143,17 @@ public class HttpMock
     }
 
     /// <summary>
+    /// Shortcut overload that accepts a full URL pattern (supports wildcards) and configures scheme, host, path and query.
+    /// </summary>
+    public RequestMockBuilder ForPatch(string urlPattern)
+    {
+        var builder = ForPatch();
+        builder = ApplyUrlPattern(builder, urlPattern);
+        previousBuilder = builder;
+        return builder;
+    }
+
+    /// <summary>
     /// Starts building a mock for DELETE requests.
     /// Reuses settings from the previous request if available.
     /// </summary>
@@ -117,6 +166,17 @@ public class HttpMock
             }
             : new RequestMockBuilder(this, HttpMethod.Delete);
 
+        previousBuilder = builder;
+        return builder;
+    }
+
+    /// <summary>
+    /// Shortcut overload that accepts a full URL pattern (supports wildcards) and configures scheme, host, path and query.
+    /// </summary>
+    public RequestMockBuilder ForDelete(string urlPattern)
+    {
+        var builder = ForDelete();
+        builder = ApplyUrlPattern(builder, urlPattern);
         previousBuilder = builder;
         return builder;
     }
@@ -148,8 +208,23 @@ public class HttpMock
     public HttpClient GetClient()
     {
 #pragma warning disable CA2000
-        return new HttpClient(new MockHttpMessageHandler(this));
+        var client = new HttpClient(new MockHttpMessageHandler(this))
+        {
+            BaseAddress = new Uri("https://localhost/")
+        };
+        return client;
 #pragma warning restore CA2000
+    }
+
+    /// <summary>
+    /// Gets an <see cref="IHttpClientFactory"/> that creates <see cref="HttpClient"/> instances
+    /// wired to this mock.
+    /// </summary>
+    [SuppressMessage("Design", "CA1024:Use properties where appropriate",
+        Justification = "Creates resources and should not be a property")]
+    public IHttpClientFactory GetClientFactory()
+    {
+        return new MockHttpClientFactory(this);
     }
 
     internal void AddMock(RequestMock mock)
@@ -296,4 +371,114 @@ public class HttpMock
             return await mock.HandleRequest(request);
         }
     }
+
+    private sealed class MockHttpClientFactory(HttpMock mock) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name)
+        {
+#pragma warning disable CA2000
+            return new HttpClient(new MockHttpMessageHandler(mock))
+            {
+                BaseAddress = new Uri("https://localhost/")
+            };
+#pragma warning restore CA2000
+        }
+    }
+
+    private static RequestMockBuilder ApplyUrlPattern(RequestMockBuilder builder, string urlPattern)
+    {
+        if (string.IsNullOrWhiteSpace(urlPattern))
+        {
+            return builder;
+        }
+
+        var pattern = urlPattern.Trim();
+
+        // Scheme
+        if (pattern.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            builder = builder.ForHttp();
+            pattern = pattern.Substring("http://".Length);
+        }
+        else if (pattern.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            builder = builder.ForHttps();
+            pattern = pattern.Substring("https://".Length);
+        }
+        else
+        {
+            // No scheme specified in pattern; leave as-is
+        }
+
+        // Host (until '/' or '?')
+        string hostPattern;
+        string remainder;
+        int slashIdx = pattern.IndexOf("/", StringComparison.Ordinal);
+        int qIdx = pattern.IndexOf("?", StringComparison.Ordinal);
+
+        int stopIdx = -1;
+        if (slashIdx >= 0 && qIdx >= 0)
+        {
+            stopIdx = Math.Min(slashIdx, qIdx);
+        }
+        else if (slashIdx >= 0)
+        {
+            stopIdx = slashIdx;
+        }
+        else if (qIdx >= 0)
+        {
+            stopIdx = qIdx;
+        }
+        else
+        {
+            // neither slash nor question mark present
+        }
+
+        if (stopIdx >= 0)
+        {
+            hostPattern = pattern.Substring(0, stopIdx);
+            remainder = pattern.Substring(stopIdx);
+        }
+        else
+        {
+            hostPattern = pattern;
+            remainder = string.Empty;
+        }
+
+        if (!string.IsNullOrEmpty(hostPattern))
+        {
+            builder = builder.ForHost(hostPattern);
+        }
+
+        // Path (starts with '/' until '?' or end)
+        string pathPattern = string.Empty;
+        string queryPattern = string.Empty;
+        if (!string.IsNullOrEmpty(remainder))
+        {
+            int qMark = remainder.IndexOf("?", StringComparison.Ordinal);
+            if (qMark >= 0)
+            {
+                pathPattern = remainder.Substring(0, qMark);
+                queryPattern = remainder.Substring(qMark); // includes '?'
+            }
+            else
+            {
+                pathPattern = remainder;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(pathPattern))
+        {
+            builder = builder.WithPath(pathPattern);
+        }
+
+        if (!string.IsNullOrEmpty(queryPattern))
+        {
+            builder = builder.WithQuery(queryPattern);
+        }
+
+        return builder;
+    }
+
+#pragma warning restore CA1054
 }
