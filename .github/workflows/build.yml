@@ -9,6 +9,7 @@ jobs:
     runs-on: windows-latest
 
     permissions:
+      id-token: write
       attestations: write
       contents: write
       security-events: write
@@ -47,6 +48,19 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         file: TestResults/reports/lcov.info
+
+    - name: Check for NuGet package existence
+      id: check_nupkg
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: andstor/file-existence-action@v3
+      with:
+        files: "Artifacts/*.nupkg"
+
+    - name: Attest NuGet package
+      uses: actions/attest-build-provenance@v3
+      if: startsWith(github.ref, 'refs/tags/') && steps.check_nupkg.outputs.files_exists == 'true'
+      with:
+        subject-path: ./Artifacts/*.nupkg
 
     - name: Upload SARIF file
       uses: github/codeql-action/upload-sarif@v4
