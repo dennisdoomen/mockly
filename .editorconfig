@@ -253,6 +253,10 @@ dotnet_diagnostic.CA2007.severity = none
 # Rationale: Although nice to have, this rule is not always practical in existing codebases.
 dotnet_diagnostic.CA2234.severity = suggestion
 
+# Purpose: Use an overload that has a IEqualityComparer<string> or IComparer<string> parameter
+# Reason: Not needed for tests
+dotnet_diagnostic.MA0002.severity = none
+
 # Purpose: Use string.Equals instead of Equals operator
 # Rationale: Does not improve readability
 dotnet_diagnostic.MA0006.severity = none

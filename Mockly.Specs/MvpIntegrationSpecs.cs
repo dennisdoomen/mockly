@@ -77,18 +77,18 @@ public class MvpIntegrationSpecs
 
             // Act - Make various requests
             var getCollectiveSchemeResponse =
-                await httpClient.GetAsync($"http://localhost/fnv_collectiveschemes({renamedCollectiveScheme.Id})");
+                await httpClient.GetAsync($"https://localhost/fnv_collectiveschemes({renamedCollectiveScheme.Id})");
 
             var getCollectiveSchemeContent = await getCollectiveSchemeResponse.Content.ReadAsStringAsync();
 
             var getWorkingScopesResponse =
                 await httpClient.GetAsync(
-                    $"http://localhost/fnv_workingscopes?$filter=_fnv_collectivescheme_value eq {renamedCollectiveScheme.Id}");
+                    $"https://localhost/fnv_workingscopes?$filter=_fnv_collectivescheme_value eq {renamedCollectiveScheme.Id}");
 
-            var getSpecialWorkingScopesResponse = await httpClient.GetAsync("http://localhost/fnv_workingscopes?special=true");
+            var getSpecialWorkingScopesResponse = await httpClient.GetAsync("https://localhost/fnv_workingscopes?special=true");
 
             var patchRequest = new HttpRequestMessage(new HttpMethod("PATCH"),
-                $"http://localhost/fnv_workingscopes({existingWorkingScope.Id})")
+                $"https://localhost/fnv_workingscopes({existingWorkingScope.Id})")
             {
                 Content = new StringContent("{}")
             };
@@ -122,7 +122,7 @@ public class MvpIntegrationSpecs
 
             // Verify we can use the same mock with the additional configuration
             var client2 = mock.GetClient();
-            var postResponse = await client2.PostAsync("http://localhost/api/new", new StringContent("test"));
+            var postResponse = await client2.PostAsync("https://localhost/api/new", new StringContent("test"));
             postResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         }
     }

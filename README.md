@@ -18,7 +18,7 @@
 [![](https://img.shields.io/librariesio/dependents/nuget/mockly.svg?label=dependent%20libraries)](https://libraries.io/nuget/mockly)
 ![GitHub Repo stars](https://img.shields.io/github/stars/dennisdoomen/mockly?style=flat)
 [![GitHub contributors](https://img.shields.io/github/contributors/dennisdoomen/mockly)](https://github.com/dennisdoomen/mockly/graphs/contributors)
-[![GitHub last commit](https://img.shields.io/github/last-commit/dennisdoomen/)](https://github.com/dennisdoomen/mockly)
+[![GitHub last commit](https://img.shields.io/github/last-commit/dennisdoomen/mockly)](https://github.com/dennisdoomen/mockly)
 [![GitHub commit activity](https://img.shields.io/github/commit-activity/m/dennisdoomen/mockly)](https://github.com/dennisdoomen/mockly/graphs/commit-activity)
 [![open issues](https://img.shields.io/github/issues/dennisdoomen/mockly)](https://github.com/dennisdoomen/mockly/issues)
 ![Static Badge](https://img.shields.io/badge/4.7%2C_8.0%2C_netstandard2.0%2C_netstandard2.1-dummy?label=dotnet&color=%235027d5)
@@ -30,7 +30,6 @@
 <a href="#quick-start">Quick Start</a> •
 <a href="#usage">Usage</a> •
 <a href="#advanced-features">Advanced Features</a> •
-<a href="#download">Download</a> •
 <a href="#building">Building</a> •
 <a href="#contributing">Contributing</a> •
 <a href="#license">License</a>
@@ -138,9 +137,9 @@ mock.Requests.Should().ContainRequest()
 
 * JSON content with automatic serialization
 * Raw string content
-* Empty responses
 * Custom HTTP status codes
 * Custom response generators
+* OData support
 
 ### 🛡️ Fail-Fast Testing
 
@@ -157,7 +156,7 @@ Install the package:
 dotnet add package mockly
 ```
 
-To get the assertions, also install one of the two assertion packages, depending on which version of Fluent Assertions  you're using:
+To get the assertions, also install one of the two assertion packages, depending on which version of Fluent Assertions you're using:
 
 ```bash
 dotnet add package FluentAssertions.Mockly.v7
@@ -210,6 +209,21 @@ mock.ForGet()
 HttpClient client = mock.GetClient();
 ```
 
+### Using IHttpClientFactory
+
+If your code expects an `IHttpClientFactory`, Mockly can provide one that produces clients wired to the mock:
+
+```csharp
+var mock = new HttpMock();
+mock.ForGet().WithPath("/ping").RespondsWithStatus(HttpStatusCode.OK);
+
+var factory = mock.GetClientFactory();
+HttpClient client = factory.CreateClient("any");
+
+var response = await client.GetAsync("http://localhost/ping");
+response.StatusCode.Should().Be(HttpStatusCode.OK);
+```
+
 ### HTTP Method Support
 
 ```csharp
@@ -218,6 +232,32 @@ mock.ForPost()    // POST requests
 mock.ForPut()     // PUT requests
 mock.ForPatch()   // PATCH requests
 mock.ForDelete()  // DELETE requests
+```
+
+### Full-URL Shortcuts (with wildcards)
+
+Instead of configuring scheme/host/path/query separately, you can provide a single full URL pattern to each `ForXxx` method. Wildcards (`*`) are supported in the host, path, and query parts.
+
+```csharp
+// GET: full https URL, wildcard path and query
+mock.ForGet("https://api.example.com/users/*?q=*")
+    .RespondsWithStatus(HttpStatusCode.OK);
+
+// POST: wildcard host and path
+mock.ForPost("http://*.example.com/*")
+    .RespondsWithStatus(HttpStatusCode.Created);
+
+// PUT: full https URL with wildcard path and query
+mock.ForPut("https://api.example.com/items/*?filter=*")
+    .RespondsWithStatus(HttpStatusCode.OK);
+
+// PATCH: wildcard host and path
+mock.ForPatch("http://*.contoso.local/*")
+    .RespondsWithStatus(HttpStatusCode.OK);
+
+// DELETE: specific host and path; since no query is specified, a request that has a query will NOT match
+mock.ForDelete("http://localhost/api/items/*")
+    .RespondsWithEmptyContent(HttpStatusCode.NoContent);
 ```
 
 ### Path and Query Matching
@@ -398,7 +438,8 @@ mock.ForDelete()
 Behavior notes:
 
 - Exhausted mocks are skipped when matching. If no other non-exhausted mock matches and `FailOnUnexpectedCalls` is `true` (default), an `UnexpectedRequestException` is thrown.
-- The default for mocks without limits is unlimited invocations; behavior is unchanged from earlier versions.
+- The mocks are evaluated in the order they were created.
+- The default for mocks without limits is unlimited invocations
 - The verification helpers consider limits:
   - `HttpMock.AllMocksInvoked` returns `true` only when each mock has been called at least once or has reached its configured `Times(..)` limit.
   - `HttpMock.GetUninvokedMocks()` lists mocks that haven’t reached their required count (or have 0 calls for unlimited mocks).
@@ -642,21 +683,6 @@ public class UserServiceTests
     }
 }
 ```
-
-## Download
-
-This library is available as [a NuGet package](https://www.nuget.org/packages/mockly) on https://nuget.org. To install it, use the following command-line:
-
-```bash
-dotnet add package mockly
-```
-
-Or via the Package Manager Console in Visual Studio:
-
-```powershell
-Install-Package mockly
-```
-
 
 ## Building
 
