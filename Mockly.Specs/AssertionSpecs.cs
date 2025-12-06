@@ -324,6 +324,23 @@ public class AssertionSpecs
         }
 
         [Fact]
+        public async Task Can_match_multiple_requests()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("hello world"));
+            await client.PostAsync("https://localhost/api/test", new StringContent("hallo wereld"));
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithBody("*wereld*");
+            mock.Requests.Should().ContainRequest().WithBody("*world*");
+        }
+
+        [Fact]
         public async Task Fails_when_body_does_not_match_wildcard_pattern()
         {
             // Arrange
@@ -359,6 +376,23 @@ public class AssertionSpecs
             // Assert
             mock.Requests.Should().ContainRequest()
                 .WithBodyMatchingJson("{ \"id\": 1, \"name\": \"x\" }");
+        }
+
+        [Fact]
+        public async Task Can_match_against_multiple_requests()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("{\n  \"id\":1, \"name\":\"x\"\n}"));
+            await client.PostAsync("https://localhost/api/test", new StringContent("{\n  \"id\":2, \"name\":\"y\"\n}"));
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithBodyMatchingJson("{ \"id\": 2, \"name\": \"y\" }");
+            mock.Requests.Should().ContainRequest().WithBodyMatchingJson("{ \"id\": 1, \"name\": \"x\" }");
         }
 
         [Fact]
@@ -409,17 +443,21 @@ public class AssertionSpecs
             var client = mock.GetClient();
 
             // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":2, \"name\":\"y\" }"));
             await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":1, \"name\":\"x\" }"));
 
-            var expected = new
+            // Assert
+            mock.Requests.Should().ContainRequest().WithBodyEquivalentTo(new
             {
                 id = 1,
                 name = "x"
-            };
+            });
 
-            // Assert
-            mock.Requests.Should().ContainRequest()
-                .WithBodyEquivalentTo(expected);
+            mock.Requests.Should().ContainRequest().WithBodyEquivalentTo(new
+            {
+                id = 2,
+                name = "y"
+            });
         }
 
         [Fact]
@@ -458,17 +496,21 @@ public class AssertionSpecs
             var client = mock.GetClient();
 
             // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":\"2\", \"name\":\"y\" }"));
             await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":\"1\", \"name\":\"x\" }"));
 
-            var expected = new Dictionary<string, string>(StringComparer.Ordinal)
+            // Assert
+            mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesOf(new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["id"] = "1",
                 ["name"] = "x"
-            };
+            });
 
-            // Assert
-            mock.Requests.Should().ContainRequest()
-                .WithBodyHavingPropertiesOf(expected);
+            mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesOf(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["id"] = "2",
+                ["name"] = "y"
+            });
         }
 
         [Fact]
@@ -503,10 +545,9 @@ public class AssertionSpecs
             var client = mock.GetClient();
 
             // Act
-            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":\"1\" }"));
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":1 }"));
 
-            var act = () => mock.Requests.Should().ContainRequest()
-                .WithBodyHavingProperty("id", "2");
+            var act = () => mock.Requests.Should().ContainRequest().WithBodyHavingProperty("id", "2");
 
             // Assert
             act.Should().Throw<XunitException>()

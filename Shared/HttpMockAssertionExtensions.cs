@@ -201,8 +201,17 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
         }
         else
         {
-            // The assertion succeeeded
+            // The assertion succeeded
         }
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .ForCondition(matchingRequests.Length > 0)
+            .FailWith(failureMessage.ToString());
 
         return new ContainedRequestAssertions(matchingRequests);
     }
@@ -210,7 +219,8 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
     /// <summary>
     /// Asserts that the collection does not contain a request matching the given URI.
     /// </summary>
-    public AndConstraint<RequestCollectionAssertions> NotContainRequestFor(Uri uri, string because = "", params object[] becauseArgs)
+    public AndConstraint<RequestCollectionAssertions> NotContainRequestFor(Uri uri, string because = "",
+        params object[] becauseArgs)
     {
         return NotContainRequestFor(uri.ToString(), because, becauseArgs);
     }
@@ -218,7 +228,8 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
     /// <summary>
     /// Asserts that the collection does not contain a request matching the given URL pattern.
     /// </summary>
-    public AndConstraint<RequestCollectionAssertions> NotContainRequestFor(string urlPattern, string because = "", params object[] becauseArgs)
+    public AndConstraint<RequestCollectionAssertions> NotContainRequestFor(string urlPattern, string because = "",
+        params object[] becauseArgs)
     {
         var matches = subject.Where(r => r.Uri is not null && r.Uri.ToString().MatchesWildcard(urlPattern)).ToList();
 
@@ -315,15 +326,17 @@ public class CapturedRequestAssertions : ObjectAssertions<CapturedRequest, Captu
 /// <summary>
 /// Assertion chain for a specific captured request located from a RequestCollection.
 /// </summary>
-public class ContainedRequestAssertions : GenericCollectionAssertions<CapturedRequest[], CapturedRequest, ContainedRequestAssertions>
+public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedRequest, ContainedRequestAssertions>
 {
     private readonly CapturedRequest[] requests;
 
-    public ContainedRequestAssertions(CapturedRequest[] requests)
+    // Internal factory ctor: multiple requests (not part of public API)
+    internal ContainedRequestAssertions(CapturedRequest[] requests)
 #if FA8
-        : base(requests, AssertionChain.GetOrCreate())
+        : base(requests.Length > 0 ? requests[0] : throw new ArgumentException("requests cannot be empty", nameof(requests)),
+            AssertionChain.GetOrCreate())
 #else
-        : base(request)
+        : base(requests.Length > 0 ? requests[0] : throw new ArgumentException("requests cannot be empty", nameof(requests)))
 #endif
     {
         this.requests = requests;
@@ -342,7 +355,8 @@ public class ContainedRequestAssertions : GenericCollectionAssertions<CapturedRe
     /// <returns>
     /// A construct that allows chaining more assertions on the matching <see cref="CapturedRequest"/>
     /// </returns>
-    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithBody(string wildcard, string because = "", params object[] becauseArgs)
+    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithBody(string wildcard, string because = "",
+        params object[] becauseArgs)
     {
         foreach (CapturedRequest request in requests)
         {
@@ -355,22 +369,24 @@ public class ContainedRequestAssertions : GenericCollectionAssertions<CapturedRe
         if (requests.Length == 1)
         {
 #if FA8
-        AssertionChain.GetOrCreate()
+            AssertionChain.GetOrCreate()
 #else
-        Execute.Assertion
+            Execute.Assertion
 #endif
-            .BecauseOf(because, becauseArgs)
-            .FailWith("Expected at least one request having a body that matches wildcard pattern {0}, but none did", wildcard);
+                .BecauseOf(because, becauseArgs)
+                .FailWith("Expected request body to match wildcard pattern {0}, but it was {1}", wildcard,
+                    requests[0].Body ?? "<null>");
         }
         else
         {
 #if FA8
             AssertionChain.GetOrCreate()
 #else
-        Execute.Assertion
+            Execute.Assertion
 #endif
                 .BecauseOf(because, becauseArgs)
-                .FailWith("Expected request body to match wildcard pattern {0}, but it was {1}", wildcard, requests[0].Body ?? "<null>");
+                .FailWith("Expected at least one request having a body that matches wildcard pattern {0}, but none did",
+                    wildcard);
         }
 
         return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
@@ -389,7 +405,8 @@ public class ContainedRequestAssertions : GenericCollectionAssertions<CapturedRe
     /// <returns>
     /// A construct that allows chaining more assertions on the matching <see cref="CapturedRequest"/>
     /// </returns>
-    public AndConstraint<ContainedRequestAssertions> WithBodyMatchingJson(string json, string because = "", params object[] becauseArgs)
+    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithBodyMatchingJson(string json, string because = "",
+        params object[] becauseArgs)
     {
         if (string.IsNullOrEmpty(json))
         {
@@ -401,32 +418,64 @@ public class ContainedRequestAssertions : GenericCollectionAssertions<CapturedRe
                 .FailWith("Cannot compare the JSON body with <null>");
         }
 
-        try
+        // Single-request behavior: keep original semantics/messages
+        if (requests.Length == 1)
         {
-            using var expected = JsonDocument.Parse(json);
-            using var actual = JsonDocument.Parse(request.Body ?? string.Empty);
+            try
+            {
+                using var expected = JsonDocument.Parse(json);
+                using var actual = JsonDocument.Parse(requests[0].Body ?? string.Empty);
 
 #if FA8
-            AssertionChain.GetOrCreate()
+                AssertionChain.GetOrCreate()
 #else
-            Execute.Assertion
+                Execute.Assertion
 #endif
-                .BecauseOf(because, becauseArgs)
-                .ForCondition(expected.RootElement.JsonEquals(actual.RootElement))
-                .FailWith("Expected request body to be JSON-equivalent to:{1}{0}{1}but was:{1}{2}", json, Environment.NewLine,
-                    request.Body ?? "<null>");
-        }
-        catch (JsonException)
-        {
+                    .BecauseOf(because, becauseArgs)
+                    .ForCondition(expected.RootElement.JsonEquals(actual.RootElement))
+                    .FailWith("Expected request body to be JSON-equivalent to:{1}{0}{1}but was:{1}{2}", json, Environment.NewLine,
+                        requests[0].Body ?? "<null>");
+            }
+            catch (JsonException)
+            {
 #if FA8
-            AssertionChain.GetOrCreate()
+                AssertionChain.GetOrCreate()
 #else
-            Execute.Assertion
+                Execute.Assertion
 #endif
-                .FailWith("Request body is not valid JSON: {0}", request.Body ?? "<null>");
+                    .FailWith("Request body is not valid JSON: {0}", requests[0].Body ?? "<null>");
+            }
+
+            return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
         }
 
-        return new AndConstraint<ContainedRequestAssertions>(this);
+        // Multiple requests: succeed if any body JSON-matches
+        using var expectedDoc = JsonDocument.Parse(json);
+        foreach (var request in requests)
+        {
+            try
+            {
+                using var actualDoc = JsonDocument.Parse(request.Body ?? string.Empty);
+                if (expectedDoc.RootElement.JsonEquals(actualDoc.RootElement))
+                {
+                    return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
+                }
+            }
+            catch (JsonException)
+            {
+                // Ignore invalid JSON bodies when multiple requests are present; we'll fail after checking all
+            }
+        }
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .FailWith("Expected at least one request body to be JSON-equivalent to:{1}{0}", json, Environment.NewLine);
+
+        return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
     }
 
     /// <summary>
@@ -439,14 +488,28 @@ public class ContainedRequestAssertions : GenericCollectionAssertions<CapturedRe
     /// <param name="becauseArgs">
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
-    public AndConstraint<ContainedRequestAssertions> WithBodyEquivalentTo<T>(T expected, string because = "", params object[] becauseArgs)
+    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithBodyEquivalentTo<T>(T expected,
+        string because = "",
+        params object[] becauseArgs)
     {
-        T? actualObj = default;
-        try
+        string[] failures = [];
+        foreach (CapturedRequest request in requests)
         {
-            actualObj = request.Body is null ? default : JsonSerializer.Deserialize<T>(request.Body);
+            T? actual = request.Body is null ? default : JsonSerializer.Deserialize<T>(request.Body!);
+            if (actual is not null)
+            {
+                using var scope = new AssertionScope();
+                actual.Should().BeEquivalentTo(expected, because, becauseArgs);
+
+                failures = scope.Discard();
+                if (failures.Length == 0)
+                {
+                    return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
+                }
+            }
         }
-        catch (JsonException exception)
+
+        if (requests.Length == 1)
         {
 #if FA8
             AssertionChain.GetOrCreate()
@@ -454,13 +517,22 @@ public class ContainedRequestAssertions : GenericCollectionAssertions<CapturedRe
             Execute.Assertion
 #endif
                 .BecauseOf(because, becauseArgs)
-                .ForCondition(actualObj is not null)
-                .FailWith("Expected the request body to be deserializable to {0}{because}, but {1} failed to deserialize: {2}",
-                    typeof(T).Name, request.Body ?? "<null>", exception.Message);
+                .FailWith(
+                    "Expected the request body to be equivalent to the expectation{because}, but it failed with: {0}",
+                    string.Join(Environment.NewLine, failures));
+        }
+        else
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .FailWith("Expected at least one request body to be equivalent to the expected object{because}, but none were");
         }
 
-        actualObj.Should().BeEquivalentTo(expected, because, becauseArgs);
-        return new AndConstraint<ContainedRequestAssertions>(this);
+        return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
     }
 
     /// <summary>
@@ -473,32 +545,58 @@ public class ContainedRequestAssertions : GenericCollectionAssertions<CapturedRe
     /// <param name="becauseArgs">
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
-    public AndConstraint<ContainedRequestAssertions> WithBodyHavingPropertiesOf(IDictionary<string, string> expectation, string because = "",
+    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithBodyHavingPropertiesOf(
+        IDictionary<string, string> expectation,
+        string because = "",
         params object[] becauseArgs)
     {
+        string[] failures = [];
+        foreach (CapturedRequest request in requests)
+        {
+            if (request.Body is null)
+            {
+                continue;
+            }
+
+            var dictionary = JsonSerializer.Deserialize<IDictionary<string, object>>(request.Body);
+            if (dictionary is not null)
+            {
+                var actual = dictionary.ToDictionary(x => x.Key, x => x.Value.ToString());
+
+                using var scope = new AssertionScope();
+                actual.Should().BeEquivalentTo(expectation, because, becauseArgs);
+
+                failures = scope.Discard();
+                if (failures.Length == 0)
+                {
+                    return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
+                }
+            }
+        }
+
+        if (requests.Length == 1)
+        {
 #if FA8
-        AssertionChain.GetOrCreate()
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .FailWith("Expected the top-level properties of the request body to be equivalent to the provided dictionary{because}, but it failed with: ",
+                    string.Join(Environment.NewLine, failures));
+        }
+        else
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
 #else
         Execute.Assertion
 #endif
-            .BecauseOf(because, becauseArgs)
-            .ForCondition(request.Body is not null)
-            .FailWith("Expected the request body to be deserializable to a dictionary{because}, but the body is <null>");
+                .BecauseOf(because, becauseArgs)
+                .FailWith("Expected at least one request body to have the expected properties{because}, but none did");
+        }
 
-        var objectDictionary = JsonSerializer.Deserialize<IDictionary<string, object>>(request.Body!);
-
-#if FA8
-        AssertionChain.GetOrCreate()
-#else
-        Execute.Assertion
-#endif
-            .BecauseOf(because, becauseArgs)
-            .ForCondition(objectDictionary is not null)
-            .FailWith("Expected the request body to be deserializable to a dictionary{because}, but deserialization failed");
-
-        var actual = objectDictionary!.ToDictionary(x => x.Key, x => x.Value.ToString());
-        actual.Should().BeEquivalentTo(expectation, because, becauseArgs);
-        return new AndConstraint<ContainedRequestAssertions>(this);
+        return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
     }
 
     /// <summary>
@@ -511,32 +609,76 @@ public class ContainedRequestAssertions : GenericCollectionAssertions<CapturedRe
     /// <param name="becauseArgs">
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
-    public AndConstraint<ContainedRequestAssertions> WithBodyHavingProperty(string key, string value, string because = "",
+    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithBodyHavingProperty(string key, string value,
+        string because = "",
         params object[] becauseArgs)
     {
+        if (requests.Length == 1)
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .ForCondition(requests[0].Body is not null)
+                .FailWith("Expected the request body to contain a property with key {0}, but the body is <null>", key);
+
+            var singleDict = JsonSerializer.Deserialize<IDictionary<string, object>>(requests[0].Body!);
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .ForCondition(singleDict is not null)
+                .FailWith("Expected the request body to be deserializable to a dictionary{because}, but deserialization failed");
+
+            var actual = singleDict!.ToDictionary(x => x.Key, x => x.Value.ToString());
+            actual.Should().Contain(key, value);
+
+            return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, requests[0]);
+        }
+
+        foreach (var req in requests)
+        {
+            if (req.Body is null)
+            {
+                continue;
+            }
+
+            IDictionary<string, object>? dict = null;
+            try
+            {
+                dict = JsonSerializer.Deserialize<IDictionary<string, object>>(req.Body!);
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+
+            if (dict is null)
+            {
+                continue;
+            }
+
+            var actual = dict.ToDictionary(x => x.Key, x => x.Value.ToString());
+            if (actual.TryGetValue(key, out var val) && string.Equals(val, value, StringComparison.Ordinal))
+            {
+                return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, req);
+            }
+        }
+
 #if FA8
         AssertionChain.GetOrCreate()
 #else
         Execute.Assertion
 #endif
             .BecauseOf(because, becauseArgs)
-            .ForCondition(request.Body is not null)
-            .FailWith("Expected the request body to contain a property with key {0}, but the body is <null>", key);
+            .FailWith("Expected at least one request body to contain property {0} with value {1}{because}, but none did", key,
+                value);
 
-        var objectDictionary = JsonSerializer.Deserialize<IDictionary<string, object>>(request.Body!);
-#if FA8
-        AssertionChain.GetOrCreate()
-#else
-        Execute.Assertion
-#endif
-            .BecauseOf(because, becauseArgs)
-            .ForCondition(objectDictionary is not null)
-            .FailWith("Expected the request body to be deserializable to a dictionary{because}, but deserialization failed");
-
-        var actual = objectDictionary!.ToDictionary(x => x.Key, x => x.Value.ToString());
-        actual.Should().Contain(key, value);
-
-        return new AndConstraint<ContainedRequestAssertions>(this);
+        return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
     }
 
     protected override string Identifier
