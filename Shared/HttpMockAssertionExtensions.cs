@@ -138,18 +138,16 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
     /// </param>
     public ContainedRequestAssertions ContainRequest(string because = "", params object[] becauseArgs)
     {
-        CapturedRequest? found = subject.FirstOrDefault();
-
 #if FA8
         AssertionChain.GetOrCreate()
 #else
         Execute.Assertion
 #endif
             .BecauseOf(because, becauseArgs)
-            .ForCondition(found is not null)
+            .ForCondition(subject.Any())
             .FailWith("Expected at least one request to have been captured{because}, but none were found");
 
-        return new ContainedRequestAssertions(found!);
+        return new ContainedRequestAssertions(subject.ToArray());
     }
 
     /// <summary>
@@ -179,11 +177,18 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
     /// </param>
     public ContainedRequestAssertions ContainRequestFor(string urlPattern, string because = "", params object[] becauseArgs)
     {
-        // If the provided URI is relative, compare by AbsolutePath + Query; otherwise by absolute URI
-        CapturedRequest? found = subject.FirstOrDefault(r => r.Uri is not null && r.Uri.ToString().MatchesWildcard(urlPattern));
+        CapturedRequest[] matchingRequests = subject
+            .Where(r => r.Uri is not null && r.Uri.ToString().MatchesWildcard(urlPattern))
+            .ToArray();
 
         var failureMessage = new StringBuilder();
-        if (!subject.IsEmpty)
+
+        if (subject.Count == 0)
+        {
+            failureMessage.AppendFormat(
+                "Expected a request for URL pattern \"{0}\"{{because}}, but no requests where captured at all", urlPattern);
+        }
+        else if (matchingRequests.Length == 0)
         {
             failureMessage.AppendFormat("Expected a request for URL pattern \"{0}\"{{because}}, but none were found among:",
                 urlPattern);
@@ -196,20 +201,10 @@ public class RequestCollectionAssertions : GenericCollectionAssertions<CapturedR
         }
         else
         {
-            failureMessage.AppendFormat(
-                "Expected a request for URL pattern \"{0}\"{{because}}, but no requests where captured at all", urlPattern);
+            // The assertion succeeeded
         }
 
-#if FA8
-        AssertionChain.GetOrCreate()
-#else
-        Execute.Assertion
-#endif
-            .BecauseOf(because, becauseArgs)
-            .ForCondition(found is not null)
-            .FailWith(failureMessage.ToString());
-
-        return new ContainedRequestAssertions(found!);
+        return new ContainedRequestAssertions(matchingRequests);
     }
 
     /// <summary>
@@ -320,22 +315,22 @@ public class CapturedRequestAssertions : ObjectAssertions<CapturedRequest, Captu
 /// <summary>
 /// Assertion chain for a specific captured request located from a RequestCollection.
 /// </summary>
-public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedRequest, ContainedRequestAssertions>
+public class ContainedRequestAssertions : GenericCollectionAssertions<CapturedRequest[], CapturedRequest, ContainedRequestAssertions>
 {
-    private readonly CapturedRequest request;
+    private readonly CapturedRequest[] requests;
 
-    public ContainedRequestAssertions(CapturedRequest request)
+    public ContainedRequestAssertions(CapturedRequest[] requests)
 #if FA8
-        : base(request, AssertionChain.GetOrCreate())
+        : base(requests, AssertionChain.GetOrCreate())
 #else
         : base(request)
 #endif
     {
-        this.request = request;
+        this.requests = requests;
     }
 
     /// <summary>
-    /// Asserts that the request body matches a wildcard pattern.
+    /// Asserts that the body of at least one of the matching requests matches a wildcard pattern.
     /// </summary>
     /// <param name="because">
     /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
@@ -344,24 +339,45 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     /// <param name="becauseArgs">
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
-    public AndConstraint<ContainedRequestAssertions> WithBody(string wildcard, string because = "", params object[] becauseArgs)
+    /// <returns>
+    /// A construct that allows chaining more assertions on the matching <see cref="CapturedRequest"/>
+    /// </returns>
+    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithBody(string wildcard, string because = "", params object[] becauseArgs)
     {
-        var body = request.Body;
+        foreach (CapturedRequest request in requests)
+        {
+            if (request.Body is not null && request.Body.MatchesWildcard(wildcard))
+            {
+                return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
+            }
+        }
 
+        if (requests.Length == 1)
+        {
 #if FA8
         AssertionChain.GetOrCreate()
 #else
         Execute.Assertion
 #endif
             .BecauseOf(because, becauseArgs)
-            .ForCondition(body is not null && body.MatchesWildcard(wildcard))
-            .FailWith("Expected request body to match wildcard pattern {0}, but it was {1}", wildcard, body ?? "<null>");
+            .FailWith("Expected at least one request having a body that matches wildcard pattern {0}, but none did", wildcard);
+        }
+        else
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .FailWith("Expected request body to match wildcard pattern {0}, but it was {1}", wildcard, requests[0].Body ?? "<null>");
+        }
 
-        return new AndConstraint<ContainedRequestAssertions>(this);
+        return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
     }
 
     /// <summary>
-    /// Asserts that the request body matches the provided JSON, ignoring whitespace/layout differences.
+    /// Asserts that at least one of the matching requests has a body matching the provided JSON, ignoring whitespace/layout differences.
     /// </summary>
     /// <param name="because">
     /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
@@ -370,6 +386,9 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     /// <param name="becauseArgs">
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
+    /// <returns>
+    /// A construct that allows chaining more assertions on the matching <see cref="CapturedRequest"/>
+    /// </returns>
     public AndConstraint<ContainedRequestAssertions> WithBodyMatchingJson(string json, string because = "", params object[] becauseArgs)
     {
         if (string.IsNullOrEmpty(json))
@@ -504,17 +523,19 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
             .ForCondition(request.Body is not null)
             .FailWith("Expected the request body to contain a property with key {0}, but the body is <null>", key);
 
-        var actual = JsonSerializer.Deserialize<IDictionary<string, string>>(request.Body!);
+        var objectDictionary = JsonSerializer.Deserialize<IDictionary<string, object>>(request.Body!);
 #if FA8
         AssertionChain.GetOrCreate()
 #else
         Execute.Assertion
 #endif
             .BecauseOf(because, becauseArgs)
-            .ForCondition(actual is not null)
+            .ForCondition(objectDictionary is not null)
             .FailWith("Expected the request body to be deserializable to a dictionary{because}, but deserialization failed");
 
+        var actual = objectDictionary!.ToDictionary(x => x.Key, x => x.Value.ToString());
         actual.Should().Contain(key, value);
+
         return new AndConstraint<ContainedRequestAssertions>(this);
     }
 
