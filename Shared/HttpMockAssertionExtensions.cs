@@ -613,6 +613,30 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
         string because = "",
         params object[] becauseArgs)
     {
+        string[] failures = [];
+        foreach (CapturedRequest request in requests)
+        {
+            if (request.Body is null)
+            {
+                continue;
+            }
+
+            var dictionary = JsonSerializer.Deserialize<IDictionary<string, object>>(request.Body);
+            if (dictionary is not null)
+            {
+                var actual = dictionary.ToDictionary(x => x.Key, x => x.Value.ToString());
+
+                using var scope = new AssertionScope();
+                actual.Should().Contain(key, value, because, becauseArgs);
+
+                failures = scope.Discard();
+                if (failures.Length == 0)
+                {
+                    return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
+                }
+            }
+        }
+
         if (requests.Length == 1)
         {
 #if FA8
@@ -621,62 +645,19 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
             Execute.Assertion
 #endif
                 .BecauseOf(because, becauseArgs)
-                .ForCondition(requests[0].Body is not null)
-                .FailWith("Expected the request body to contain a property with key {0}, but the body is <null>", key);
-
-            var singleDict = JsonSerializer.Deserialize<IDictionary<string, object>>(requests[0].Body!);
+                .FailWith("Expected the request body to contain property {0} with value {1}{because}, but it did not: {2}", key, value,
+                    string.Join(Environment.NewLine, failures));
+        }
+        else
+        {
 #if FA8
             AssertionChain.GetOrCreate()
 #else
-            Execute.Assertion
-#endif
-                .BecauseOf(because, becauseArgs)
-                .ForCondition(singleDict is not null)
-                .FailWith("Expected the request body to be deserializable to a dictionary{because}, but deserialization failed");
-
-            var actual = singleDict!.ToDictionary(x => x.Key, x => x.Value.ToString());
-            actual.Should().Contain(key, value);
-
-            return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, requests[0]);
-        }
-
-        foreach (var req in requests)
-        {
-            if (req.Body is null)
-            {
-                continue;
-            }
-
-            IDictionary<string, object>? dict = null;
-            try
-            {
-                dict = JsonSerializer.Deserialize<IDictionary<string, object>>(req.Body!);
-            }
-            catch (JsonException)
-            {
-                continue;
-            }
-
-            if (dict is null)
-            {
-                continue;
-            }
-
-            var actual = dict.ToDictionary(x => x.Key, x => x.Value.ToString());
-            if (actual.TryGetValue(key, out var val) && string.Equals(val, value, StringComparison.Ordinal))
-            {
-                return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, req);
-            }
-        }
-
-#if FA8
-        AssertionChain.GetOrCreate()
-#else
         Execute.Assertion
 #endif
-            .BecauseOf(because, becauseArgs)
-            .FailWith("Expected at least one request body to contain property {0} with value {1}{because}, but none did", key,
-                value);
+                .BecauseOf(because, becauseArgs)
+                .FailWith("Expected at least one request body to contain property {0} with value {1}{because}, but none did", key, value);
+        }
 
         return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
     }
