@@ -5,17 +5,17 @@ namespace Mockly
     {
         public CapturedRequestAssertions(Mockly.CapturedRequest subject) { }
         protected override string Identifier { get; }
-        public void BeExpected(string because = "", params object[] becauseArgs) { }
-        public void BeUnexpected(string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.CapturedRequestAssertions> BeExpected(string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.CapturedRequestAssertions> BeUnexpected(string because = "", params object[] becauseArgs) { }
     }
     public class ContainedRequestAssertions : FluentAssertions.Primitives.ReferenceTypeAssertions<Mockly.CapturedRequest, Mockly.ContainedRequestAssertions>
     {
-        public ContainedRequestAssertions(Mockly.CapturedRequest request) { }
         protected override string Identifier { get; }
-        public Mockly.ContainedRequestAssertions WithBody(string wildcard, string because = "", params object[] becauseArgs) { }
-        public Mockly.ContainedRequestAssertions WithBodyEquivalentTo<T>(T expected, string because = "", params object[] becauseArgs) { }
-        public Mockly.ContainedRequestAssertions WithBodyHavingPropertiesOf(System.Collections.Generic.IDictionary<string, string> expectation, string because = "", params object[] becauseArgs) { }
-        public Mockly.ContainedRequestAssertions WithBodyMatchingJson(string json, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithBody(string wildcard, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithBodyEquivalentTo<T>(T expected, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithBodyHavingPropertiesOf(System.Collections.Generic.IDictionary<string, string> expectation, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithBodyHavingProperty(string key, string value, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndWhichConstraint<Mockly.ContainedRequestAssertions, Mockly.CapturedRequest> WithBodyMatchingJson(string json, string because = "", params object[] becauseArgs) { }
     }
     public static class HttpMockAssertionExtensions
     {
@@ -27,7 +27,7 @@ namespace Mockly
     {
         public HttpMockAssertions(Mockly.HttpMock subject) { }
         protected override string Identifier { get; }
-        public void HaveAllRequestsCalled(string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.HttpMockAssertions> HaveAllRequestsCalled(string because = "", params object[] becauseArgs) { }
     }
     public class RequestCollectionAssertions : FluentAssertions.Collections.GenericCollectionAssertions<Mockly.CapturedRequest>
     {
@@ -35,6 +35,8 @@ namespace Mockly
         public Mockly.ContainedRequestAssertions ContainRequest(string because = "", params object[] becauseArgs) { }
         public Mockly.ContainedRequestAssertions ContainRequestFor(System.Uri uri, string because = "", params object[] becauseArgs) { }
         public Mockly.ContainedRequestAssertions ContainRequestFor(string urlPattern, string because = "", params object[] becauseArgs) { }
-        public void NotContainUnexpectedCalls(string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(System.Uri uri, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainRequestFor(string urlPattern, string because = "", params object[] becauseArgs) { }
+        public FluentAssertions.AndConstraint<Mockly.RequestCollectionAssertions> NotContainUnexpectedCalls(string because = "", params object[] becauseArgs) { }
     }
 }

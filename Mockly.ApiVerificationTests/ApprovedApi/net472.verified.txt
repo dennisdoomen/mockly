@@ -30,11 +30,17 @@ namespace Mockly
         public Mockly.RequestCollection Requests { get; }
         public void Clear() { }
         public Mockly.RequestMockBuilder ForDelete() { }
+        public Mockly.RequestMockBuilder ForDelete(string urlPattern) { }
         public Mockly.RequestMockBuilder ForGet() { }
+        public Mockly.RequestMockBuilder ForGet(string urlPattern) { }
         public Mockly.RequestMockBuilder ForPatch() { }
+        public Mockly.RequestMockBuilder ForPatch(string urlPattern) { }
         public Mockly.RequestMockBuilder ForPost() { }
+        public Mockly.RequestMockBuilder ForPost(string urlPattern) { }
         public Mockly.RequestMockBuilder ForPut() { }
+        public Mockly.RequestMockBuilder ForPut(string urlPattern) { }
         public System.Net.Http.HttpClient GetClient() { }
+        public System.Net.Http.IHttpClientFactory GetClientFactory() { }
         public System.Collections.Generic.IEnumerable<Mockly.RequestMock> GetUninvokedMocks() { }
         public Mockly.HttpMock Reset() { }
     }
@@ -93,14 +99,20 @@ namespace Mockly
         public Mockly.RequestMockBuilder ForHttp() { }
         public Mockly.RequestMockBuilder ForHttps() { }
         public Mockly.RequestMockResponseBuilder RespondsWith(System.Func<Mockly.RequestInfo, System.Net.Http.HttpResponseMessage> responder) { }
-        public Mockly.RequestMockResponseBuilder RespondsWithContent(string content, string contentType = "text/plain", System.Net.HttpStatusCode statusCode = 200) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithContent(string content) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithContent(System.Net.HttpStatusCode statusCode, string content, string contentType = "application/json") { }
         public Mockly.RequestMockResponseBuilder RespondsWithEmptyContent(System.Net.HttpStatusCode statusCode = 204) { }
-        public Mockly.RequestMockResponseBuilder RespondsWithJsonContent(object content, System.Net.HttpStatusCode statusCode = 200) { }
-        public Mockly.RequestMockResponseBuilder RespondsWithODataResult<T>(System.Collections.Generic.IEnumerable<T> value, System.Net.HttpStatusCode statusCode = 200) { }
-        public Mockly.RequestMockResponseBuilder RespondsWithODataResult<T>(System.Collections.Generic.IEnumerable<T> value, string odataContext, System.Net.HttpStatusCode statusCode) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithJsonContent(object content) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithJsonContent(System.Net.HttpStatusCode statusCode, object content) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithODataResult(System.Collections.Generic.IEnumerable<object> value) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithODataResult(object value) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithODataResult(System.Net.HttpStatusCode statusCode, System.Collections.Generic.IEnumerable<object> value) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithODataResult(System.Net.HttpStatusCode statusCode, object value) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithODataResult(System.Net.HttpStatusCode statusCode, System.Collections.Generic.IEnumerable<object> value, string odataContext) { }
         public Mockly.RequestMockResponseBuilder RespondsWithStatus(System.Net.HttpStatusCode statusCode) { }
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, System.Threading.Tasks.Task<bool>> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, bool> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
+        public Mockly.RequestMockBuilder WithAnyQuery() { }
         public Mockly.RequestMockBuilder WithBody(string wildcardPattern) { }
         public Mockly.RequestMockBuilder WithBodyMatchingJson(string json) { }
         public Mockly.RequestMockBuilder WithBodyMatchingRegex(string regex) { }
