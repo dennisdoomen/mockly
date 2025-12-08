@@ -21,7 +21,7 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/dennisdoomen/mockly)](https://github.com/dennisdoomen/mockly)
 [![GitHub commit activity](https://img.shields.io/github/commit-activity/m/dennisdoomen/mockly)](https://github.com/dennisdoomen/mockly/graphs/commit-activity)
 [![open issues](https://img.shields.io/github/issues/dennisdoomen/mockly)](https://github.com/dennisdoomen/mockly/issues)
-![Static Badge](https://img.shields.io/badge/4.7%2C_8.0%2C_netstandard2.0%2C_netstandard2.1-dummy?label=dotnet&color=%235027d5)
+![Static Badge](https://img.shields.io/badge/4.7.2%2C_8.0-dummy?label=dotnet&color=%235027d5)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://makeapullrequest.com)
 ![](https://img.shields.io/badge/release%20strategy-githubflow-orange.svg)
 
