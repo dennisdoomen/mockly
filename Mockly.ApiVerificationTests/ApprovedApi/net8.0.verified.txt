@@ -103,8 +103,7 @@ namespace Mockly
         public Mockly.RequestMockBuilder ForHttps() { }
         public Mockly.RequestMockResponseBuilder RespondsWith(System.Func<Mockly.RequestInfo, System.Net.Http.HttpResponseMessage> responder) { }
         public Mockly.RequestMockResponseBuilder RespondsWithContent(string content) { }
-        public Mockly.RequestMockResponseBuilder RespondsWithContent(System.Net.HttpStatusCode statusCode, string content) { }
-        public Mockly.RequestMockResponseBuilder RespondsWithContent(System.Net.HttpStatusCode statusCode, string content, string contentType) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithContent(System.Net.HttpStatusCode statusCode, string content, string contentType = "application/json") { }
         public Mockly.RequestMockResponseBuilder RespondsWithEmptyContent(System.Net.HttpStatusCode statusCode = 204) { }
         public Mockly.RequestMockResponseBuilder RespondsWithJsonContent(object content) { }
         public Mockly.RequestMockResponseBuilder RespondsWithJsonContent(System.Net.HttpStatusCode statusCode, object content) { }

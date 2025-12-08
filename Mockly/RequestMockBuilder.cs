@@ -396,22 +396,12 @@ public class RequestMockBuilder
 
     /// <summary>
     /// Configures the mock response to return the specified raw string content with a default HTTP status code of 200 (OK)
-    /// and a default content type of "text/plain".
+    /// and a default content type of "application/json".
     /// </summary>
     /// <param name="content">The body content to return in the HTTP response.</param>
     public RequestMockResponseBuilder RespondsWithContent(string content)
     {
-        return RespondsWithContent(HttpStatusCode.OK, content, "text/plain");
-    }
-
-    /// <summary>
-    /// Configures a response with the specified HTTP status code and content where the content type is set to text/plain.
-    /// </summary>
-    /// <param name="statusCode">The HTTP status code to send in the response.</param>
-    /// <param name="content">The content to include in the response body.</param>
-    public RequestMockResponseBuilder RespondsWithContent(HttpStatusCode statusCode, string content)
-    {
-        return RespondsWithContent(statusCode, content, "text/plain");
+        return RespondsWithContent(HttpStatusCode.OK, content, "application/json");
     }
 
     /// <summary>
@@ -421,7 +411,7 @@ public class RequestMockBuilder
     /// <param name="content">The response content as a string.</param>
     /// <param name="contentType">The MIME type of the response content.</param>
     public RequestMockResponseBuilder RespondsWithContent(HttpStatusCode statusCode, string content,
-        string contentType)
+        string contentType = "application/json")
     {
         var mock = new RequestMock
         {
