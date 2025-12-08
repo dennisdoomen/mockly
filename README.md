@@ -6,7 +6,7 @@
 </h1>
 
 
-<h4 align="center">Fluent HTTP mocking for .NET like it should have done</h4>
+<h4 align="center">Fluent HTTP mocking for .NET like it should have been done</h4>
 
 
 <div align="center">
