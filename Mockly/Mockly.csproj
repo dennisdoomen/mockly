@@ -57,7 +57,7 @@
   <!-- Only desktop framework needs System.Net.Http package; for netstandard/net8 it's provided by the framework -->
   <ItemGroup Condition=" '$(TargetFramework)' == 'net472' ">
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
-    <PackageReference Include="System.Text.Json" Version="8.0.6" />
+    <PackageReference Include="System.Text.Json" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Internals visible to">
