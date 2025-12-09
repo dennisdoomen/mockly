@@ -225,7 +225,7 @@ public class RequestMockBuilder
     /// <summary>
     /// Collects captured requests in the specified collection.
     /// </summary>
-    public RequestMockBuilder CollectingRequestIn(RequestCollection collection)
+    public RequestMockBuilder CollectingRequestsIn(RequestCollection collection)
     {
         requestCollection = collection;
         return this;

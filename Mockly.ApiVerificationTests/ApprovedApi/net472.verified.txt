@@ -93,7 +93,7 @@ namespace Mockly
     }
     public class RequestMockBuilder
     {
-        public Mockly.RequestMockBuilder CollectingRequestIn(Mockly.RequestCollection collection) { }
+        public Mockly.RequestMockBuilder CollectingRequestsIn(Mockly.RequestCollection collection) { }
         public Mockly.RequestMockBuilder ForAnyHost() { }
         public Mockly.RequestMockBuilder ForHost(string hostPattern) { }
         public Mockly.RequestMockBuilder ForHttp() { }
