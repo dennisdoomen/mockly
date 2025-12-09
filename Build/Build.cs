@@ -53,9 +53,7 @@ class Build : NukeBuild
 
     AbsolutePath ArtifactsDirectory => RootDirectory / "Artifacts";
 
-    AbsolutePath TestResultsDirectory => ArtifactsDirectory / "TestResults";
-
-    AbsolutePath CoverageResultsFile => TestResultsDirectory / "Cobertura.xml";
+    AbsolutePath TestResultsDirectory => RootDirectory / "TestResults";
 
     [NuGetPackage("PackageGuard", "PackageGuard.dll")]
     Tool PackageGuard;
@@ -272,24 +270,6 @@ class Build : NukeBuild
                 .EnableNoSymbols()
                 .CombineWith(packages,
                     (v, path) => v.SetTargetPath(path)));
-
-            // Attest packages for provenance (requires GitHub CLI and OIDC token)
-            if (GitHubActions != null)
-            {
-                foreach (var package in packages)
-                {
-                    try
-                    {
-                        Information($"Attesting package: {package}");
-                        ProcessTasks.StartProcess("gh", $"attestation attest --predicate-type https://slsa.dev/provenance/v1 {package}")
-                            .AssertZeroExitCode();
-                    }
-                    catch (Exception ex)
-                    {
-                        Warning($"Failed to attest package {package}: {ex.Message}");
-                    }
-                }
-            }
         });
 
     Target Default => _ => _

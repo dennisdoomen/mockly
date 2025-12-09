@@ -1,6 +1,6 @@
 namespace Mockly.Common;
 
-public static class CollectionExtensions
+internal static class CollectionExtensions
 {
     /// <summary>
     /// Asynchronously returns the first element of a sequence that satisfies the specified asynchronous predicate,

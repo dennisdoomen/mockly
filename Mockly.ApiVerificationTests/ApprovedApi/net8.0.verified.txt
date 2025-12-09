@@ -134,10 +134,3 @@ namespace Mockly
         public UnexpectedRequestException(string message) { }
     }
 }
-namespace Mockly.Common
-{
-    public static class CollectionExtensions
-    {
-        public static System.Threading.Tasks.Task<T?> FirstOrDefaultAsync<T>(this System.Collections.Generic.IEnumerable<T> source, System.Func<T, System.Threading.Tasks.Task<bool>> predicate) { }
-    }
-}
