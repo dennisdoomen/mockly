@@ -556,7 +556,7 @@ public class HttpMockSpecs
 
             mock.ForPatch()
                 .WithPath("/api/update")
-                .CollectingRequestIn(requests)
+                .CollectingRequestsIn(requests)
                 .RespondsWithStatus(HttpStatusCode.NoContent);
 
             // Build step removed;

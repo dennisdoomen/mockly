@@ -70,7 +70,7 @@ public class MvpIntegrationSpecs
 
             mock
                 .ForPatch().WithPath($"/fnv_workingscopes({existingWorkingScope.Id})")
-                .CollectingRequestIn(patches) // Collects the requests specific for this mocked HTTP call
+                .CollectingRequestsIn(patches) // Collects the requests specific for this mocked HTTP call
                 .RespondsWithStatus(HttpStatusCode.NoContent);
 
             HttpClient httpClient = mock.GetClient();
