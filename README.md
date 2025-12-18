@@ -178,7 +178,8 @@ mock.ForGet()
 HttpClient client = mock.GetClient();
 
 // Act
-var response = await client.GetAsync("http://localhost/api/users/123");
+// Note: BaseAddress defaults to https://localhost/
+var response = await client.GetAsync("/api/users/123");
 var content = await response.Content.ReadAsStringAsync();
 
 // Assert
@@ -206,7 +207,7 @@ mock.ForGet()
     });
 
 // Get the HttpClient
-HttpClient client = mock.GetClient();
+HttpClient client = mock.GetClient(); // BaseAddress defaults to https://localhost/
 ```
 
 ### Using IHttpClientFactory
@@ -220,7 +221,8 @@ mock.ForGet().WithPath("/ping").RespondsWithStatus(HttpStatusCode.OK);
 var factory = mock.GetClientFactory();
 HttpClient client = factory.CreateClient("any");
 
-var response = await client.GetAsync("http://localhost/ping");
+// Note: BaseAddress defaults to https://localhost/
+var response = await client.GetAsync("/ping");
 response.StatusCode.Should().Be(HttpStatusCode.OK);
 ```
 
@@ -745,4 +747,3 @@ You may also be interested in:
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
