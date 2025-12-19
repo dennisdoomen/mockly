@@ -78,7 +78,7 @@ namespace Mockly
     {
         public RequestMock() { }
         public System.Collections.Generic.IEnumerable<Mockly.Matcher> CustomMatchers { get; }
-        public string? HostPattern { get; init; }
+        public string? HostPattern { get; set; }
         public int InvocationCount { get; }
         public uint? MaxInvocations { get; }
         public System.Net.Http.HttpMethod Method { get; init; }

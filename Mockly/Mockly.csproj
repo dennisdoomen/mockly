@@ -11,7 +11,7 @@
     <TargetFrameworks>net8.0;net472</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
-    <LangVersion>default</LangVersion>
+    <LangVersion>14</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <NoWarn>1591;1573</NoWarn>
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>

@@ -19,21 +19,16 @@ public class RequestMockBuilder
 {
     private readonly HttpMock mockBuilder;
     private readonly List<Matcher> customMatchers = new();
-    private readonly uint? maxInvocations;
     private string? pathPattern;
     private string? queryPattern;
-    private string? scheme;
-    private string? hostPattern;
+    private string? scheme = "https";
+    private string? hostPattern = "localhost";
     private RequestCollection? requestCollection;
 
     internal RequestMockBuilder(HttpMock mockBuilder, HttpMethod method)
     {
         this.mockBuilder = mockBuilder;
         Method = method;
-
-        // Defaults: https and localhost
-        scheme = "https";
-        hostPattern = "localhost";
     }
 
     /// <summary>
@@ -46,13 +41,8 @@ public class RequestMockBuilder
         Method = predecessor.Method;
 
         // Reuse only scheme and host
-        scheme = predecessor.scheme ?? "https";
-        hostPattern = predecessor.hostPattern ?? "localhost";
-
-        // Do NOT copy path/query/maxInvocations/custom matchers/response builders
-        pathPattern = null;
-        queryPattern = null;
-        maxInvocations = null;
+        scheme = predecessor.scheme ?? scheme;
+        hostPattern = predecessor.hostPattern ?? hostPattern;
     }
 
     internal HttpMethod Method { get; set; }
@@ -245,7 +235,6 @@ public class RequestMockBuilder
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
-            MaxInvocations = maxInvocations,
             Responder = _ => new HttpResponseMessage(statusCode)
         };
 
@@ -275,7 +264,6 @@ public class RequestMockBuilder
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
-            MaxInvocations = maxInvocations,
             Responder = _ =>
             {
                 var json = JsonSerializer.Serialize(content);
@@ -334,7 +322,6 @@ public class RequestMockBuilder
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
-            MaxInvocations = maxInvocations,
             Responder = _ =>
             {
                 var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
@@ -369,7 +356,6 @@ public class RequestMockBuilder
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
-            MaxInvocations = maxInvocations,
             Responder = _ =>
             {
                 var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
@@ -422,7 +408,6 @@ public class RequestMockBuilder
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
-            MaxInvocations = maxInvocations,
             Responder = _ => new HttpResponseMessage(statusCode)
             {
                 Content = new StringContent(content, Encoding.UTF8, contentType)
@@ -447,7 +432,6 @@ public class RequestMockBuilder
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
-            MaxInvocations = maxInvocations,
             Responder = _ => new HttpResponseMessage(statusCode)
         };
 
@@ -469,7 +453,6 @@ public class RequestMockBuilder
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
-            MaxInvocations = maxInvocations,
             Responder = responder
         };
 
