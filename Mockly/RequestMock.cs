@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
 using System.Net;
-using System.Net.Http;
 using System.Text.RegularExpressions;
 using Mockly.Common;
+#if NET472
+using System.Net.Http;
+#endif
 
 namespace Mockly;
 
@@ -13,15 +15,18 @@ public class RequestMock
 {
     private static readonly ConcurrentDictionary<string, Regex> RegexCache = new(StringComparer.OrdinalIgnoreCase);
 
-    public global::System.Net.Http.HttpMethod Method { get; init; } = global::System.Net.Http.HttpMethod.Get;
+    private bool hostPatternNormalized;
+
+    public HttpMethod Method { get; init; } = HttpMethod.Get;
 
     public string? PathPattern { get; init; }
 
     public string? QueryPattern { get; init; }
 
+    // REFACTOR: Should not be nullable in the future and replaced with an enum
     public string? Scheme { get; init; }
 
-    public string? HostPattern { get; init; }
+    public string? HostPattern { get; set; }
 
     public IEnumerable<Matcher> CustomMatchers { get; internal init; } = [];
 
@@ -69,7 +74,8 @@ public class RequestMock
         // Check host pattern if specified
         if (HostPattern != null && request.Uri != null)
         {
-            var host = request.Uri.Host;
+            NormalizeHostPattern();
+            var host = request.Uri.Host + ":" + request.Uri.Port;
             if (!MatchesPattern(host, HostPattern))
             {
                 return false;
@@ -118,6 +124,24 @@ public class RequestMock
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Normalizes the host pattern by appending the default port if missing
+    /// based on the scheme (443 for HTTPS, 80 for HTTP), unless the pattern is a wildcard.
+    /// </summary>
+    private void NormalizeHostPattern()
+    {
+        if (!hostPatternNormalized && HostPattern is not null && HostPattern != "*")
+        {
+            string[] segments = HostPattern.Split(':');
+            if (segments.Length == 1)
+            {
+                HostPattern += Scheme!.Equals("https", StringComparison.OrdinalIgnoreCase) ? ":443" : ":80";
+            }
+        }
+
+        hostPatternNormalized = true;
     }
 
     /// <summary>
@@ -227,7 +251,7 @@ public class RequestMock
     public CapturedRequest TrackRequest(RequestInfo request)
     {
         InvocationCount++;
-        global::System.Net.Http.HttpResponseMessage response = Responder(request);
+        HttpResponseMessage response = Responder(request);
 
         CapturedRequest capturedRequest = new(request)
         {

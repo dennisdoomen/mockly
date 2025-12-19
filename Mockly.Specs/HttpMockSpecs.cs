@@ -1202,11 +1202,24 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Can_provide_a_port_number()
+        {
+            var mock = new HttpMock();
+
+            mock.ForGet("https://api.example.com:7777/users/*?q=*")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var response = await mock.GetClient().GetAsync("https://api.example.com:7777/users/123?q=abc");
+
+            response.Should().Be200Ok();
+        }
+
+        [Fact]
         public async Task ForGet_with_wildcard_host_and_path_matches()
         {
             var mock = new HttpMock();
 
-            mock.ForGet("http://*.example.com/*")
+            mock.ForGet("http://*.example.com:80/*")
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             var response = await mock.GetClient().GetAsync("http://shop.example.com/path/to/resource");
@@ -1219,7 +1232,7 @@ public class HttpMockSpecs
         {
             var mock = new HttpMock();
 
-            mock.ForPut("https://api.example.com/users/*?q=*")
+            mock.ForPut("https://api.example.com:443/users/*?q=*")
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             var response = await mock.GetClient().PutAsync("https://api.example.com/users/42?q=term", new StringContent(""));
