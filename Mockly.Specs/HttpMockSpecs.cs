@@ -993,6 +993,28 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task A_custom_response_can_throw_an_exception()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/custom")
+                .RespondsWith(_ => throw new InvalidOperationException());
+
+            // Build step removed;
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/custom");
+
+            var request = mock.Requests.Should().ContainRequestFor("https://localhost/api*").Subject;
+
+            request.Response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+            request.Response.ReasonPhrase.Should().Contain("InvalidOperationException");
+        }
+
+        [Fact]
         public async Task Can_respond_with_odata_result_envelope_with_values()
         {
             // Arrange
@@ -1249,10 +1271,11 @@ public class HttpMockSpecs
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             var client = mock.GetClient();
-            var response = await client.SendAsync(new HttpRequestMessage(new HttpMethod("PATCH"), "http://admin.example.com/users/42")
-            {
-                Content = new StringContent("{}")
-            });
+            var response = await client.SendAsync(
+                new HttpRequestMessage(new HttpMethod("PATCH"), "http://admin.example.com/users/42")
+                {
+                    Content = new StringContent("{}")
+                });
 
             response.Should().Be200Ok();
         }

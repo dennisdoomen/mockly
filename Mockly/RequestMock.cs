@@ -251,15 +251,27 @@ public class RequestMock
     public CapturedRequest TrackRequest(RequestInfo request)
     {
         InvocationCount++;
-        HttpResponseMessage response = Responder(request);
 
         CapturedRequest capturedRequest = new(request)
         {
-            Response = response,
             Mock = this,
             WasExpected = true,
             Timestamp = DateTime.UtcNow
         };
+
+        try
+        {
+            capturedRequest.Response = Responder(request);
+        }
+#pragma warning disable CA1031
+        catch (Exception e)
+#pragma warning restore CA1031
+        {
+            capturedRequest.Response = new HttpResponseMessage(HttpStatusCode.InternalServerError)
+            {
+                ReasonPhrase = $"{e.GetType().Name}:{e.Message}"
+            };
+        }
 
         RequestCollection?.Add(capturedRequest);
 
