@@ -310,6 +310,28 @@ mock.ForDelete()
     .RespondsWithEmptyContent(HttpStatusCode.NoContent);
 ```
 
+**HTTP content responses:**
+```csharp
+// Simple content (defaults to 200 OK)
+var content = new ByteArrayContent(imageBytes);
+mock.ForGet()
+    .WithPath("/api/image")
+    .RespondsWith(content);
+
+// Complex content with status code
+var inner = new HttpResponseMessage(HttpStatusCode.OK)
+{
+    Content = new StringContent(json, Encoding.UTF8, "application/json")
+};
+
+var multipart = new MultipartContent("mixed", $"batch_{Guid.NewGuid()}");
+multipart.Add(new HttpMessageContent(inner));
+
+mock.ForPost()
+    .WithPath("/api/batch")
+    .RespondsWith(HttpStatusCode.OK, multipart);
+```
+
 **Custom responses:**
 ```csharp
 mock.ForGet()

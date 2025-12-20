@@ -440,6 +440,51 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Responds with the specified HTTP content and status code 200 (OK).
+    /// </summary>
+    /// <param name="content">The HTTP content to include in the response.</param>
+    /// <remarks>
+    /// Note: The same <paramref name="content"/> instance is used for all matching requests. 
+    /// If the mock will be called multiple times, consider using the <see cref="RespondsWith(Func{RequestInfo, HttpResponseMessage})"/> 
+    /// overload to create a new content instance for each request.
+    /// </remarks>
+    public RequestMockResponseBuilder RespondsWith(HttpContent content)
+    {
+        return RespondsWith(HttpStatusCode.OK, content);
+    }
+
+    /// <summary>
+    /// Responds with the specified HTTP content and status code.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code for the response.</param>
+    /// <param name="content">The HTTP content to include in the response.</param>
+    /// <remarks>
+    /// Note: The same <paramref name="content"/> instance is used for all matching requests. 
+    /// If the mock will be called multiple times, consider using the <see cref="RespondsWith(Func{RequestInfo, HttpResponseMessage})"/> 
+    /// overload to create a new content instance for each request.
+    /// </remarks>
+    public RequestMockResponseBuilder RespondsWith(HttpStatusCode statusCode, HttpContent content)
+    {
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            Responder = _ => new HttpResponseMessage(statusCode)
+            {
+                Content = content
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
     /// Responds using a custom responder function.
     /// </summary>
     public RequestMockResponseBuilder RespondsWith(Func<RequestInfo, HttpResponseMessage> responder)

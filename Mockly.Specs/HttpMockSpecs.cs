@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Xunit;
@@ -1323,6 +1324,171 @@ public class HttpMockSpecs
             var response = await client.GetAsync("https://localhost/ping");
 
             response.Should().Be200Ok();
+        }
+    }
+
+    public class RespondingWithHttpContent
+    {
+        [Fact]
+        public async Task Can_respond_with_http_content_using_default_status_code()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var content = new StringContent("Test content");
+
+            mock.ForGet()
+                .WithPath("/api/test")
+                .RespondsWith(content);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/test");
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            responseContent.Should().Be("Test content");
+        }
+
+        [Fact]
+        public async Task Can_respond_with_http_content_using_custom_status_code()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var content = new StringContent("Test content");
+
+            mock.ForGet()
+                .WithPath("/api/test")
+                .RespondsWith(HttpStatusCode.Accepted, content);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/test");
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+            responseContent.Should().Be("Test content");
+        }
+
+        [Fact]
+        public async Task Can_respond_with_multipart_content()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            var inner = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"value\":[{\"Count\":42}],\"@Microsoft.Dynamics.CRM.morerecords\":false}")
+            };
+
+            var multipart = new MultipartContent("mixed", $"batchresponse_{Guid.NewGuid()}");
+            multipart.Add(new HttpMessageContent(inner));
+
+            mock.ForGet()
+                .WithPath("/api/batch")
+                .RespondsWith(HttpStatusCode.OK, multipart);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/batch");
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.Content.Should().BeOfType<MultipartContent>();
+            responseContent.Should().Contain("Count");
+            responseContent.Should().Contain("42");
+        }
+
+        [Fact]
+        public async Task Demonstrates_simplification_from_issue()
+        {
+            // This test demonstrates the simplification requested in the issue
+            // Before: Had to use RespondsWith(_ => new HttpResponseMessage(...) { Content = ... })
+            // After: Can directly use RespondsWith(statusCode, content)
+
+            // Arrange
+            var mock = new HttpMock();
+            const int count = 5;
+
+            // Create complex nested content as shown in the issue
+            var inner = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    $"{{\"value\":[{{\"Count\":{count}}}],\"@Microsoft.Dynamics.CRM.morerecords\":false}}",
+                    Encoding.UTF8,
+                    "application/json")
+            };
+
+            var multipart = new MultipartContent("mixed", $"batchresponse_{Guid.NewGuid()}");
+            multipart.Add(new HttpMessageContent(inner));
+
+            // Simplified API - no need for lambda
+            mock.ForGet()
+                .WithPath("/api/dynamics/batch")
+                .RespondsWith(HttpStatusCode.OK, multipart);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/dynamics/batch");
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.Content.Should().BeOfType<MultipartContent>();
+            responseContent.Should().Contain($"\"Count\":{count}");
+            responseContent.Should().Contain("@Microsoft.Dynamics.CRM.morerecords");
+        }
+
+        [Fact]
+        public async Task Can_respond_with_byte_array_content()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            byte[] bytes = "Hello"u8.ToArray(); // "Hello" in ASCII
+            var content = new ByteArrayContent(bytes);
+
+            mock.ForGet()
+                .WithPath("/api/binary")
+                .RespondsWith(content);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/binary");
+            var responseBytes = await response.Content.ReadAsByteArrayAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            responseBytes.Should().Equal(bytes);
+        }
+
+        [Fact]
+        public async Task Can_respond_with_stream_content()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var stream = new System.IO.MemoryStream([1, 2, 3, 4, 5]);
+            var content = new StreamContent(stream);
+
+            mock.ForGet()
+                .WithPath("/api/stream")
+                .RespondsWith(HttpStatusCode.Created, content);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/stream");
+            var responseBytes = await response.Content.ReadAsByteArrayAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+            responseBytes.Should().Equal(1, 2, 3, 4, 5);
         }
     }
 }
