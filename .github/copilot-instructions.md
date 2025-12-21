@@ -213,10 +213,15 @@ mock.ForPatch()
 ## EditorConfig
 
 The project uses `.editorconfig` for consistent formatting:
-- Indent style: spaces (4 spaces for C#)
+- Indent style: spaces (4 spaces for C#, 2 spaces for project/config files)
 - End of line: CRLF
 - Insert final newline: true
 - Trim trailing whitespace: true
+- Max line length: 130 characters for C#
+- New line preferences: Open braces on new line for all constructs (`csharp_new_line_before_open_brace = all`)
+- Brace placement: Before `else`, `catch`, `finally` on new lines
+- Indentation: Block contents indented, labels one less than current
+- Naming: Avoid `this.` qualifier unless necessary
 
 ## Common Issues and Solutions
 
