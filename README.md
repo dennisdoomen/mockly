@@ -136,6 +136,7 @@ mock.Requests.Should().ContainRequest()
 ### 🎨 Multiple Response Types
 
 * JSON content with automatic serialization
+* Test data builder integration via `IResponseBuilder<T>`
 * Raw string content
 * Custom HTTP status codes
 * Custom response generators
@@ -343,6 +344,90 @@ mock.ForGet()
         response.Content = new StringContent("Custom content");
         return response;
     });
+```
+
+### Using Test Data Builders
+
+Mockly supports the `IResponseBuilder<T>` interface, allowing you to integrate test data builders seamlessly with response configuration methods. This promotes cleaner, more maintainable tests by separating test data construction from the mock setup.
+
+**Implementing a test data builder:**
+```csharp
+public class UserBuilder : IResponseBuilder<User>
+{
+    private int id = 1;
+    private string name = "Default User";
+    private string email = "user@example.com";
+
+    public UserBuilder WithId(int id)
+    {
+        this.id = id;
+        return this;
+    }
+
+    public UserBuilder WithName(string name)
+    {
+        this.name = name;
+        return this;
+    }
+
+    public UserBuilder WithEmail(string email)
+    {
+        this.email = email;
+        return this;
+    }
+
+    public User Build()
+    {
+        return new User { Id = id, Name = name, Email = email };
+    }
+}
+```
+
+**Using builders with JSON responses:**
+```csharp
+var userBuilder = new UserBuilder()
+    .WithId(123)
+    .WithName("John Doe")
+    .WithEmail("john@example.com");
+
+mock.ForGet()
+    .WithPath("/api/user")
+    .RespondsWithJsonContent(userBuilder);
+
+// With custom status code
+mock.ForPost()
+    .WithPath("/api/user")
+    .RespondsWithJsonContent(HttpStatusCode.Created, userBuilder);
+```
+
+**Using builders with OData responses:**
+```csharp
+// Single item
+var userBuilder = new UserBuilder().WithId(1).WithName("Alice");
+
+mock.ForGet()
+    .WithPath("/odata/user")
+    .RespondsWithODataResult(userBuilder);
+
+// Collection of items
+var builders = new[]
+{
+    new UserBuilder().WithId(1).WithName("Alice"),
+    new UserBuilder().WithId(2).WithName("Bob"),
+    new UserBuilder().WithId(3).WithName("Charlie")
+};
+
+mock.ForGet()
+    .WithPath("/odata/users")
+    .RespondsWithODataResult(builders);
+
+// With custom status code and OData context
+mock.ForGet()
+    .WithPath("/odata/users")
+    .RespondsWithODataResult(
+        HttpStatusCode.OK, 
+        builders, 
+        "https://localhost/$metadata#Users");
 ```
 
 ## Advanced Features
