@@ -46,6 +46,10 @@ namespace Mockly
         public System.Collections.Generic.IEnumerable<Mockly.RequestMock> GetUninvokedMocks() { }
         public Mockly.HttpMock Reset() { }
     }
+    public interface IResponseBuilder<out T>
+    {
+        T Build();
+    }
     public class Matcher
     {
         public Matcher(System.Func<Mockly.RequestInfo, System.Threading.Tasks.Task<bool>> predicate, string? displayText) { }
@@ -109,11 +113,18 @@ namespace Mockly
         public Mockly.RequestMockResponseBuilder RespondsWithEmptyContent(System.Net.HttpStatusCode statusCode = 204) { }
         public Mockly.RequestMockResponseBuilder RespondsWithJsonContent(object content) { }
         public Mockly.RequestMockResponseBuilder RespondsWithJsonContent(System.Net.HttpStatusCode statusCode, object content) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithJsonContent<T>(Mockly.IResponseBuilder<T> builder) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithJsonContent<T>(System.Net.HttpStatusCode statusCode, Mockly.IResponseBuilder<T> builder) { }
         public Mockly.RequestMockResponseBuilder RespondsWithODataResult(System.Collections.Generic.IEnumerable<object> value) { }
         public Mockly.RequestMockResponseBuilder RespondsWithODataResult(object value) { }
         public Mockly.RequestMockResponseBuilder RespondsWithODataResult(System.Net.HttpStatusCode statusCode, System.Collections.Generic.IEnumerable<object> value) { }
         public Mockly.RequestMockResponseBuilder RespondsWithODataResult(System.Net.HttpStatusCode statusCode, object value) { }
         public Mockly.RequestMockResponseBuilder RespondsWithODataResult(System.Net.HttpStatusCode statusCode, System.Collections.Generic.IEnumerable<object> value, string odataContext) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithODataResult<T>(Mockly.IResponseBuilder<T> builder) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithODataResult<T>(System.Collections.Generic.IEnumerable<Mockly.IResponseBuilder<T>> builders) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithODataResult<T>(System.Net.HttpStatusCode statusCode, Mockly.IResponseBuilder<T> builder) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithODataResult<T>(System.Net.HttpStatusCode statusCode, System.Collections.Generic.IEnumerable<Mockly.IResponseBuilder<T>> builders) { }
+        public Mockly.RequestMockResponseBuilder RespondsWithODataResult<T>(System.Net.HttpStatusCode statusCode, System.Collections.Generic.IEnumerable<Mockly.IResponseBuilder<T>> builders, string odataContext) { }
         public Mockly.RequestMockResponseBuilder RespondsWithStatus(System.Net.HttpStatusCode statusCode) { }
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, System.Threading.Tasks.Task<bool>> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, bool> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }

@@ -1491,4 +1491,223 @@ public class HttpMockSpecs
             responseBytes.Should().Equal(1, 2, 3, 4, 5);
         }
     }
+
+    public class ResponseBuilderUsage
+    {
+        // Simple test data builder implementation
+        private class UserBuilder : IResponseBuilder<object>
+        {
+            private int id = 1;
+            private string name = "Default";
+
+            public UserBuilder WithId(int id)
+            {
+                this.id = id;
+                return this;
+            }
+
+            public UserBuilder WithName(string name)
+            {
+                this.name = name;
+                return this;
+            }
+
+            public object Build()
+            {
+                return new { Id = id, Name = name };
+            }
+        }
+
+        [Fact]
+        public async Task Can_use_response_builder_with_json_content()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var userBuilder = new UserBuilder()
+                .WithId(123)
+                .WithName("John Doe");
+
+            mock.ForGet().WithPath("/api/user").RespondsWithJsonContent(userBuilder);
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/user");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            await response.Should().BeEquivalentTo(new
+            {
+                Id = 123,
+                Name = "John Doe"
+            });
+        }
+
+        [Fact]
+        public async Task Can_use_response_builder_with_json_content_and_status_code()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var userBuilder = new UserBuilder()
+                .WithId(456)
+                .WithName("Jane Smith");
+
+            mock.ForGet().WithPath("/api/user").RespondsWithJsonContent(HttpStatusCode.Created, userBuilder);
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/user");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+            await response.Should().BeEquivalentTo(new
+            {
+                Id = 456,
+                Name = "Jane Smith"
+            });
+        }
+
+        [Fact]
+        public async Task Can_use_response_builder_with_odata_result_single_item()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var userBuilder = new UserBuilder()
+                .WithId(789)
+                .WithName("Bob Johnson");
+
+            mock.ForGet().WithPath("/odata/user").RespondsWithODataResult(userBuilder);
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/odata/user");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            await response.Should().BeEquivalentTo(new
+            {
+                value = new[]
+                {
+                    new
+                    {
+                        Id = 789,
+                        Name = "Bob Johnson"
+                    }
+                }
+            });
+        }
+
+        [Fact]
+        public async Task Can_use_response_builder_with_odata_result_and_status_code()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var userBuilder = new UserBuilder()
+                .WithId(999)
+                .WithName("Alice Brown");
+
+            mock.ForGet().WithPath("/odata/user").RespondsWithODataResult(HttpStatusCode.Accepted, userBuilder);
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/odata/user");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+            await response.Should().BeEquivalentTo(new
+            {
+                value = new[]
+                {
+                    new
+                    {
+                        Id = 999,
+                        Name = "Alice Brown"
+                    }
+                }
+            });
+        }
+
+        [Fact]
+        public async Task Can_use_response_builders_with_odata_result_collection()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var builders = new[]
+            {
+                new UserBuilder().WithId(1).WithName("User 1"),
+                new UserBuilder().WithId(2).WithName("User 2"),
+                new UserBuilder().WithId(3).WithName("User 3")
+            };
+
+            mock.ForGet().WithPath("/odata/users").RespondsWithODataResult(builders);
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/odata/users");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            await response.Should().BeEquivalentTo(new
+            {
+                value = new[]
+                {
+                    new { Id = 1, Name = "User 1" },
+                    new { Id = 2, Name = "User 2" },
+                    new { Id = 3, Name = "User 3" }
+                }
+            });
+        }
+
+        [Fact]
+        public async Task Can_use_response_builders_with_odata_result_collection_and_status_code()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var builders = new[]
+            {
+                new UserBuilder().WithId(10).WithName("Admin"),
+                new UserBuilder().WithId(20).WithName("Manager")
+            };
+
+            mock.ForGet().WithPath("/odata/staff").RespondsWithODataResult(HttpStatusCode.PartialContent, builders);
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/odata/staff");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.PartialContent);
+            await response.Should().BeEquivalentTo(new
+            {
+                value = new[]
+                {
+                    new { Id = 10, Name = "Admin" },
+                    new { Id = 20, Name = "Manager" }
+                }
+            });
+        }
+
+        [Fact]
+        public async Task Can_use_response_builders_with_odata_result_and_context()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var builders = new[]
+            {
+                new UserBuilder().WithId(100).WithName("Context User")
+            };
+
+            const string context = "https://localhost/$metadata#Users";
+
+            mock.ForGet().WithPath("/odata/users").RespondsWithODataResult(HttpStatusCode.OK, builders, context);
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/odata/users");
+            var content = await response.Content.ReadAsStringAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            content.Should().Contain("\"@odata.context\":\"" + context + "\"");
+            await response.Should().BeEquivalentTo(new
+            {
+                value = new[]
+                {
+                    new { Id = 100, Name = "Context User" }
+                }
+            });
+        }
+    }
 }

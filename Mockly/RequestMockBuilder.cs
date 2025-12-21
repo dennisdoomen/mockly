@@ -251,7 +251,17 @@ public class RequestMockBuilder
     }
 
     /// <summary>
-    /// Responds with JSON content serialized from the specified object and a specific status code..
+    /// Responds with JSON content serialized from the object built by the specified builder and status code 200 (OK).
+    /// </summary>
+    /// <typeparam name="T">The type of object to build and serialize.</typeparam>
+    /// <param name="builder">The builder that will construct the object to serialize.</param>
+    public RequestMockResponseBuilder RespondsWithJsonContent<T>(IResponseBuilder<T> builder)
+    {
+        return RespondsWithJsonContent(HttpStatusCode.OK, builder);
+    }
+
+    /// <summary>
+    /// Responds with JSON content serialized from the specified object and a specific status code.
     /// </summary>
     public RequestMockResponseBuilder RespondsWithJsonContent(HttpStatusCode statusCode, object content)
     {
@@ -279,6 +289,18 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Responds with JSON content serialized from the object built by the specified builder and a specific status code.
+    /// </summary>
+    /// <typeparam name="T">The type of object to build and serialize.</typeparam>
+    /// <param name="statusCode">The HTTP status code to respond with.</param>
+    /// <param name="builder">The builder that will construct the object to serialize.</param>
+    public RequestMockResponseBuilder RespondsWithJsonContent<T>(HttpStatusCode statusCode, IResponseBuilder<T> builder)
+    {
+        object content = builder.Build()!;
+        return RespondsWithJsonContent(statusCode, content);
+    }
+
+    /// <summary>
     /// Configures an HTTP response with an OData v4 result envelope containing a single entity of the specified type
     /// and status code 200 (OK).
     /// </summary>
@@ -286,6 +308,17 @@ public class RequestMockBuilder
     public RequestMockResponseBuilder RespondsWithODataResult(object value)
     {
         return RespondsWithODataResult(HttpStatusCode.OK, [value]);
+    }
+
+    /// <summary>
+    /// Configures an HTTP response with an OData v4 result envelope containing a single entity built by the specified builder
+    /// and status code 200 (OK).
+    /// </summary>
+    /// <typeparam name="T">The type of entity to build.</typeparam>
+    /// <param name="builder">The builder that will construct the entity to include in the OData result.</param>
+    public RequestMockResponseBuilder RespondsWithODataResult<T>(IResponseBuilder<T> builder)
+    {
+        return RespondsWithODataResult(HttpStatusCode.OK, builder);
     }
 
     /// <summary>
@@ -300,11 +333,34 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Configures an HTTP response with an OData v4 result envelope containing a single entity built by the specified builder.
+    /// </summary>
+    /// <typeparam name="T">The type of entity to build.</typeparam>
+    /// <param name="statusCode">The HTTP status code for the response.</param>
+    /// <param name="builder">The builder that will construct the entity to include in the OData result.</param>
+    public RequestMockResponseBuilder RespondsWithODataResult<T>(HttpStatusCode statusCode,
+        IResponseBuilder<T> builder)
+    {
+        object value = builder.Build()!;
+        return RespondsWithODataResult(statusCode, value);
+    }
+
+    /// <summary>
     /// Responds with an OData v4 result envelope: { "value": [...] } and status code 200 (OK).
     /// </summary>
     public RequestMockResponseBuilder RespondsWithODataResult(IEnumerable<object> value)
     {
         return RespondsWithODataResult(HttpStatusCode.OK, value);
+    }
+
+    /// <summary>
+    /// Responds with an OData v4 result envelope containing entities built by the specified builders and status code 200 (OK).
+    /// </summary>
+    /// <typeparam name="T">The type of entities to build.</typeparam>
+    /// <param name="builders">The builders that will construct the entities to include in the OData result.</param>
+    public RequestMockResponseBuilder RespondsWithODataResult<T>(IEnumerable<IResponseBuilder<T>> builders)
+    {
+        return RespondsWithODataResult(HttpStatusCode.OK, builders);
     }
 
     /// <summary>
@@ -339,6 +395,19 @@ public class RequestMockBuilder
 
         mockBuilder.AddMock(mock);
         return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
+    /// Responds with an OData v4 result envelope containing entities built by the specified builders and a specific status code.
+    /// </summary>
+    /// <typeparam name="T">The type of entities to build.</typeparam>
+    /// <param name="statusCode">The HTTP status code for the response.</param>
+    /// <param name="builders">The builders that will construct the entities to include in the OData result.</param>
+    public RequestMockResponseBuilder RespondsWithODataResult<T>(HttpStatusCode statusCode,
+        IEnumerable<IResponseBuilder<T>> builders)
+    {
+        var builtValues = builders.Select(b => b.Build()).Cast<object>();
+        return RespondsWithODataResult(statusCode, builtValues);
     }
 
     /// <summary>
@@ -378,6 +447,20 @@ public class RequestMockBuilder
 
         mockBuilder.AddMock(mock);
         return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
+    /// Responds with an OData v4 result envelope containing entities built by the specified builders and including the optional "@odata.context" value.
+    /// </summary>
+    /// <typeparam name="T">The type of entities to build.</typeparam>
+    /// <param name="statusCode">The HTTP status code for the response.</param>
+    /// <param name="builders">The builders that will construct the entities to include in the OData result.</param>
+    /// <param name="odataContext">The OData context URL to include in the response.</param>
+    public RequestMockResponseBuilder RespondsWithODataResult<T>(HttpStatusCode statusCode, IEnumerable<IResponseBuilder<T>> builders,
+        string odataContext)
+    {
+        var builtValues = builders.Select(b => b.Build()).Cast<object>();
+        return RespondsWithODataResult(statusCode, builtValues, odataContext);
     }
 
     /// <summary>
