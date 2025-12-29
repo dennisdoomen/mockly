@@ -528,20 +528,20 @@ var mock = new HttpMock();
 // Single-use response
 mock.ForGet()
     .WithPath("/api/item")
-    .Once()
-    .RespondsWithStatus(HttpStatusCode.OK);
+    .RespondsWithStatus(HttpStatusCode.OK)
+    .Once();
 
 // Exactly two times
 mock.ForPost()
     .WithPath("/api/items")
-    .Twice()
-    .RespondsWithJsonContent(new { ok = true });
+    .RespondsWithJsonContent(new { ok = true })
+    .Twice();
 
 // Exactly N times
 mock.ForDelete()
     .WithPath("/api/items/*")
-    .Times(3)
-    .RespondsWithEmptyContent();
+    .RespondsWithEmptyContent()
+    .Times(3);
 ```
 
 Behavior notes:
