@@ -683,6 +683,7 @@ var client = mock.GetClient();
 
 // Add more mocks later
 mock.ForPost().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.Created);
+```
 
 Continue building can reuse parts of the previous builder for convenience. You can opt out with `Reset()`:
 
