@@ -593,41 +593,29 @@ public class RequestMockBuilder
 
     private static string EncodePathPattern(string pattern)
     {
-        // Split by asterisk to preserve wildcards
-        var parts = pattern.Split('*');
-        var encodedParts = new string[parts.Length];
-
-        for (int i = 0; i < parts.Length; i++)
-        {
-            // Encode each part separately, preserving forward slashes
-            var part = parts[i];
-            var segments = part.Split('/');
-
-            for (int j = 0; j < segments.Length; j++)
-            {
-                segments[j] = EncodePathSegment(segments[j]);
-            }
-
-            encodedParts[i] = string.Join("/", segments);
-        }
-
-        return string.Join("*", encodedParts);
-    }
-
-    private static string EncodePathSegment(string segment)
-    {
-        // Only encode characters that .NET's Uri.AbsolutePath actually encodes.
-        // This is specific to .NET's Uri implementation and may differ from other URI implementations.
-        // Characters like () [] & = are NOT encoded by .NET's Uri in path segments.
+        // Split by wildcards (* and ?) to preserve them
         var sb = new StringBuilder();
-        foreach (char c in segment)
+        
+        foreach (char c in pattern)
         {
-            if (PathEncodedChars.Contains(c))
+            if (c == '*' || c == '?')
             {
+                // Preserve wildcard characters
+                sb.Append(c);
+            }
+            else if (c == '/')
+            {
+                // Preserve path separators
+                sb.Append(c);
+            }
+            else if (PathEncodedChars.Contains(c))
+            {
+                // Encode special characters that Uri.AbsolutePath encodes
                 sb.Append(Uri.HexEscape(c));
             }
             else
             {
+                // Keep everything else as-is
                 sb.Append(c);
             }
         }
