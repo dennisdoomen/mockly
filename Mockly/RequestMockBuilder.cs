@@ -17,6 +17,9 @@ namespace Mockly;
 /// </summary>
 public class RequestMockBuilder
 {
+    // Characters that .NET's Uri.AbsolutePath encodes and need to be encoded in path patterns
+    private static readonly HashSet<char> PathEncodedChars = new() { '|', '{', '}', '<', '>', '%', '"', ' ' };
+
     private readonly HttpMock mockBuilder;
     private readonly List<Matcher> customMatchers = new();
     private string? pathPattern;
@@ -613,14 +616,13 @@ public class RequestMockBuilder
 
     private static string EncodePathSegment(string segment)
     {
-        // Only encode characters that Uri.AbsolutePath actually encodes
-        // Based on RFC 3986 and Uri class behavior: | { } < > % " (space) are encoded
-        // But () [] & = are NOT encoded in path segments
+        // Only encode characters that .NET's Uri.AbsolutePath actually encodes.
+        // This is specific to .NET's Uri implementation and may differ from other URI implementations.
+        // Characters like () [] & = are NOT encoded by .NET's Uri in path segments.
         var sb = new StringBuilder();
         foreach (char c in segment)
         {
-            if (c == '|' || c == '{' || c == '}' || c == '<' || c == '>' ||
-                c == '%' || c == '"' || c == ' ')
+            if (PathEncodedChars.Contains(c))
             {
                 sb.Append(Uri.HexEscape(c));
             }
