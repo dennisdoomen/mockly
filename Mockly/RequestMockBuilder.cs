@@ -88,7 +88,7 @@ public class RequestMockBuilder
     /// </summary>
     public RequestMockBuilder WithPath(string wildcardPattern)
     {
-        pathPattern = wildcardPattern;
+        pathPattern = EncodePathPattern(wildcardPattern);
         return this;
     }
 
@@ -586,5 +586,50 @@ public class RequestMockBuilder
 
         mockBuilder.AddMock(mock);
         return new RequestMockResponseBuilder(mock);
+    }
+
+    private static string EncodePathPattern(string pattern)
+    {
+        // Split by asterisk to preserve wildcards
+        var parts = pattern.Split('*');
+        var encodedParts = new string[parts.Length];
+
+        for (int i = 0; i < parts.Length; i++)
+        {
+            // Encode each part separately, preserving forward slashes
+            var part = parts[i];
+            var segments = part.Split('/');
+
+            for (int j = 0; j < segments.Length; j++)
+            {
+                segments[j] = EncodePathSegment(segments[j]);
+            }
+
+            encodedParts[i] = string.Join("/", segments);
+        }
+
+        return string.Join("*", encodedParts);
+    }
+
+    private static string EncodePathSegment(string segment)
+    {
+        // Only encode characters that Uri.AbsolutePath actually encodes
+        // Based on RFC 3986 and Uri class behavior: | { } < > % " (space) are encoded
+        // But () [] & = are NOT encoded in path segments
+        var sb = new StringBuilder();
+        foreach (char c in segment)
+        {
+            if (c == '|' || c == '{' || c == '}' || c == '<' || c == '>' ||
+                c == '%' || c == '"' || c == ' ')
+            {
+                sb.Append(Uri.HexEscape(c));
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+
+        return sb.ToString();
     }
 }
