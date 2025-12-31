@@ -17,9 +17,6 @@ namespace Mockly;
 /// </summary>
 public class RequestMockBuilder
 {
-    // Characters that .NET's Uri.AbsolutePath encodes and need to be encoded in path patterns
-    private static readonly HashSet<char> PathEncodedChars = new() { '|', '{', '}', '<', '>', '%', '"', ' ' };
-
     private readonly HttpMock mockBuilder;
     private readonly List<Matcher> customMatchers = new();
     private string? pathPattern;
@@ -91,7 +88,7 @@ public class RequestMockBuilder
     /// </summary>
     public RequestMockBuilder WithPath(string wildcardPattern)
     {
-        pathPattern = EncodePathPattern(wildcardPattern);
+        pathPattern = wildcardPattern;
         return this;
     }
 
@@ -589,37 +586,5 @@ public class RequestMockBuilder
 
         mockBuilder.AddMock(mock);
         return new RequestMockResponseBuilder(mock);
-    }
-
-    private static string EncodePathPattern(string pattern)
-    {
-        // Split by wildcards (* and ?) to preserve them
-        var sb = new StringBuilder();
-        
-        foreach (char c in pattern)
-        {
-            if (c == '*' || c == '?')
-            {
-                // Preserve wildcard characters
-                sb.Append(c);
-            }
-            else if (c == '/')
-            {
-                // Preserve path separators
-                sb.Append(c);
-            }
-            else if (PathEncodedChars.Contains(c))
-            {
-                // Encode special characters that Uri.AbsolutePath encodes
-                sb.Append(Uri.HexEscape(c));
-            }
-            else
-            {
-                // Keep everything else as-is
-                sb.Append(c);
-            }
-        }
-
-        return sb.ToString();
     }
 }

@@ -85,7 +85,7 @@ public class RequestMock
         // Check path pattern if specified
         if (PathPattern != null)
         {
-            var path = request.Uri?.AbsolutePath ?? string.Empty;
+            var path = WebUtility.UrlDecode(request.Uri?.AbsolutePath ?? string.Empty);
             if (!MatchesPattern(path.TrimStart('/'), PathPattern.TrimStart('/')))
             {
                 return false;
