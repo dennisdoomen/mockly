@@ -142,6 +142,45 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Can_match_path_with_pipe_character()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var key = $"{Guid.NewGuid()}|{Guid.NewGuid()}";
+            
+            mock.ForDelete()
+                .WithPath($"IncomeRelations/{key}")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            var client = mock.GetClient();
+            var response = await client.DeleteAsync($"https://localhost/IncomeRelations/{key}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Can_match_query_with_pipe_character()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var filter = "status=active|pending";
+            
+            mock.ForGet()
+                .WithPath("api/items")
+                .WithQuery($"filter={filter}")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            var client = mock.GetClient();
+            var response = await client.GetAsync($"https://localhost/api/items?filter={filter}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
         public async Task Can_mock_get_request_with_json_response()
         {
             // Arrange
