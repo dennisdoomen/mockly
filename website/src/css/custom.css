@@ -1,0 +1,49 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* Mockly brand colors - Cyan to Purple gradient */
+:root {
+  --ifm-color-primary: #5B7DD8;
+  --ifm-color-primary-dark: #4567d1;
+  --ifm-color-primary-darker: #3b5dc9;
+  --ifm-color-primary-darkest: #2f4ba6;
+  --ifm-color-primary-light: #7193df;
+  --ifm-color-primary-lighter: #7d9de2;
+  --ifm-color-primary-lightest: #a1b7eb;
+  --ifm-color-secondary: #8B5FCE;
+  --ifm-color-info: #3BABD9;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(91, 125, 216, 0.1);
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #7193df;
+  --ifm-color-primary-dark: #5B7DD8;
+  --ifm-color-primary-darker: #4567d1;
+  --ifm-color-primary-darkest: #2f4ba6;
+  --ifm-color-primary-light: #8ea8e5;
+  --ifm-color-primary-lighter: #a1b7eb;
+  --ifm-color-primary-lightest: #c3d2f4;
+  --ifm-color-secondary: #9f7dd8;
+  --ifm-color-info: #5bc1e6;
+  --docusaurus-highlighted-code-line-bg: rgba(91, 125, 216, 0.3);
+}
+
+/* Gradient header styling */
+.hero--primary {
+  background: linear-gradient(135deg, #3BABD9 0%, #5B7DD8 50%, #8B5FCE 100%);
+}
+
+/* Logo styling */
+.navbar__logo {
+  height: 2rem;
+}
+
+/* Make the footer match the dark theme */
+.footer--dark {
+  --ifm-footer-background-color: #1c1e21;
+}

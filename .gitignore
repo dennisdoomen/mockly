@@ -192,3 +192,9 @@ Tests/Benchmarks/BenchmarkDotNet.Artifacts/
 
 # Documentation spell check
 node_modules/
+
+# Docusaurus
+website/.docusaurus
+website/build
+website/.cache-loader
+website/node_modules
