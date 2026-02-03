@@ -23,7 +23,7 @@ internal static class StringExtensions
             .Replace("\\*", ".*")
             .Replace("\\?", ".");
 
-        return Regex.IsMatch(text, regexPattern, RegexOptions.IgnoreCase);
+        return Regex.IsMatch(text, regexPattern, RegexOptions.IgnoreCase | RegexOptions.Singleline);
     }
 
     /// <summary>

@@ -481,6 +481,36 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Can_match_multi_line_body_against_a_wildcard_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/api/test")
+                .WithBody("*<entity>*<condition*value=\"0\"*")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.PostAsync("https://localhost/api/test",
+                new StringContent(
+                    """
+                    <fetch>
+                      <entity>
+                        <filter>
+                          <condition attribute="statecode" operator="eq" value="0"/>
+                        </filter>
+                      </entity>
+                    </fetch>
+                    """));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        [Fact]
         public async Task Can_match_the_body_against_a_json_string_ignoring_layout()
         {
             // Arrange
