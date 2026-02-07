@@ -1,11 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
-
+using System.Text;
+using Mockly.Common;
 #if NET472_OR_GREATER
 using System.Net.Http;
 #endif
-using System.Text;
-using Mockly.Common;
 
 #pragma warning disable CA1054
 
@@ -212,6 +211,7 @@ public class HttpMock
         {
             BaseAddress = new Uri("https://localhost/")
         };
+
         return client;
 #pragma warning restore CA2000
     }
@@ -286,7 +286,10 @@ public class HttpMock
 
         var messageBuilder = new StringBuilder();
         messageBuilder.AppendLine("Unexpected request to:");
-        messageBuilder.AppendLine($"  {request.Method} {request.Uri}");
+        messageBuilder.AppendLine($"  {request.Method} {request.Uri} with body of {request.Body?.Length ?? 0} bytes");
+
+        messageBuilder.AppendLine();
+        messageBuilder.AppendLine("Note that you can further inspect the executed requests through the HttpMock.Requests property.");
 
         if (closestMock != null && highestScore > 0)
         {
@@ -309,6 +312,21 @@ public class HttpMock
             {
                 messageBuilder.Append(" - ");
                 messageBuilder.AppendLine(mock.ToString());
+            }
+        }
+
+        if (request.Body is not null && request.Body.Length > 0)
+        {
+            messageBuilder.AppendLine();
+            messageBuilder.AppendLine($"Body ({request.ContentType}):");
+
+            if (request.IsBodyLikelyTextual())
+            {
+                messageBuilder.AppendLine($"  \"{request.Body}\"");
+            }
+            else
+            {
+                messageBuilder.AppendLine("  (binary content)");
             }
         }
 
