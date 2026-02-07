@@ -131,7 +131,7 @@ public class RequestMockBuilder
     /// </param>
     public RequestMockBuilder WithBodyMatchingRegex([StringSyntax(StringSyntaxAttribute.Regex)] string regex)
     {
-        return With(request => request.Body is not null && Regex.IsMatch(request.Body, regex));
+        return With(request => request.Body is not null && Regex.IsMatch(request.Body, regex), $"body matches regex {regex}");
     }
 
     /// <summary>
@@ -174,7 +174,7 @@ public class RequestMockBuilder
                 {
                     throw new RequestMatchingException("Could not parse the request body as JSON", jsonException);
                 }
-            }, $"Body matches JSON: {json}");
+            }, $"body matches JSON {json}");
     }
 
     /// <summary>
@@ -187,7 +187,9 @@ public class RequestMockBuilder
     /// <returns>The current <see cref="RequestMockBuilder"/> instance, updated with the specified body matching condition.</returns>
     public RequestMockBuilder WithBody(string wildcardPattern)
     {
-        return With(request => request.Body is not null && request.Body.MatchesWildcard(wildcardPattern));
+        return With(
+            request => request.Body is not null && request.Body.MatchesWildcard(wildcardPattern),
+            $"body matches wildcard pattern \"{wildcardPattern}\"");
     }
 
     /// <summary>
@@ -527,8 +529,8 @@ public class RequestMockBuilder
     /// </summary>
     /// <param name="content">The HTTP content to include in the response.</param>
     /// <remarks>
-    /// Note: The same <paramref name="content"/> instance is used for all matching requests. 
-    /// If the mock will be called multiple times, consider using the <see cref="RespondsWith(Func{RequestInfo, HttpResponseMessage})"/> 
+    /// Note: The same <paramref name="content"/> instance is used for all matching requests.
+    /// If the mock will be called multiple times, consider using the <see cref="RespondsWith(Func{RequestInfo, HttpResponseMessage})"/>
     /// overload to create a new content instance for each request.
     /// </remarks>
     public RequestMockResponseBuilder RespondsWith(HttpContent content)
@@ -542,8 +544,8 @@ public class RequestMockBuilder
     /// <param name="statusCode">The HTTP status code for the response.</param>
     /// <param name="content">The HTTP content to include in the response.</param>
     /// <remarks>
-    /// Note: The same <paramref name="content"/> instance is used for all matching requests. 
-    /// If the mock will be called multiple times, consider using the <see cref="RespondsWith(Func{RequestInfo, HttpResponseMessage})"/> 
+    /// Note: The same <paramref name="content"/> instance is used for all matching requests.
+    /// If the mock will be called multiple times, consider using the <see cref="RespondsWith(Func{RequestInfo, HttpResponseMessage})"/>
     /// overload to create a new content instance for each request.
     /// </remarks>
     public RequestMockResponseBuilder RespondsWith(HttpStatusCode statusCode, HttpContent content)

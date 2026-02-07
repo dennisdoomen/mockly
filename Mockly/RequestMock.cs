@@ -56,6 +56,8 @@ public class RequestMock
     /// </summary>
     public async Task<bool> Matches(RequestInfo request)
     {
+        NormalizeHostPatternOnce();
+
         // Check HTTP method
         if (!request.Method.Equals(Method))
         {
@@ -74,7 +76,6 @@ public class RequestMock
         // Check host pattern if specified
         if (HostPattern != null && request.Uri != null)
         {
-            NormalizeHostPattern();
             var host = request.Uri.Host + ":" + request.Uri.Port;
             if (!MatchesPattern(host, HostPattern))
             {
@@ -130,7 +131,7 @@ public class RequestMock
     /// Normalizes the host pattern by appending the default port if missing
     /// based on the scheme (443 for HTTPS, 80 for HTTP), unless the pattern is a wildcard.
     /// </summary>
-    private void NormalizeHostPattern()
+    private void NormalizeHostPatternOnce()
     {
         if (!hostPatternNormalized && HostPattern is not null && HostPattern != "*")
         {
@@ -286,24 +287,6 @@ public class RequestMock
     /// This method is intended for diagnostics and exception messages only and is
     /// not part of the public API.
     /// </remarks>
-    internal string ToDetailedString()
-    {
-        var route = ToString();
-
-        if (!CustomMatchers.Any())
-        {
-            return route;
-        }
-
-        var matcherDescriptions = string.Join(" or ", CustomMatchers.Select(m => "(" + m + ")"));
-        return $"{route} where {matcherDescriptions}";
-    }
-
-    /// <summary>
-    /// Returns a string describing the exact route pattern this mock will match.
-    /// Wildcards (*) indicate unspecified components.
-    /// Example: GET https://api.*.com/users/*?*
-    /// </summary>
     public override string ToString()
     {
         string method = Method.Method ?? "*";
@@ -326,12 +309,14 @@ public class RequestMock
             query = QueryPattern.StartsWith("?", StringComparison.Ordinal) ? QueryPattern : "?" + QueryPattern;
         }
 
-        string route = $"{method} {scheme}://{host}{path}{query}";
-        if (CustomMatchers.Any())
+        var route = $"{method} {scheme}://{host}{path}{query}";
+
+        if (!CustomMatchers.Any())
         {
-            route += $" ({CustomMatchers.Count()} custom matcher(s))";
+            return route;
         }
 
-        return route;
+        var matcherDescriptions = string.Join(" or ", CustomMatchers);
+        return $"{route} where {matcherDescriptions}";
     }
 }
