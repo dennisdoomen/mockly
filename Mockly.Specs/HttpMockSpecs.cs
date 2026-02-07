@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -147,7 +148,7 @@ public class HttpMockSpecs
             // Arrange
             var mock = new HttpMock();
             var key = $"{Guid.NewGuid()}|{Guid.NewGuid()}";
-            
+
             mock.ForDelete()
                 .WithPath($"IncomeRelations/{key}")
                 .RespondsWithStatus(HttpStatusCode.OK);
@@ -166,7 +167,7 @@ public class HttpMockSpecs
             // Arrange
             var mock = new HttpMock();
             var filter = "status=active|pending";
-            
+
             mock.ForGet()
                 .WithPath("api/items")
                 .WithQuery($"filter={filter}")
@@ -481,6 +482,28 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Will_report_the_wildcard()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/api/test")
+                .WithBody("*something*")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var action = async () => await client.PostAsync("https://localhost/api/mismatch",
+                new StringContent("a body with something in it"));
+
+            // Assert
+            await action.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*where body matches wildcard pattern*something*");
+        }
+
+        [Fact]
         public async Task Can_match_the_body_against_a_json_string_ignoring_layout()
         {
             // Arrange
@@ -505,6 +528,27 @@ public class HttpMockSpecs
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        [Fact]
+        public async Task Will_report_the_expected_json()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/api/json")
+                .WithBodyMatchingJson("{\"name\": \"John\", \"age\": 30}")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var action = async () => await client.PostAsync("https://localhost/api/wrongroute", new StringContent(""));
+
+            // Assert
+            await action.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*body matches JSON {\"name\": \"John\", \"age\": 30}*");
         }
 
         [Fact]
@@ -556,6 +600,28 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Will_report_the_regex_for_mismatching_request()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/api/test")
+                .WithBodyMatchingRegex(".*something.*")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var action = async () => await client.PostAsync("https://localhost/api/wrongroute",
+                new StringContent("a body with something in it"));
+
+            // Assert
+            await action.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*body matches regex .*something.**");
+        }
+
+        [Fact]
         public async Task Can_prevent_the_matcher_from_prefetching_the_body()
         {
             // Arrange
@@ -582,6 +648,29 @@ public class HttpMockSpecs
             // Assert
             request.Should().NotBeNull();
             request.Body.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task Can_use_multiple_matches_combined()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/api/test")
+                .WithBody("*something*")
+                .WithBodyMatchingRegex(".*else.*")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var action = async () => await client.PostAsync("https://localhost/api/test",
+                new StringContent("a body with something in it"));
+
+            // Assert
+            await action.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*body matches wildcard pattern \"*something*\" or body matches regex .*else.*");
         }
     }
 
@@ -770,14 +859,14 @@ public class HttpMockSpecs
                       GET https://localhost/fnv_collectiveschemes(111)
 
                     Closest matching mock:
-                      GET https://*/fnv_collectiveschemes(123*)
+                      GET https://localhost:443/fnv_collectiveschemes(123*)
 
                     Registered mocks:
-                     - GET https://*/fnv_collectiveschemes
-                     - POST https://*/fnv_collectiveschemes
-                     - GET https://*/fnv_collectiveschemes(123*)
-                     - GET https://*/fnv_collectiveschemes(123*) (1 custom matcher(s)) where (request => request.Uri?.Query == "?$count=1")
-                     - GET https://*/fnv_collectiveschemes(456)
+                     - GET https://localhost:443/fnv_collectiveschemes
+                     - POST https://localhost:443/fnv_collectiveschemes
+                     - GET https://localhost:443/fnv_collectiveschemes(123*)
+                     - GET https://localhost:443/fnv_collectiveschemes(123*) where request => request.Uri?.Query == "?$count=1"
+                     - GET https://localhost:443/fnv_collectiveschemes(456)
                     """);
         }
 
@@ -804,7 +893,7 @@ public class HttpMockSpecs
                                GET https://localhost/fnv_collectiveschemes(111)
 
                              Registered mocks:
-                              - GET https://*/fnv_collectiveschemes
+                              - GET https://localhost:443/fnv_collectiveschemes
                              """);
         }
     }
@@ -1512,7 +1601,7 @@ public class HttpMockSpecs
         {
             // Arrange
             var mock = new HttpMock();
-            var stream = new System.IO.MemoryStream([1, 2, 3, 4, 5]);
+            var stream = new MemoryStream([1, 2, 3, 4, 5]);
             var content = new StreamContent(stream);
 
             mock.ForGet()
@@ -1553,7 +1642,11 @@ public class HttpMockSpecs
 
             public object Build()
             {
-                return new { Id = id, Name = name };
+                return new
+                {
+                    Id = id,
+                    Name = name
+                };
             }
         }
 
@@ -1619,17 +1712,7 @@ public class HttpMockSpecs
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            await response.Should().BeEquivalentTo(new
-            {
-                value = new[]
-                {
-                    new
-                    {
-                        Id = 789,
-                        Name = "Bob Johnson"
-                    }
-                }
-            });
+            await response.Should().BeEquivalentTo(new { value = new[] { new { Id = 789, Name = "Bob Johnson" } } });
         }
 
         [Fact]
@@ -1648,17 +1731,7 @@ public class HttpMockSpecs
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-            await response.Should().BeEquivalentTo(new
-            {
-                value = new[]
-                {
-                    new
-                    {
-                        Id = 999,
-                        Name = "Alice Brown"
-                    }
-                }
-            });
+            await response.Should().BeEquivalentTo(new { value = new[] { new { Id = 999, Name = "Alice Brown" } } });
         }
 
         [Fact]
@@ -1740,13 +1813,7 @@ public class HttpMockSpecs
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             content.Should().Contain("\"@odata.context\":\"" + context + "\"");
-            await response.Should().BeEquivalentTo(new
-            {
-                value = new[]
-                {
-                    new { Id = 100, Name = "Context User" }
-                }
-            });
+            await response.Should().BeEquivalentTo(new { value = new[] { new { Id = 100, Name = "Context User" } } });
         }
     }
 }

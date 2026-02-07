@@ -292,7 +292,7 @@ public class HttpMock
         {
             messageBuilder.AppendLine();
             messageBuilder.AppendLine("Closest matching mock:");
-            messageBuilder.Append($"  {closestMock.ToDetailedString()}");
+            messageBuilder.Append($"  {closestMock}");
             messageBuilder.AppendLine();
         }
 
@@ -308,7 +308,7 @@ public class HttpMock
             foreach (RequestMock mock in mocks)
             {
                 messageBuilder.Append(" - ");
-                messageBuilder.AppendLine(mock.ToDetailedString());
+                messageBuilder.AppendLine(mock.ToString());
             }
         }
 
