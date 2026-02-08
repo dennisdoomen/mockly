@@ -481,7 +481,12 @@ public class AssertionSpecs
                 .WithBodyEquivalentTo(expected);
 
             // Assert
-            act.Should().Throw<XunitException>();
+            act.Should().Throw<XunitException>().WithMessage(
+                """
+                Expected request #1 (POST https://localhost/api/test) to have a body equivalent to the expectation, but it did not:
+                - Expected property actual.id to be 2, but found 1.
+                - Expected property actual.name to be "y", but "x" differs near "x" (index 0).*
+                """);
         }
     }
 
@@ -500,17 +505,19 @@ public class AssertionSpecs
             await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":\"1\", \"name\":\"x\" }"));
 
             // Assert
-            mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesOf(new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["id"] = "1",
-                ["name"] = "x"
-            });
+            mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesOf(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["id"] = "1",
+                    ["name"] = "x"
+                });
 
-            mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesOf(new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["id"] = "2",
-                ["name"] = "y"
-            });
+            mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesOf(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["id"] = "2",
+                    ["name"] = "y"
+                });
         }
 
         [Fact]

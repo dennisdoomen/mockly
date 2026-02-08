@@ -107,11 +107,14 @@ public class CapturedRequest(RequestInfo request)
         get => request.Version;
     }
 
+    /// <summary>
+    /// The sequence number of the captured request, starting at 1.
+    /// </summary>
+    public int Sequence { get; set; }
+
     public override string ToString()
     {
-        string route = $"{Method} {Scheme}://{Host}{Path}{Query}";
-
-        return route;
+        return $"{Method} {Scheme}://{Host}{Path}{Query}";
     }
 
 }

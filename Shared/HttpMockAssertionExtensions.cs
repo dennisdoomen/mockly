@@ -492,7 +492,8 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
         string because = "",
         params object[] becauseArgs)
     {
-        string[] failures = [];
+        string[] leastFailures = [];
+        CapturedRequest? bestMatch = null;
         foreach (CapturedRequest request in requests)
         {
             T? actual = request.Body is null ? default : JsonSerializer.Deserialize<T>(request.Body!);
@@ -501,36 +502,42 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
                 using var scope = new AssertionScope();
                 actual.Should().BeEquivalentTo(expected, because, becauseArgs);
 
-                failures = scope.Discard();
+                var failures = scope.Discard();
                 if (failures.Length == 0)
                 {
                     return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
                 }
+
+                if (leastFailures.Length == 0 || failures.Length < leastFailures.Length)
+                {
+                    leastFailures = failures;
+                    bestMatch = request;
+                }
             }
         }
 
+        string message;
         if (requests.Length == 1)
         {
-#if FA8
-            AssertionChain.GetOrCreate()
-#else
-            Execute.Assertion
-#endif
-                .BecauseOf(because, becauseArgs)
-                .FailWith(
-                    "Expected the request body to be equivalent to the expectation{because}, but it failed with: {0}",
-                    string.Join(Environment.NewLine, failures));
+            message = "Expected request #{0} ({1}) to have a body equivalent to the expectation{because}, but it did not:";
         }
         else
         {
-#if FA8
-            AssertionChain.GetOrCreate()
-#else
-            Execute.Assertion
-#endif
-                .BecauseOf(because, becauseArgs)
-                .FailWith("Expected at least one request body to be equivalent to the expected object{because}, but none were");
+            message =
+                "Expected the closest matching request #{0} ({1}) at have a body equivalent to the expectation{because}, but it did not:";
         }
+
+#if FA8
+        AssertionChain.GetOrCreate()
+#else
+        Execute.Assertion
+#endif
+            .BecauseOf(because, becauseArgs)
+            .FailWith(message +
+                      Environment.NewLine +
+                      string.Join(Environment.NewLine, leastFailures.Select(failure => $"- {failure}")) +
+                      Environment.NewLine,
+                bestMatch!.Sequence, bestMatch);
 
         return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
     }
@@ -582,7 +589,8 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
             Execute.Assertion
 #endif
                 .BecauseOf(because, becauseArgs)
-                .FailWith("Expected the top-level properties of the request body to be equivalent to the provided dictionary{because}, but it failed with: ",
+                .FailWith(
+                    "Expected the top-level properties of the request body to be equivalent to the provided dictionary{because}, but it failed with: ",
                     string.Join(Environment.NewLine, failures));
         }
         else
@@ -590,7 +598,7 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
 #if FA8
             AssertionChain.GetOrCreate()
 #else
-        Execute.Assertion
+            Execute.Assertion
 #endif
                 .BecauseOf(because, becauseArgs)
                 .FailWith("Expected at least one request body to have the expected properties{because}, but none did");
@@ -645,7 +653,8 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
             Execute.Assertion
 #endif
                 .BecauseOf(because, becauseArgs)
-                .FailWith("Expected the request body to contain property {0} with value {1}{because}, but it did not: {2}", key, value,
+                .FailWith("Expected the request body to contain property {0} with value {1}{because}, but it did not: {2}", key,
+                    value,
                     string.Join(Environment.NewLine, failures));
         }
         else
@@ -653,10 +662,11 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
 #if FA8
             AssertionChain.GetOrCreate()
 #else
-        Execute.Assertion
+            Execute.Assertion
 #endif
                 .BecauseOf(because, becauseArgs)
-                .FailWith("Expected at least one request body to contain property {0} with value {1}{because}, but none did", key, value);
+                .FailWith("Expected at least one request body to contain property {0} with value {1}{because}, but none did", key,
+                    value);
         }
 
         return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
