@@ -43,7 +43,7 @@
   </ItemGroup>
 
   <ItemGroup Label="Dependencies">
-    <PackageReference Include="FluentAssertions" Version="[7.0.0,8.0.0)" />
+    <PackageReference Include="FluentAssertions" Version="[7.1.0, 8.0.0)" />
     <ProjectReference Include="..\Mockly\Mockly.csproj" />
   </ItemGroup>
 
