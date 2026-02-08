@@ -483,6 +483,32 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Can_match_a_multiline_body_against_a_wildcard_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/api/test")
+                .WithBody("*condition attribute=\"statecode\" operator=\"eq\" value=\"0\"*")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.PostAsync("https://localhost/api/test",
+                new StringContent(
+                    """
+                    <xml>
+                    <condition attribute="statecode" operator="eq" value="0"/>
+                    </xml>
+                    """));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        [Fact]
         public async Task Will_report_the_wildcard()
         {
             // Arrange
@@ -953,7 +979,10 @@ public class HttpMockSpecs
             var act = () =>
                 httpClient.PostAsync("https://localhost/fnv_collectiveschemes(111)", new ByteArrayContent([1, 2, 3])
                 {
-                    Headers = { ContentType = new MediaTypeHeaderValue("application/octet-stream") }
+                    Headers =
+                    {
+                        ContentType = new MediaTypeHeaderValue("application/octet-stream")
+                    }
                 });
 
             // Assert
