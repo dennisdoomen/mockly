@@ -16,6 +16,7 @@ namespace Mockly
         public string Query { get; }
         public System.Net.Http.HttpResponseMessage Response { get; }
         public string Scheme { get; }
+        public int Sequence { get; set; }
         public System.DateTime Timestamp { get; }
         public System.Uri? Uri { get; }
         public System.Version Version { get; }

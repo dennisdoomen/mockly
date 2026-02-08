@@ -18,6 +18,7 @@ public class RequestCollection : IEnumerable<CapturedRequest>
     internal void Add(CapturedRequest request)
     {
         requests.Add(request);
+        request.Sequence = requests.Count;
     }
 
     /// <summary>
