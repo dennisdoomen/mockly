@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -482,6 +483,32 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Can_match_a_multiline_body_against_a_wildcard_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/api/test")
+                .WithBody("*condition attribute=\"statecode\" operator=\"eq\" value=\"0\"*")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.PostAsync("https://localhost/api/test",
+                new StringContent(
+                    """
+                    <xml>
+                    <condition attribute="statecode" operator="eq" value="0"/>
+                    </xml>
+                    """));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        [Fact]
         public async Task Will_report_the_wildcard()
         {
             // Arrange
@@ -856,7 +883,9 @@ public class HttpMockSpecs
                 .WithMessage(
                     """
                     Unexpected request to:
-                      GET https://localhost/fnv_collectiveschemes(111)
+                      GET https://localhost/fnv_collectiveschemes(111) with body of 0 bytes
+
+                    Note that you can further inspect the executed requests through the HttpMock.Requests property.
 
                     Closest matching mock:
                       GET https://localhost:443/fnv_collectiveschemes(123*)
@@ -890,11 +919,87 @@ public class HttpMockSpecs
             await act.Should().ThrowAsync<UnexpectedRequestException>()
                 .WithMessage("""
                              Unexpected request to:
-                               GET https://localhost/fnv_collectiveschemes(111)
+                               GET https://localhost/fnv_collectiveschemes(111) with body of 0 bytes
+
+                             Note that you can further inspect the executed requests through the HttpMock.Requests property.
 
                              Registered mocks:
                               - GET https://localhost:443/fnv_collectiveschemes
                              """);
+        }
+
+        [Fact]
+        public async Task Includes_the_body_if_it_is_textual()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock
+                .ForPost().ForHttps().WithPath("/fnv_collectiveschemes")
+                .WithoutQuery()
+                .RespondsWithStatus(HttpStatusCode.Accepted);
+
+            HttpClient httpClient = mock.GetClient();
+
+            // Act
+            var act = () =>
+                httpClient.PostAsync("https://localhost/fnv_collectiveschemes(111)", new StringContent("Some string content"));
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage(
+                    """
+                    Unexpected request to:
+                      POST https://localhost/fnv_collectiveschemes(111) with body of 19 bytes
+
+                    Note that you can further inspect the executed requests through the HttpMock.Requests property.
+
+                    Registered mocks:
+                     - POST https://localhost:443/fnv_collectiveschemes
+
+                    Body (text/plain):
+                      "Some string content"
+                    """);
+        }
+
+        [Fact]
+        public async Task Omits_the_body_if_it_is_not_textual()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock
+                .ForPost().ForHttps().WithPath("/fnv_collectiveschemes")
+                .WithoutQuery()
+                .RespondsWithStatus(HttpStatusCode.Accepted);
+
+            HttpClient httpClient = mock.GetClient();
+
+            // Act
+            var act = () =>
+                httpClient.PostAsync("https://localhost/fnv_collectiveschemes(111)", new ByteArrayContent([1, 2, 3])
+                {
+                    Headers =
+                    {
+                        ContentType = new MediaTypeHeaderValue("application/octet-stream")
+                    }
+                });
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage(
+                    """
+                    Unexpected request to:
+                      POST https://localhost/fnv_collectiveschemes(111) with body of 3 bytes
+
+                    Note that you can further inspect the executed requests through the HttpMock.Requests property.
+
+                    Registered mocks:
+                     - POST https://localhost:443/fnv_collectiveschemes
+
+                    Body (application/octet-stream):
+                      (binary content)
+                    """);
         }
     }
 
@@ -1712,7 +1817,17 @@ public class HttpMockSpecs
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            await response.Should().BeEquivalentTo(new { value = new[] { new { Id = 789, Name = "Bob Johnson" } } });
+            await response.Should().BeEquivalentTo(new
+            {
+                value = new[]
+                {
+                    new
+                    {
+                        Id = 789,
+                        Name = "Bob Johnson"
+                    }
+                }
+            });
         }
 
         [Fact]
@@ -1731,7 +1846,17 @@ public class HttpMockSpecs
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Accepted);
-            await response.Should().BeEquivalentTo(new { value = new[] { new { Id = 999, Name = "Alice Brown" } } });
+            await response.Should().BeEquivalentTo(new
+            {
+                value = new[]
+                {
+                    new
+                    {
+                        Id = 999,
+                        Name = "Alice Brown"
+                    }
+                }
+            });
         }
 
         [Fact]
@@ -1757,9 +1882,21 @@ public class HttpMockSpecs
             {
                 value = new[]
                 {
-                    new { Id = 1, Name = "User 1" },
-                    new { Id = 2, Name = "User 2" },
-                    new { Id = 3, Name = "User 3" }
+                    new
+                    {
+                        Id = 1,
+                        Name = "User 1"
+                    },
+                    new
+                    {
+                        Id = 2,
+                        Name = "User 2"
+                    },
+                    new
+                    {
+                        Id = 3,
+                        Name = "User 3"
+                    }
                 }
             });
         }
@@ -1786,8 +1923,16 @@ public class HttpMockSpecs
             {
                 value = new[]
                 {
-                    new { Id = 10, Name = "Admin" },
-                    new { Id = 20, Name = "Manager" }
+                    new
+                    {
+                        Id = 10,
+                        Name = "Admin"
+                    },
+                    new
+                    {
+                        Id = 20,
+                        Name = "Manager"
+                    }
                 }
             });
         }
@@ -1813,7 +1958,17 @@ public class HttpMockSpecs
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             content.Should().Contain("\"@odata.context\":\"" + context + "\"");
-            await response.Should().BeEquivalentTo(new { value = new[] { new { Id = 100, Name = "Context User" } } });
+            await response.Should().BeEquivalentTo(new
+            {
+                value = new[]
+                {
+                    new
+                    {
+                        Id = 100,
+                        Name = "Context User"
+                    }
+                }
+            });
         }
     }
 }
