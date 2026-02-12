@@ -521,6 +521,34 @@ public class AssertionSpecs
         }
 
         [Fact]
+        public async Task Matches_body_having_properties_of_dictionary_when_request_has_properties_with_null_values()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":\"2\", \"name\":null }"));
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":\"1\", \"name\":\"x\" }"));
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesOf(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["id"] = "1",
+                    ["name"] = "x"
+                });
+
+            mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesOf(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["id"] = "2",
+                    ["name"] = null
+                });
+        }
+
+        [Fact]
         public async Task Fails_when_body_does_not_have_expected_properties()
         {
             // Arrange
@@ -578,6 +606,21 @@ public class AssertionSpecs
             // Assert
             act.Should().Throw<XunitException>()
                 .WithMessage("Expected the request body to contain property \"id\" with value \"3\", but it did not:*");
+        }
+
+        [Fact]
+        public async Task Matches_body_having_property_when_request_has_properties_with_null_values()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":3, \"name\":null}"));
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithBodyHavingProperty("id", "3");
         }
 
         [Fact]

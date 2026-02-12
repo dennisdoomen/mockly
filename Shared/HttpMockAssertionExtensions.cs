@@ -565,10 +565,10 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
                 continue;
             }
 
-            var dictionary = JsonSerializer.Deserialize<IDictionary<string, object>>(request.Body);
+            var dictionary = JsonSerializer.Deserialize<IDictionary<string, object?>>(request.Body);
             if (dictionary is not null)
             {
-                var actual = dictionary.ToDictionary(x => x.Key, x => x.Value.ToString());
+                var actual = dictionary.ToDictionary(x => x.Key, x => x.Value?.ToString());
 
                 using var scope = new AssertionScope();
                 actual.Should().BeEquivalentTo(expectation, because, becauseArgs);
@@ -629,10 +629,10 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
                 continue;
             }
 
-            var dictionary = JsonSerializer.Deserialize<IDictionary<string, object>>(request.Body);
+            var dictionary = JsonSerializer.Deserialize<IDictionary<string, object?>>(request.Body);
             if (dictionary is not null)
             {
-                var actual = dictionary.ToDictionary(x => x.Key, x => x.Value.ToString());
+                var actual = dictionary.ToDictionary(x => x.Key, x => x.Value?.ToString());
 
                 using var scope = new AssertionScope();
                 actual.Should().Contain(key, value, because, becauseArgs);
