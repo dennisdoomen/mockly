@@ -50,7 +50,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <!-- Provides IHttpClientFactory interface across TFMs -->
-    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.13" />
     <!-- System.Text.Json is used in the library; single version for all TFMs to keep assembly resolution consistent -->
   </ItemGroup>
 
