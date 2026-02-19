@@ -685,6 +685,94 @@ public class AssertionSpecs
                     { "fnv_inherit", "False" }
                 });
         }
+
+        [Fact]
+        public async Task Ignores_extra_properties_in_body()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test",
+                new StringContent("{ \"id\":\"1\", \"name\":\"x\", \"extra\":\"value\" }"));
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesOf(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["id"] = "1",
+                    ["name"] = "x"
+                });
+        }
+    }
+
+    public class WithBodyHavingPropertiesEqualTo
+    {
+        [Fact]
+        public async Task Matches_body_having_properties_equal_to_dictionary()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":\"1\", \"name\":\"x\" }"));
+
+            // Assert
+            mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesEqualTo(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["id"] = "1",
+                    ["name"] = "x"
+                });
+        }
+
+        [Fact]
+        public async Task Fails_when_body_has_extra_properties()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test",
+                new StringContent("{ \"id\":\"1\", \"name\":\"x\", \"extra\":\"value\" }"));
+
+            var act = () => mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesEqualTo(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["id"] = "1",
+                    ["name"] = "x"
+                });
+
+            // Assert
+            act.Should().Throw<XunitException>();
+        }
+
+        [Fact]
+        public async Task Fails_when_body_has_mismatched_property_values()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.Created);
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/test", new StringContent("{ \"id\":\"1\" }"));
+
+            var act = () => mock.Requests.Should().ContainRequest().WithBodyHavingPropertiesEqualTo(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["id"] = "2"
+                });
+
+            // Assert
+            act.Should().Throw<XunitException>();
+        }
     }
 
     public class NotContainRequestFor
