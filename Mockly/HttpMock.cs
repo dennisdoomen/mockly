@@ -291,11 +291,18 @@ public class HttpMock
         messageBuilder.AppendLine();
         messageBuilder.AppendLine("Note that you can further inspect the executed requests through the HttpMock.Requests property.");
 
+        bool requestHasQuery = !string.IsNullOrEmpty(request.Uri?.Query);
+
         if (closestMock != null && highestScore > 0)
         {
             messageBuilder.AppendLine();
             messageBuilder.AppendLine("Closest matching mock:");
             messageBuilder.Append($"  {closestMock}");
+            if (requestHasQuery && closestMock.QueryPattern == null)
+            {
+                messageBuilder.Append(" (without query string)");
+            }
+
             messageBuilder.AppendLine();
         }
 
@@ -311,7 +318,13 @@ public class HttpMock
             foreach (RequestMock mock in mocks)
             {
                 messageBuilder.Append(" - ");
-                messageBuilder.AppendLine(mock.ToString());
+                messageBuilder.Append(mock.ToString());
+                if (requestHasQuery && mock.QueryPattern == null)
+                {
+                    messageBuilder.Append(" (without query string)");
+                }
+
+                messageBuilder.AppendLine();
             }
         }
 
