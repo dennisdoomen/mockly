@@ -929,6 +929,73 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Annotates_mocks_without_query_pattern_when_actual_request_has_query_string()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock
+                .ForGet().ForHttps().ForAnyHost().WithPath("/api/contacts*")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            mock
+                .ForGet().ForHttps().ForAnyHost().WithPath("/api/contacts*")
+                .WithQuery("?expand=true")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            HttpClient httpClient = mock.GetClient();
+
+            // Act
+            var act = () => httpClient.GetAsync("https://localhost/api/contacts/123?unknownParam=true");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage(
+                    """
+                    Unexpected request to:
+                      GET https://localhost/api/contacts/123?unknownParam=true with body of 0 bytes
+
+                    Note that you can further inspect the executed requests through the HttpMock.Requests property.
+
+                    Closest matching mock:
+                      GET https://*/api/contacts*?expand=true
+
+                    Registered mocks:
+                     - GET https://*/api/contacts* (without query string)
+                     - GET https://*/api/contacts*?expand=true
+                    """);
+        }
+
+        [Fact]
+        public async Task Does_not_annotate_mocks_when_actual_request_has_no_query_string()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock
+                .ForGet().ForHttps().ForAnyHost().WithPath("/api/contacts/expected")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            HttpClient httpClient = mock.GetClient();
+
+            // Act
+            var act = () => httpClient.GetAsync("https://localhost/api/contacts/123");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage(
+                    """
+                    Unexpected request to:
+                      GET https://localhost/api/contacts/123 with body of 0 bytes
+
+                    Note that you can further inspect the executed requests through the HttpMock.Requests property.
+
+                    Registered mocks:
+                     - GET https://*/api/contacts/expected
+                    """);
+        }
+
+        [Fact]
         public async Task Includes_the_body_if_it_is_textual()
         {
             // Arrange
