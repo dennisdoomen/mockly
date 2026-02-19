@@ -543,7 +543,8 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     }
 
     /// <summary>
-    /// Deserializes the request body as a dictionary and asserts it is equivalent to the expected dictionary.
+    /// Deserializes the request body as a dictionary and asserts that it contains at least the properties of the
+    /// expected dictionary with matching values. Additional properties in the request body are ignored.
     /// </summary>
     /// <param name="because">
     /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
@@ -553,6 +554,74 @@ public class ContainedRequestAssertions : ReferenceTypeAssertions<CapturedReques
     /// Zero or more objects to format using the placeholders in <paramref name="because" />.
     /// </param>
     public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithBodyHavingPropertiesOf(
+        IDictionary<string, string> expectation,
+        string because = "",
+        params object[] becauseArgs)
+    {
+        string[] failures = [];
+        foreach (CapturedRequest request in requests)
+        {
+            if (request.Body is null)
+            {
+                continue;
+            }
+
+            var dictionary = JsonSerializer.Deserialize<IDictionary<string, object?>>(request.Body);
+            if (dictionary is not null)
+            {
+                var actual = dictionary
+                    .Where(x => expectation.ContainsKey(x.Key))
+                    .ToDictionary(x => x.Key, x => x.Value?.ToString());
+
+                using var scope = new AssertionScope();
+                actual.Should().BeEquivalentTo(expectation, because, becauseArgs);
+
+                failures = scope.Discard();
+                if (failures.Length == 0)
+                {
+                    return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, request);
+                }
+            }
+        }
+
+        if (requests.Length == 1)
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .FailWith(
+                    "Expected the top-level properties of the request body to be equivalent to the provided dictionary{because}, but it failed with: ",
+                    string.Join(Environment.NewLine, failures));
+        }
+        else
+        {
+#if FA8
+            AssertionChain.GetOrCreate()
+#else
+            Execute.Assertion
+#endif
+                .BecauseOf(because, becauseArgs)
+                .FailWith("Expected at least one request body to have the expected properties{because}, but none did");
+        }
+
+        return new AndWhichConstraint<ContainedRequestAssertions, CapturedRequest>(this, []);
+    }
+
+    /// <summary>
+    /// Deserializes the request body as a dictionary and asserts it is exactly equivalent to the expected dictionary,
+    /// without any additional properties.
+    /// </summary>
+    /// <param name="because">
+    /// A formatted phrase as is supported by <see cref="string.Format(string,object[])" /> explaining why the assertion
+    /// is needed. If the phrase does not start with the word <i>because</i>, it is prepended automatically.
+    /// </param>
+    /// <param name="becauseArgs">
+    /// Zero or more objects to format using the placeholders in <paramref name="because" />.
+    /// </param>
+    public AndWhichConstraint<ContainedRequestAssertions, CapturedRequest> WithBodyHavingPropertiesEqualTo(
         IDictionary<string, string> expectation,
         string because = "",
         params object[] becauseArgs)
