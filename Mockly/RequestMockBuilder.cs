@@ -178,6 +178,28 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Configures the request mock to match requests whose body contains the JSON equivalent to the specified object,
+    /// serialized using <see cref="JsonSerializer"/>, ignoring differences in whitespace and layout.
+    /// </summary>
+    /// <param name="body">The object to serialize to JSON and compare against the request body.</param>
+    /// <remarks>
+    /// The <paramref name="body"/> is serialized using <see cref="JsonSerializer.Serialize(object?, System.Type, JsonSerializerOptions?)"/>
+    /// with the default <see cref="JsonSerializerOptions"/>. The comparison is then performed by comparing the serialized JSON
+    /// with the request body using JSON equivalence, ignoring differences in whitespace and layout.
+    /// Any invalid JSON in the request body causes this matcher to return <c>false</c>.
+    /// </remarks>
+    public RequestMockBuilder WithBody(object body)
+    {
+        if (body is null)
+        {
+            throw new ArgumentNullException(nameof(body));
+        }
+
+        var json = JsonSerializer.Serialize(body);
+        return WithBodyMatchingJson(json);
+    }
+
+    /// <summary>
     /// Configures the request mock to match requests whose body content satisfies the specified wildcard pattern.
     /// </summary>
     /// <param name="wildcardPattern">

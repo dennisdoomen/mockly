@@ -606,6 +606,55 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Can_match_the_body_against_a_serialized_object()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/api/json")
+                .WithBody(new { name = "John", age = 30 })
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.PostAsync("https://localhost/api/json", new StringContent(
+                """
+                {
+                "name" : "John",
+                "age" : 30
+                }
+
+                """));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        [Fact]
+        public async Task Will_report_the_expected_json_for_serialized_object()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/api/json")
+                .WithBody(new { name = "John", age = 30 })
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var action = async () => await client.PostAsync("https://localhost/api/json",
+                new StringContent("{\"name\": \"Jane\", \"age\": 25}"));
+
+            // Assert
+            await action.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*body matches JSON*\"name\"*\"John\"*");
+        }
+
+        [Fact]
         public async Task Can_match_body_against_a_regex_pattern()
         {
             // Arrange

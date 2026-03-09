@@ -104,6 +104,7 @@ namespace Mockly.Http
         public Mockly.Http.RequestMockBuilder Twice() { }
         public Mockly.Http.RequestMockBuilder With(System.Func<Mockly.Http.RequestInfo, System.Threading.Tasks.Task<bool>> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
         public Mockly.Http.RequestMockBuilder With(System.Func<Mockly.Http.RequestInfo, bool> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
+        public Mockly.Http.RequestMockBuilder WithBody(object body) { }
         public Mockly.Http.RequestMockBuilder WithBody(string wildcardPattern) { }
         public Mockly.Http.RequestMockBuilder WithBodyMatchingJson(string json) { }
         public Mockly.Http.RequestMockBuilder WithBodyMatchingRegex(string regex) { }

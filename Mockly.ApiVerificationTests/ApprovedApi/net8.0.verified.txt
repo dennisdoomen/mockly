@@ -132,6 +132,7 @@ namespace Mockly
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, System.Threading.Tasks.Task<bool>> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, bool> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
         public Mockly.RequestMockBuilder WithAnyQuery() { }
+        public Mockly.RequestMockBuilder WithBody(object body) { }
         public Mockly.RequestMockBuilder WithBody(string wildcardPattern) { }
         public Mockly.RequestMockBuilder WithBodyMatchingJson(string json) { }
         public Mockly.RequestMockBuilder WithBodyMatchingRegex([System.Diagnostics.CodeAnalysis.StringSyntax("Regex")] string regex) { }
