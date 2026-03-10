@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Xunit;
@@ -2085,6 +2086,62 @@ public class HttpMockSpecs
                     }
                 }
             });
+        }
+    }
+
+    public class WhenUsingCustomJsonSerializerOptions
+    {
+        [Fact]
+        public async Task Can_use_custom_options_for_json_response_content()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+
+            mock.ForGet()
+                .WithPath("/api/data")
+                .Using(options)
+                .RespondsWithJsonContent(new { UserId = 42, UserName = "Alice" });
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/data");
+            var body = await response.Content.ReadAsStringAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            body.Should().Contain("\"userId\"").And.Contain("\"userName\"");
+            body.Should().NotContain("\"UserId\"").And.NotContain("\"UserName\"");
+        }
+
+        [Fact]
+        public async Task Can_use_custom_options_to_match_request_body_as_object()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+
+            mock.ForPost()
+                .WithPath("/api/data")
+                .Using(options)
+                .WithBody(new { UserId = 42, UserName = "Alice" })
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act: Send camelCase JSON (matching what camelCase options would serialize to)
+            var response = await client.PostAsync("https://localhost/api/data",
+                new StringContent("{\"userId\":42,\"userName\":\"Alice\"}"));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         }
     }
 }

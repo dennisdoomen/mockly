@@ -24,6 +24,7 @@ public class RequestMockBuilder
     private string? scheme = "https";
     private string? hostPattern = "localhost";
     private RequestCollection? requestCollection;
+    private JsonSerializerOptions? jsonSerializerOptions;
 
     internal RequestMockBuilder(HttpMock mockBuilder, HttpMethod method)
     {
@@ -194,7 +195,7 @@ public class RequestMockBuilder
             throw new ArgumentNullException(nameof(body));
         }
 
-        var json = JsonSerializer.Serialize(body);
+        var json = JsonSerializer.Serialize(body, jsonSerializerOptions);
         return WithBodyMatchingJson(json);
     }
 
@@ -245,6 +246,21 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Specifies the <see cref="JsonSerializerOptions"/> to use for all JSON serialization in this mock,
+    /// including body matching and response content generation.
+    /// </summary>
+    public RequestMockBuilder Using(JsonSerializerOptions options)
+    {
+        if (options is null)
+        {
+            throw new ArgumentNullException(nameof(options));
+        }
+
+        jsonSerializerOptions = options;
+        return this;
+    }
+
+    /// <summary>
     /// Responds with the specified HTTP status code.
     /// </summary>
     public RequestMockResponseBuilder RespondsWithStatus(HttpStatusCode statusCode)
@@ -288,6 +304,8 @@ public class RequestMockBuilder
     /// </summary>
     public RequestMockResponseBuilder RespondsWithJsonContent(HttpStatusCode statusCode, object content)
     {
+        var options = jsonSerializerOptions;
+
         var mock = new RequestMock
         {
             Method = Method,
@@ -299,7 +317,7 @@ public class RequestMockBuilder
             RequestCollection = requestCollection,
             Responder = _ =>
             {
-                var json = JsonSerializer.Serialize(content);
+                var json = JsonSerializer.Serialize(content, options);
                 return new HttpResponseMessage(statusCode)
                 {
                     Content = new StringContent(json, Encoding.UTF8, "application/json")
@@ -392,6 +410,8 @@ public class RequestMockBuilder
     public RequestMockResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode,
         IEnumerable<object> value)
     {
+        var options = jsonSerializerOptions;
+
         var mock = new RequestMock
         {
             Method = Method,
@@ -408,7 +428,7 @@ public class RequestMockBuilder
                     ["value"] = value.ToArray()
                 };
 
-                string json = JsonSerializer.Serialize(payload);
+                string json = JsonSerializer.Serialize(payload, options);
                 return new HttpResponseMessage(statusCode)
                 {
                     Content = new StringContent(json, Encoding.UTF8, "application/json")
@@ -439,6 +459,8 @@ public class RequestMockBuilder
     public RequestMockResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode, IEnumerable<object> value,
         string odataContext)
     {
+        var options = jsonSerializerOptions;
+
         var mock = new RequestMock
         {
             Method = Method,
@@ -460,7 +482,7 @@ public class RequestMockBuilder
                     payload["@odata.context"] = odataContext;
                 }
 
-                string json = JsonSerializer.Serialize(payload);
+                string json = JsonSerializer.Serialize(payload, options);
                 return new HttpResponseMessage(statusCode)
                 {
                     Content = new StringContent(json, Encoding.UTF8, "application/json")
