@@ -186,7 +186,6 @@ public class RequestMockBuilder
     /// The <paramref name="body"/> is serialized using <see cref="JsonSerializer.Serialize(object?, System.Type, JsonSerializerOptions?)"/>
     /// with the default <see cref="JsonSerializerOptions"/>. The comparison is then performed by comparing the serialized JSON
     /// with the request body using JSON equivalence, ignoring differences in whitespace and layout.
-    /// Any invalid JSON in the request body causes this matcher to return <c>false</c>.
     /// </remarks>
     public RequestMockBuilder WithBody(object body)
     {

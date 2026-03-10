@@ -58,7 +58,7 @@ mock.ForPost()
 
 ### JSON Equivalence
 
-Layout and whitespace independent:
+Layout and whitespace independent, using a raw JSON string:
 
 ```csharp
 mock.ForPost()
@@ -70,6 +70,23 @@ mock.ForPost()
 :::warning
 If the body cannot be parsed as JSON for `WithBodyMatchingJson`, a `RequestMatchingException` is thrown.
 :::
+
+### Object Serialized to JSON
+
+Pass an object directly and let Mockly serialize it to JSON for matching. This is useful when you have a strongly-typed request body:
+
+```csharp
+mock.ForPatch()
+    .WithPath("/api/relationships/42")
+    .WithBody(new
+    {
+        EntityKey = "TheRuleKey",
+        RepresentativeId = "abc123"
+    })
+    .RespondsWithStatus(HttpStatusCode.NoContent);
+```
+
+The object is serialized using `JsonSerializer` with default options and compared to the request body using JSON equivalence, ignoring differences in whitespace and layout.
 
 ### Regular Expression
 
