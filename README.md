@@ -27,15 +27,15 @@
 
 </div>
 
-## 📚 [Documentation](https://dennisdoomen.github.io/mockly/)
+## 📚 [Documentation](https://mockly.org/)
 
-**Visit the [official documentation website](https://dennisdoomen.github.io/mockly/)** for comprehensive guides, API reference, and examples.
+**Visit the [official documentation website](https://mockly.org/)** for comprehensive guides, API reference, and examples.
 
-- [Quick Start](https://dennisdoomen.github.io/mockly/docs/quick-start) - Get started in 5 minutes
-- [Usage Guide](https://dennisdoomen.github.io/mockly/docs/usage) - Learn core features
-- [Advanced Features](https://dennisdoomen.github.io/mockly/docs/advanced) - Custom matchers, assertions, and more
-- [Building](https://dennisdoomen.github.io/mockly/docs/building) - Build from source
-- [Contributing](https://dennisdoomen.github.io/mockly/docs/contributing) - Contribution guidelines
+- [Quick Start](https://mockly.org/docs/quick-start) - Get started in 5 minutes
+- [Usage Guide](https://mockly.org/docs/usage) - Learn core features
+- [Advanced Features](https://mockly.org/docs/advanced) - Custom matchers, assertions, and more
+- [Building](https://mockly.org/docs/building) - Build from source
+- [Contributing](https://mockly.org/docs/contributing) - Contribution guidelines
 
 ## About
 
@@ -180,7 +180,7 @@ content.Should().Contain("John Doe");
 mock.Should().HaveAllRequestsCalled();
 ```
 
-**For complete documentation and advanced examples, visit [dennisdoomen.github.io/mockly](https://dennisdoomen.github.io/mockly/)**
+**For complete documentation and advanced examples, visit [mockly.org](https://mockly.org/)**
 
 ## Building
 
@@ -200,13 +200,13 @@ Or with the [Nuke tool](https://nuke.build/docs/getting-started/installation/):
 nuke
 ```
 
-For more details, see the [Building documentation](https://dennisdoomen.github.io/mockly/docs/building).
+For more details, see the [Building documentation](https://mockly.org/docs/building).
 
 ## Contributing
 
 Your contributions are always welcome! Please have a look at the [contribution guidelines](CONTRIBUTING.md) first.
 
-For detailed contribution information, visit the [Contributing documentation](https://dennisdoomen.github.io/mockly/docs/contributing).
+For detailed contribution information, visit the [Contributing documentation](https://mockly.org/docs/contributing).
 
 Previous contributors:
 
