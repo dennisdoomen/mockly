@@ -17,10 +17,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mockly.Specs", "Mockly.Spec
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mockly.ApiVerificationTests", "Mockly.ApiVerificationTests\Mockly.ApiVerificationTests.csproj", "{2556E20E-7408-4E55-BFD1-344535F8D940}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluentAssertions.Mockly.v7", "FluentAssertions.Mockly.v7\FluentAssertions.Mockly.v7.csproj", "{5832E50E-4F06-4C4C-A964-775FF49452F5}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluentAssertions.Mockly.v8", "FluentAssertions.Mockly.v8\FluentAssertions.Mockly.v8.csproj", "{D6A65409-0E2E-436D-9158-ED3E2C67F1DA}"
-EndProject
+
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,14 +38,7 @@ Global
 		{2556E20E-7408-4E55-BFD1-344535F8D940}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2556E20E-7408-4E55-BFD1-344535F8D940}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2556E20E-7408-4E55-BFD1-344535F8D940}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5832E50E-4F06-4C4C-A964-775FF49452F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5832E50E-4F06-4C4C-A964-775FF49452F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5832E50E-4F06-4C4C-A964-775FF49452F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5832E50E-4F06-4C4C-A964-775FF49452F5}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D6A65409-0E2E-436D-9158-ED3E2C67F1DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D6A65409-0E2E-436D-9158-ED3E2C67F1DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D6A65409-0E2E-436D-9158-ED3E2C67F1DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D6A65409-0E2E-436D-9158-ED3E2C67F1DA}.Release|Any CPU.Build.0 = Release|Any CPU
+
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

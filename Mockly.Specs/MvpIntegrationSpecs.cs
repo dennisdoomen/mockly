@@ -106,16 +106,15 @@ public class MvpIntegrationSpecs
             patchResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
             // Assert - Verify mock invocations
-            mock.Should().HaveAllRequestsCalled();
+            mock.AllMocksInvoked.Should().BeTrue();
 
             var allRequests = mock.Requests;
             allRequests.Should().NotBeEmpty();
-            allRequests.Should().NotContainUnexpectedCalls();
+            allRequests.HasUnexpectedRequests.Should().BeFalse();
 
             var patchRequest1 = patches.First();
             (patchRequest1 != null).Should().BeTrue();
             patchRequest1.WasExpected.Should().BeTrue();
-            patchRequest1.Should().BeExpected();
 
             // Continue using the previous mock
             mock.ForPost().WithPath("/api/new").RespondsWithStatus(HttpStatusCode.Created);

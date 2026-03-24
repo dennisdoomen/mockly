@@ -228,28 +228,6 @@ class Build : NukeBuild
                 .EnableNoRestore()
                 .EnableContinuousIntegrationBuild() // Necessary for deterministic builds
                 .SetVersion(SemVer));
-
-            // Pack FluentAssertions.Mockly.v7 extension
-            DotNetPack(s => s
-                .SetProject(Solution.GetProject("FluentAssertions.Mockly.v7"))
-                .SetOutputDirectory(ArtifactsDirectory)
-                .SetConfiguration(Configuration)
-                .EnableNoBuild()
-                .EnableNoLogo()
-                .EnableNoRestore()
-                .EnableContinuousIntegrationBuild() // Necessary for deterministic builds
-                .SetVersion(SemVer));
-
-            // Pack FluentAssertions.Mockly.v8 extension
-            DotNetPack(s => s
-                .SetProject(Solution.GetProject("FluentAssertions.Mockly.v8"))
-                .SetOutputDirectory(ArtifactsDirectory)
-                .SetConfiguration(Configuration)
-                .EnableNoBuild()
-                .EnableNoLogo()
-                .EnableNoRestore()
-                .EnableContinuousIntegrationBuild() // Necessary for deterministic builds
-                .SetVersion(SemVer));
         });
 
 
@@ -259,7 +237,7 @@ class Build : NukeBuild
         .ProceedAfterFailure()
         .Executes(() =>
         {
-            var packages = ArtifactsDirectory.GlobFiles("*.nupkg");
+            var packages = ArtifactsDirectory.GlobFiles("Mockly.*.nupkg");
 
             Assert.NotEmpty(packages);
 

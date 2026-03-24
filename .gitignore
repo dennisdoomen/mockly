@@ -9,6 +9,9 @@
 .vs/
 .vscode/
 
+# Local split repo (should not be committed to Mockly)
+assertions-repo/
+
 project.lock.json
 *.nuget.props
 *.nuget.targets

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -1359,7 +1360,8 @@ public class HttpMockSpecs
             // Act
             await client.GetAsync("https://localhost/api/custom");
 
-            var request = mock.Requests.Should().ContainRequestFor("https://localhost/api*").Subject;
+            var request = mock.Requests.Single(r =>
+                r.Uri is not null && r.Uri.ToString().StartsWith("https://localhost/api", StringComparison.OrdinalIgnoreCase));
 
             request.Response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
             request.Response.ReasonPhrase.Should().Contain("InvalidOperationException");
@@ -1535,14 +1537,14 @@ public class HttpMockSpecs
             await client.GetAsync("https://localhost/api/times");
 
             // Assert: not all mocks invoked (needs 3)
-            Action assertion = () => mock.Should().HaveAllRequestsCalled();
+            Action assertion = () => mock.AllMocksInvoked.Should().BeTrue();
             assertion.Should().Throw<XunitException>();
 
             // Perform the third call
             await client.GetAsync("https://localhost/api/times");
 
             // Now all mocks have been invoked the required number of times
-            mock.Should().HaveAllRequestsCalled();
+            mock.AllMocksInvoked.Should().BeTrue();
         }
 
         [Fact]
