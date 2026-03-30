@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Mockly;
@@ -10,15 +11,20 @@ namespace Mockly;
     Justification = "Collection suffix is appropriate for this class")]
 public class RequestCollection : IEnumerable<CapturedRequest>
 {
-    private readonly List<CapturedRequest> requests = new();
+    private readonly ConcurrentQueue<CapturedRequest> requests = new();
+    private readonly object addLock = new();
 
     /// <summary>
     /// Adds a captured request to the collection.
     /// </summary>
     internal void Add(CapturedRequest request)
     {
-        requests.Add(request);
-        request.Sequence = requests.Count;
+        // Although the requests collection is thread-safe, using a lock ensures thread safety for sequence assignment.
+        lock (addLock)
+        {
+            requests.Enqueue(request);
+            request.Sequence = requests.Count;
+        }
     }
 
     /// <summary>
@@ -29,7 +35,7 @@ public class RequestCollection : IEnumerable<CapturedRequest>
     /// <summary>
     /// Checks if the collection is empty.
     /// </summary>
-    public bool IsEmpty => requests.Count == 0;
+    public bool IsEmpty => requests.IsEmpty;
 
     /// <summary>
     /// Checks if any unexpected requests were captured.

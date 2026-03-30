@@ -14,6 +14,8 @@ namespace Mockly;
 public class RequestMock
 {
     private static readonly ConcurrentDictionary<string, Regex> RegexCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object hostNormalizationLock = new();
+    private int invocationCount;
 
     private bool hostPatternNormalized;
 
@@ -32,12 +34,12 @@ public class RequestMock
 
     public Func<RequestInfo, HttpResponseMessage> Responder { get; set; } = _ => new HttpResponseMessage();
 
-    public RequestCollection? RequestCollection { get; init; } = new();
+    public RequestCollection? RequestCollection { get; init; } = [];
 
     /// <summary>
     /// Gets a value determining how many times this mock has been invoked.
     /// </summary>
-    public int InvocationCount { get; private set; }
+    public int InvocationCount => Volatile.Read(ref invocationCount);
 
     /// <summary>
     /// Gets the maximum number of times this mock can be invoked.
@@ -49,7 +51,7 @@ public class RequestMock
     /// Gets a value indicating whether this mock has been exhausted, i.e.
     /// it has been invoked at least <see cref="MaxInvocations"/> times when that limit is set.
     /// </summary>
-    internal bool IsExhausted => MaxInvocations is not null && InvocationCount >= MaxInvocations;
+    internal bool IsExhausted => MaxInvocations is not null && Volatile.Read(ref invocationCount) >= MaxInvocations;
 
     /// <summary>
     /// Checks if this mock matches the given request.
@@ -133,16 +135,19 @@ public class RequestMock
     /// </summary>
     private void NormalizeHostPatternOnce()
     {
-        if (!hostPatternNormalized && HostPattern is not null && HostPattern != "*")
+        lock (hostNormalizationLock)
         {
-            string[] segments = HostPattern.Split(':');
-            if (segments.Length == 1)
+            if (!hostPatternNormalized && HostPattern is not null && HostPattern != "*")
             {
-                HostPattern += Scheme!.Equals("https", StringComparison.OrdinalIgnoreCase) ? ":443" : ":80";
+                string[] segments = HostPattern.Split(':');
+                if (segments.Length == 1)
+                {
+                    HostPattern += Scheme!.Equals("https", StringComparison.OrdinalIgnoreCase) ? ":443" : ":80";
+                }
             }
-        }
 
-        hostPatternNormalized = true;
+            hostPatternNormalized = true;
+        }
     }
 
     /// <summary>
@@ -251,7 +256,7 @@ public class RequestMock
     /// </summary>
     public CapturedRequest TrackRequest(RequestInfo request)
     {
-        InvocationCount++;
+        Interlocked.Increment(ref invocationCount);
 
         CapturedRequest capturedRequest = new(request)
         {
