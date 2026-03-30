@@ -6,6 +6,11 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+#if NET8_0_OR_GREATER
+using System.Collections.Concurrent;
+using System.Net.Http.Json;
+using System.Threading;
+#endif
 using System.Threading.Tasks;
 using FluentAssertions;
 using Xunit;
@@ -2146,4 +2151,61 @@ public class HttpMockSpecs
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         }
     }
+
+    /// <summary>
+    /// Tests for concurrency issues.
+    /// </summary>
+    /// <remarks>
+    /// Only really proves that parallelism didn't work sometimes.
+    /// But doesn't necessarily prove that everything is thread safe now.
+    /// This test had to be run ~10 times without thread safety fixes before a race condition occurred.
+    /// </remarks>
+    public class WhenInMultiThreadedContext
+    {
+#if NET6_0_OR_GREATER
+        [Fact]
+        public async Task Can_handle_parallel_scenario()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            var testData = new TestData
+            {
+                Id = 123,
+                Name = "Test"
+            };
+
+            mock.ForGet().WithPath("/api/data").RespondsWithJsonContent(testData);
+
+            // Act
+            ConcurrentBag<TestData> responses = [];
+
+            var options = new ParallelOptions
+            {
+                CancellationToken = new CancellationToken(canceled: false),
+                MaxDegreeOfParallelism = 50,
+            };
+
+            var client = mock.GetClient();
+
+            await Parallel.ForAsync(0, 1000, options, async (_, token) =>
+            {
+                var response = await client.GetFromJsonAsync<TestData>("https://localhost/api/data", token);
+                responses.Add(response);
+            });
+
+            // Assert
+            responses.Count.Should().Be(1000);
+            responses.Should().AllBeEquivalentTo(testData);
+        }
+
+        private class TestData
+        {
+            public int Id { get; init; }
+
+            public string Name { get; init; }
+        }
+#endif
+    }
+
 }
