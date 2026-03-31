@@ -2,7 +2,8 @@ changelog:
   exclude:
     labels:
       - changelog-ignore
-    authors: [ ]
+    authors:
+      - dependabot
   categories:
     - title: Breaking Changes
       labels:
