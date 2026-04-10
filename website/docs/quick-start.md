@@ -65,6 +65,21 @@ var response = await client.GetAsync("/ping");
 response.StatusCode.Should().Be(HttpStatusCode.OK);
 ```
 
+## Using a Raw HttpMessageHandler
+
+If your code accepts an `HttpMessageHandler` directly (for example, when constructing `HttpClient` yourself or integrating with custom infrastructure), Mockly can provide the underlying handler:
+
+```csharp
+var mock = new HttpMock();
+mock.ForGet().WithPath("/ping").RespondsWithStatus(HttpStatusCode.OK);
+
+HttpMessageHandler handler = mock.GetMessageHandler();
+var client = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/") };
+
+var response = await client.GetAsync("/ping");
+response.StatusCode.Should().Be(HttpStatusCode.OK);
+```
+
 ## Complete Example
 
 Here's a more comprehensive example showing multiple features:

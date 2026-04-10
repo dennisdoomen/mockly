@@ -44,6 +44,7 @@ namespace Mockly
         public Mockly.RequestMockBuilder ForPut(string urlPattern) { }
         public System.Net.Http.HttpClient GetClient() { }
         public System.Net.Http.IHttpClientFactory GetClientFactory() { }
+        public System.Net.Http.HttpMessageHandler GetMessageHandler() { }
         public System.Collections.Generic.IEnumerable<Mockly.RequestMock> GetUninvokedMocks() { }
         public Mockly.HttpMock Reset() { }
     }
