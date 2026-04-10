@@ -26,6 +26,27 @@ mock.ForGet()
 HttpClient client = mock.GetClient(); // BaseAddress defaults to https://localhost/
 ```
 
+## Getting an HttpClient, IHttpClientFactory or HttpMessageHandler
+
+Mockly provides three ways to wire the mock into your code under test:
+
+- **`GetClient()`** — returns a new `HttpClient` with `BaseAddress` set to `https://localhost/`, ready to use directly in tests.
+- **`GetClientFactory()`** — returns an `IHttpClientFactory` whose `CreateClient()` method produces `HttpClient` instances backed by the mock. Use this when your code depends on `IHttpClientFactory`.
+- **`GetMessageHandler()`** — returns the underlying `HttpMessageHandler`. Use this when you need to build a custom `HttpClient` or pass the handler to other infrastructure.
+
+```csharp
+// Option 1: HttpClient (BaseAddress defaults to https://localhost/)
+HttpClient client = mock.GetClient();
+
+// Option 2: IHttpClientFactory
+IHttpClientFactory factory = mock.GetClientFactory();
+HttpClient clientFromFactory = factory.CreateClient("myClient");
+
+// Option 3: HttpMessageHandler
+HttpMessageHandler handler = mock.GetMessageHandler();
+var customClient = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/") };
+```
+
 ## HTTP Method Support
 
 Mockly supports all common HTTP methods:

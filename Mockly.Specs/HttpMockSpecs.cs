@@ -1684,6 +1684,27 @@ public class HttpMockSpecs
         }
     }
 
+    public class WhenGettingMessageHandler
+    {
+        [Fact]
+        public async Task Can_return_a_message_handler_that_intercepts_requests()
+        {
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/ping").RespondsWithStatus(HttpStatusCode.OK);
+
+            var handler = mock.GetMessageHandler();
+
+            using var client = new HttpClient(handler)
+            {
+                BaseAddress = new Uri("https://localhost/")
+            };
+
+            var response = await client.GetAsync("/ping");
+
+            response.Should().Be200Ok();
+        }
+    }
+
     public class RespondingWithHttpContent
     {
         [Fact]

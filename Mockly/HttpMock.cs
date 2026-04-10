@@ -227,6 +227,18 @@ public class HttpMock
         return new MockHttpClientFactory(this);
     }
 
+    /// <summary>
+    /// Gets the underlying <see cref="HttpMessageHandler"/> that intercepts HTTP requests based on the configured mocks.
+    /// Use this when you need to wire the mock handler directly into an <see cref="HttpClient"/> or other infrastructure
+    /// that accepts an <see cref="HttpMessageHandler"/>.
+    /// </summary>
+    [SuppressMessage("Design", "CA1024:Use properties where appropriate",
+        Justification = "GetMessageHandler creates resources and should not be a property")]
+    public HttpMessageHandler GetMessageHandler()
+    {
+        return new MockHttpMessageHandler(this);
+    }
+
     internal void AddMock(RequestMock mock)
     {
         mocks.Add(mock);
