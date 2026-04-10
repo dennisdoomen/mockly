@@ -1694,12 +1694,10 @@ public class HttpMockSpecs
 
             var handler = mock.GetMessageHandler();
 
-#pragma warning disable CA2000
-            var client = new HttpClient(handler)
+            using var client = new HttpClient(handler)
             {
                 BaseAddress = new Uri("https://localhost/")
             };
-#pragma warning restore CA2000
 
             var response = await client.GetAsync("/ping");
 
