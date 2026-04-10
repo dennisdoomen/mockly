@@ -1687,7 +1687,7 @@ public class HttpMockSpecs
     public class WhenGettingMessageHandler
     {
         [Fact]
-        public async Task GetMessageHandler_returns_handler_that_intercepts_requests()
+        public async Task Can_return_a_message_handler_that_intercepts_requests()
         {
             var mock = new HttpMock();
             mock.ForGet().WithPath("/ping").RespondsWithStatus(HttpStatusCode.OK);
