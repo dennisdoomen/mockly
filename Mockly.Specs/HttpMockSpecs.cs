@@ -13,7 +13,6 @@ using System.Threading;
 #endif
 using System.Threading.Tasks;
 using FluentAssertions;
-using Mockly.FluentAssertions;
 using Xunit;
 using Xunit.Sdk;
 
@@ -2228,75 +2227,6 @@ public class HttpMockSpecs
             public string Name { get; init; }
         }
 #endif
-    }
-
-    public class WhenAssertingAllRequestsCalled
-    {
-        [Fact]
-        public async Task Succeeds_when_all_mocks_are_invoked()
-        {
-            // Arrange
-            var mock = new HttpMock();
-            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
-
-            await mock.GetClient().GetAsync("https://localhost/api/test");
-
-            // Act & Assert
-            mock.Should().HaveAllRequestsCalled();
-        }
-
-        [Fact]
-        public void Fails_with_message_listing_mocks_that_were_never_called()
-        {
-            // Arrange
-            var mock = new HttpMock();
-            mock.ForGet().WithPath("/api/test").RespondsWithStatus(HttpStatusCode.OK);
-            mock.ForPost().WithPath("/api/other").RespondsWithStatus(HttpStatusCode.Created);
-
-            // Act
-            Action act = () => mock.Should().HaveAllRequestsCalled();
-
-            // Assert
-            act.Should().Throw<XunitException>()
-                .WithMessage("*was never called*")
-                .WithMessage("*GET*api/test*")
-                .WithMessage("*POST*api/other*");
-        }
-
-        [Fact]
-        public async Task Fails_with_message_listing_mocks_not_called_enough_times()
-        {
-            // Arrange
-            var mock = new HttpMock();
-            mock.ForGet().WithPath("/api/times").RespondsWithStatus(HttpStatusCode.OK).Times(3);
-
-            var client = mock.GetClient();
-            await client.GetAsync("https://localhost/api/times");
-            await client.GetAsync("https://localhost/api/times");
-
-            // Act
-            Action act = () => mock.Should().HaveAllRequestsCalled();
-
-            // Assert
-            act.Should().Throw<XunitException>()
-                .WithMessage("*expected 3 call(s)*")
-                .WithMessage("*was called 2 time(s)*");
-        }
-
-        [Fact]
-        public async Task Succeeds_when_mock_with_Times_is_called_enough()
-        {
-            // Arrange
-            var mock = new HttpMock();
-            mock.ForGet().WithPath("/api/times").RespondsWithStatus(HttpStatusCode.OK).Times(2);
-
-            var client = mock.GetClient();
-            await client.GetAsync("https://localhost/api/times");
-            await client.GetAsync("https://localhost/api/times");
-
-            // Act & Assert
-            mock.Should().HaveAllRequestsCalled();
-        }
     }
 
 }

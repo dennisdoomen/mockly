@@ -11,7 +11,7 @@ using System.Text.Json;
 namespace Mockly.Specs;
 
 internal class HttpResponseMessageAssertions(HttpResponseMessage response)
-    : global::FluentAssertions.Web.HttpResponseMessageAssertions(response, AssertionChain.GetOrCreate())
+    : FluentAssertions.Web.HttpResponseMessageAssertions(response, AssertionChain.GetOrCreate())
 {
     private readonly HttpResponseMessage response = response;
 

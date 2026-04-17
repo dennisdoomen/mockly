@@ -17,8 +17,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mockly.Specs", "Mockly.Spec
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mockly.ApiVerificationTests", "Mockly.ApiVerificationTests\Mockly.ApiVerificationTests.csproj", "{2556E20E-7408-4E55-BFD1-344535F8D940}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluentAssertions.Mockly.v8", "FluentAssertions.Mockly.v8\FluentAssertions.Mockly.v8.csproj", "{460325D7-2676-4592-8DFC-638950AA5268}"
-EndProject
 
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -40,10 +38,6 @@ Global
 		{2556E20E-7408-4E55-BFD1-344535F8D940}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2556E20E-7408-4E55-BFD1-344535F8D940}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2556E20E-7408-4E55-BFD1-344535F8D940}.Release|Any CPU.Build.0 = Release|Any CPU
-		{460325D7-2676-4592-8DFC-638950AA5268}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{460325D7-2676-4592-8DFC-638950AA5268}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{460325D7-2676-4592-8DFC-638950AA5268}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{460325D7-2676-4592-8DFC-638950AA5268}.Release|Any CPU.Build.0 = Release|Any CPU
 
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution

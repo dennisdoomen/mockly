@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using FluentAssertions;
-using Mockly.FluentAssertions;
 using Xunit;
 
 namespace Mockly.Specs;
@@ -107,7 +106,7 @@ public class MvpIntegrationSpecs
             patchResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
             // Assert - Verify mock invocations
-            mock.Should().HaveAllRequestsCalled();
+            mock.AllMocksInvoked.Should().BeTrue();
 
             var allRequests = mock.Requests;
             allRequests.Should().NotBeEmpty();
