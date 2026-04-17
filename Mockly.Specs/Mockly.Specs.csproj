@@ -35,6 +35,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Mockly\Mockly.csproj" />
+      <ProjectReference Include="..\FluentAssertions.Mockly.v8\FluentAssertions.Mockly.v8.csproj" />
     </ItemGroup>
 
 
