@@ -1,0 +1,39 @@
+<Project>
+
+  <!--
+    Copies SKILL.md from this package to .agents/skills/mockly/ in the consuming repo root.
+    Uses InitializeSourceControlInformation (SourceLink) to locate the repo root.
+    Falls back to SolutionDir if the git root cannot be determined.
+    Falls back to the directory containing the nearest AGENTS.md file found above the project file.
+    Silently skips if the base directory cannot be determined.
+    Opt-out: set <MocklySkill>false</MocklySkill> in your project or Directory.Build.props.
+  -->
+  <Target Name="CopyMocklySkill"
+          BeforeTargets="PrepareForBuild"
+          DependsOnTargets="InitializeSourceControlInformation"
+          Condition="'$(MocklySkill)' != 'false'">
+
+    <ItemGroup>
+      <_MocklySkillSourceRoot Include="@(SourceRoot -> WithMetadataValue('SourceControl', 'git'))" />
+    </ItemGroup>
+
+    <PropertyGroup>
+      <_MocklySkillRepoRoot>@(_MocklySkillSourceRoot)</_MocklySkillRepoRoot>
+      <_MocklySkillRepoRoot Condition="'$(_MocklySkillRepoRoot)' == '' and '$(SolutionDir)' != '' and '$(SolutionDir)' != '*Undefined*'">$(SolutionDir)</_MocklySkillRepoRoot>
+      <_MocklySkillAgentsMd Condition="'$(_MocklySkillRepoRoot)' == ''">$([MSBuild]::GetPathOfFileAbove('AGENTS.md', '$(MSBuildProjectDirectory)'))</_MocklySkillAgentsMd>
+      <_MocklySkillRepoRoot Condition="'$(_MocklySkillRepoRoot)' == '' and '$(_MocklySkillAgentsMd)' != ''">$([System.IO.Path]::GetDirectoryName('$(_MocklySkillAgentsMd)'))\</_MocklySkillRepoRoot>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(_MocklySkillRepoRoot).agents\skills\mockly"
+             Condition="'$(_MocklySkillRepoRoot)' != '' and Exists('$(MSBuildThisFileDirectory)..\skills\mockly\SKILL.md')"
+             ContinueOnError="true" />
+
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\skills\mockly\SKILL.md"
+          DestinationFiles="$(_MocklySkillRepoRoot).agents\skills\mockly\SKILL.md"
+          SkipUnchangedFiles="true"
+          Condition="'$(_MocklySkillRepoRoot)' != '' and Exists('$(MSBuildThisFileDirectory)..\skills\mockly\SKILL.md')"
+          ContinueOnError="true" />
+
+  </Target>
+
+</Project>
