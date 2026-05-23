@@ -42,6 +42,8 @@
     <None Include="..\PackageIcon.png" Pack="true" Visible="false" PackagePath="" />
     <None Include="..\LICENSE" Pack="true" PackagePath=""/>
     <None Include="..\Artifacts\Readme.md" Pack="true" PackagePath="" />
+    <None Include="..\SKILL.md" Pack="true" Visible="false" PackagePath="skills/mockly/SKILL.md" CopyToOutputDirectory="Never" />
+    <None Include="Mockly.targets" Pack="true" Visible="false" PackagePath="buildTransitive/Mockly.targets" CopyToOutputDirectory="Never" />
   </ItemGroup>
 
   <ItemGroup Label="Dependencies">
