@@ -35,8 +35,11 @@ dotnet test --filter FullyQualifiedName~Mockly.Specs.HttpMockSpecs+BasicUsage
   `.editorconfig` is authoritative (4-space indent, 130-col lines, braces on new lines).
 - Tests: xUnit, Arrange-Act-Assert, scenarios grouped in nested classes (see
   `Mockly.Specs/HttpMockSpecs.cs`), snake-case method names, FluentAssertions for assertions.
-- Keep the public API working on both `net472` and `net8.0`; XML-doc public members.
-- Avoid new dependencies; never commit secrets; guard against ReDoS in matchers.
+- Chain-starting fluent methods use present-tense verbs (`ForGet`, `WithPath`, `RespondsWithStatus`).
+- Keep the public API working on both `net472` and `net8.0`; XML-doc public members. Use
+  `#if NET472_OR_GREATER` for the rare TFM-specific divergence and keep it minimal.
+- Avoid new dependencies; never commit secrets; guard against ReDoS in matchers. Add any new
+  analyzer packages to `Directory.Build.props` conditioned on `net8.0` with `<PrivateAssets>all</PrivateAssets>`.
 
 ## Public API changes
 
