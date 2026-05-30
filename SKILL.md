@@ -97,6 +97,14 @@ mock.AllMocksInvoked.Should().BeTrue();   // true when all mocks hit required co
 mock.GetUninvokedMocks();                  // IEnumerable<RequestMock>
 ```
 
+## Response Latency
+
+```csharp
+// Delay the response to test timeout / cancellation / resilience behavior.
+mock.ForGet().WithPath("/slow").RespondsWithStatus(HttpStatusCode.OK).After(TimeSpan.FromSeconds(2));
+// A shorter HttpClient.Timeout or a cancelled token throws TaskCanceledException/OperationCanceledException.
+```
+
 ## Reset / Clear
 
 ```csharp

@@ -1717,6 +1717,91 @@ public class HttpMockSpecs
         }
     }
 
+    public class WhenSimulatingResponseLatency
+    {
+        [Fact]
+        public async Task The_response_is_delayed_by_the_configured_amount()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var delay = TimeSpan.FromMilliseconds(200);
+
+            mock.ForGet()
+                .WithPath("/slow")
+                .RespondsWithStatus(HttpStatusCode.OK)
+                .After(delay);
+
+            var client = mock.GetClient();
+
+            // Act
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var response = await client.GetAsync("https://localhost/slow");
+            stopwatch.Stop();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            stopwatch.Elapsed.Should().BeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(150));
+        }
+
+        [Fact]
+        public async Task A_client_timeout_shorter_than_the_delay_throws_a_task_cancelled_exception()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/slow")
+                .RespondsWithStatus(HttpStatusCode.OK)
+                .After(TimeSpan.FromSeconds(10));
+
+            var client = mock.GetClient();
+            client.Timeout = TimeSpan.FromMilliseconds(100);
+
+            // Act
+            Func<Task> act = () => client.GetAsync("https://localhost/slow");
+
+            // Assert
+            await act.Should().ThrowAsync<TaskCanceledException>();
+        }
+
+        [Fact]
+        public async Task An_externally_cancelled_token_cancels_the_wait()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/slow")
+                .RespondsWithStatus(HttpStatusCode.OK)
+                .After(TimeSpan.FromSeconds(10));
+
+            var client = mock.GetClient();
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+            // Act
+            Func<Task> act = () => client.GetAsync("https://localhost/slow", cts.Token);
+
+            // Assert
+            await act.Should().ThrowAsync<OperationCanceledException>();
+        }
+
+        [Fact]
+        public async Task A_negative_delay_is_rejected()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            Action act = () => mock.ForGet()
+                .WithPath("/slow")
+                .RespondsWithStatus(HttpStatusCode.OK)
+                .After(TimeSpan.FromSeconds(-1));
+
+            // Assert
+            act.Should().Throw<ArgumentOutOfRangeException>();
+        }
+    }
+
     public class WhenLimitingInvocations
     {
         [Fact]

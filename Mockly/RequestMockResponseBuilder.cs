@@ -43,4 +43,26 @@ public class RequestMockResponseBuilder
         requestMock.MaxInvocations = count;
         return this;
     }
+
+    /// <summary>
+    /// Delays the response by the specified <paramref name="delay"/> before it is produced, simulating a slow endpoint.
+    /// </summary>
+    /// <remarks>
+    /// The delay is awaited on the asynchronous response path and honors the <see cref="CancellationToken"/> flowing
+    /// from the HTTP pipeline. If the request is cancelled (for example through <see cref="System.Net.Http.HttpClient.Timeout"/>
+    /// or an externally cancelled token) while the delay is in progress, a
+    /// <see cref="System.Threading.Tasks.TaskCanceledException"/> is thrown, just as a real <see cref="System.Net.Http.HttpClient"/> would.
+    /// </remarks>
+    /// <param name="delay">The amount of time to wait before producing the response.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="delay"/> is negative.</exception>
+    public RequestMockResponseBuilder After(TimeSpan delay)
+    {
+        if (delay < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(delay), delay, "Cannot delay a response by a negative amount of time");
+        }
+
+        requestMock.Delay = delay;
+        return this;
+    }
 }

@@ -157,6 +157,25 @@ mock.ForDelete()
   - `HttpMock.AllMocksInvoked` returns `true` only when each mock has been called at least once or has reached its configured `Times(..)` limit.
   - `HttpMock.GetUninvokedMocks()` lists mocks that haven't reached their required count (or have 0 calls for unlimited mocks).
 
+## Simulating Response Latency
+
+Use `After(TimeSpan delay)` to delay a response, simulating a slow endpoint. This is useful for exercising timeout, cancellation, and resilience (e.g. Polly) behavior.
+
+```csharp
+var mock = new HttpMock();
+
+mock.ForGet()
+    .WithPath("/slow")
+    .RespondsWithStatus(HttpStatusCode.OK)
+    .After(TimeSpan.FromSeconds(2));
+```
+
+### Behavior Notes
+
+- The delay is awaited before the response is produced and honors the `CancellationToken` flowing from the HTTP pipeline.
+- If `HttpClient.Timeout` is shorter than the delay, the request throws a `TaskCanceledException`, just like a real `HttpClient`.
+- If the `CancellationToken` passed to the request is cancelled while the delay is in progress, an `OperationCanceledException` is thrown.
+
 ## Request Collection
 
 Capture requests for specific mocks:

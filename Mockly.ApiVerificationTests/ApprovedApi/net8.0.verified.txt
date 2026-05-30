@@ -146,6 +146,7 @@ namespace Mockly
     }
     public class RequestMockResponseBuilder
     {
+        public Mockly.RequestMockResponseBuilder After(System.TimeSpan delay) { }
         public Mockly.RequestMockResponseBuilder Once() { }
         public Mockly.RequestMockResponseBuilder Times(uint count) { }
         public Mockly.RequestMockResponseBuilder Twice() { }
