@@ -2229,4 +2229,176 @@ public class HttpMockSpecs
 #endif
     }
 
+    public class SequencedResponses
+    {
+        [Fact]
+        public async Task The_sequence_advances_with_each_call()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/resource")
+                .RespondsWithStatus(HttpStatusCode.ServiceUnavailable)
+                .Then(HttpStatusCode.ServiceUnavailable)
+                .Then(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var first = await client.GetAsync("https://localhost/resource");
+            var second = await client.GetAsync("https://localhost/resource");
+            var third = await client.GetAsync("https://localhost/resource");
+
+            // Assert
+            first.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+            second.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+            third.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task The_last_response_repeats_once_the_sequence_is_exhausted()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/resource")
+                .RespondsWithStatus(HttpStatusCode.InternalServerError)
+                .Then(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var first = await client.GetAsync("https://localhost/resource");
+            var second = await client.GetAsync("https://localhost/resource");
+            var third = await client.GetAsync("https://localhost/resource");
+
+            // Assert
+            first.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+            second.StatusCode.Should().Be(HttpStatusCode.OK);
+            third.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task A_single_response_keeps_repeating()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/resource").RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var first = await client.GetAsync("https://localhost/resource");
+            var second = await client.GetAsync("https://localhost/resource");
+
+            // Assert
+            first.StatusCode.Should().Be(HttpStatusCode.OK);
+            second.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Sequenced_json_responses_produce_different_bodies()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/resource")
+                .RespondsWithJsonContent(new { Page = 1 })
+                .ThenRespondsWithJsonContent(new { Page = 2 });
+
+            var client = mock.GetClient();
+
+            // Act
+            var firstBody = await (await client.GetAsync("https://localhost/resource")).Content.ReadAsStringAsync();
+            var secondBody = await (await client.GetAsync("https://localhost/resource")).Content.ReadAsStringAsync();
+
+            // Assert
+            firstBody.Should().Contain("\"Page\":1");
+            secondBody.Should().Contain("\"Page\":2");
+        }
+
+        [Fact]
+        public async Task A_sequence_can_be_combined_with_collecting_requests()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var requests = new RequestCollection();
+            mock.ForGet().WithPath("/resource")
+                .CollectingRequestsIn(requests)
+                .RespondsWithStatus(HttpStatusCode.ServiceUnavailable)
+                .Then(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var first = await client.GetAsync("https://localhost/resource");
+            var second = await client.GetAsync("https://localhost/resource");
+
+            // Assert
+            first.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+            second.StatusCode.Should().Be(HttpStatusCode.OK);
+            requests.Should().HaveCount(2);
+            requests.ElementAt(0).Response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+            requests.ElementAt(1).Response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task A_sequence_combined_with_Times_stops_matching_after_the_limit()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/resource")
+                .RespondsWithStatus(HttpStatusCode.ServiceUnavailable)
+                .Then(HttpStatusCode.OK)
+                .Times(2);
+
+            var client = mock.GetClient();
+
+            // Act
+            var first = await client.GetAsync("https://localhost/resource");
+            var second = await client.GetAsync("https://localhost/resource");
+            Func<Task> third = () => client.GetAsync("https://localhost/resource");
+
+            // Assert
+            first.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+            second.StatusCode.Should().Be(HttpStatusCode.OK);
+            await third.Should().ThrowAsync<UnexpectedRequestException>();
+        }
+
+        [Fact]
+        public async Task A_custom_responder_can_be_appended_to_the_sequence()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/resource")
+                .RespondsWithStatus(HttpStatusCode.Accepted)
+                .Then(_ => new HttpResponseMessage(HttpStatusCode.Created));
+
+            var client = mock.GetClient();
+
+            // Act
+            var first = await client.GetAsync("https://localhost/resource");
+            var second = await client.GetAsync("https://localhost/resource");
+
+            // Assert
+            first.StatusCode.Should().Be(HttpStatusCode.Accepted);
+            second.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+
+        [Fact]
+        public void The_Responder_property_still_exposes_the_first_response()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/resource")
+                .RespondsWithStatus(HttpStatusCode.BadGateway)
+                .Then(HttpStatusCode.OK);
+
+            // Act
+            var uninvoked = mock.GetUninvokedMocks().First();
+            var request = new RequestInfo(new HttpRequestMessage(HttpMethod.Get, "https://localhost/resource"), body: null);
+            var firstResponse = uninvoked.Responder(request);
+
+            // Assert
+            firstResponse.StatusCode.Should().Be(HttpStatusCode.BadGateway);
+        }
+    }
+
 }
