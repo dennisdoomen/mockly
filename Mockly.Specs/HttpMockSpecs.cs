@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -2788,5 +2789,114 @@ public class HttpMockSpecs
             response.StatusCode.Should().Be(HttpStatusCode.OK);
         }
     }
+
+#nullable enable
+    public class WhenRespondingWithProblemDetails
+    {
+        [Fact]
+        public async Task Uses_the_problem_json_content_type()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/users/999")
+                .RespondsWithProblemDetails(HttpStatusCode.NotFound);
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/users/999");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+            response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+        }
+
+        [Fact]
+        public async Task Defaults_the_title_to_the_reason_phrase_and_includes_the_status()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/users/999")
+                .RespondsWithProblemDetails(HttpStatusCode.NotFound);
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/users/999");
+
+            // Assert
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            document.RootElement.GetProperty("title").GetString().Should().Be("Not Found");
+            document.RootElement.GetProperty("status").GetInt32().Should().Be(404);
+        }
+
+        [Fact]
+        public async Task Uses_the_supplied_title_detail_type_and_instance()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/users/999")
+                .RespondsWithProblemDetails(
+                    HttpStatusCode.NotFound,
+                    title: "User not found",
+                    detail: "No user exists with id 999",
+                    type: "https://example.com/problems/not-found",
+                    instance: "/api/users/999");
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/users/999");
+
+            // Assert
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var root = document.RootElement;
+            root.GetProperty("title").GetString().Should().Be("User not found");
+            root.GetProperty("detail").GetString().Should().Be("No user exists with id 999");
+            root.GetProperty("type").GetString().Should().Be("https://example.com/problems/not-found");
+            root.GetProperty("instance").GetString().Should().Be("/api/users/999");
+        }
+
+        [Fact]
+        public async Task Serializes_extension_members()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/users/999")
+                .RespondsWithProblemDetails(
+                    HttpStatusCode.BadRequest,
+                    extensions: new Dictionary<string, object?>
+                    {
+                        ["traceId"] = "00-abc-def-01",
+                        ["errors"] = new[] { "name is required" }
+                    });
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/users/999");
+
+            // Assert
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var root = document.RootElement;
+            root.GetProperty("traceId").GetString().Should().Be("00-abc-def-01");
+            root.GetProperty("errors")[0].GetString().Should().Be("name is required");
+        }
+
+        [Fact]
+        public async Task Works_with_times()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/users/999")
+                .RespondsWithProblemDetails(HttpStatusCode.NotFound, title: "User not found")
+                .Times(2);
+
+            var client = mock.GetClient();
+
+            // Act
+            var first = await client.GetAsync("https://localhost/api/users/999");
+            var second = await client.GetAsync("https://localhost/api/users/999");
+
+            // Assert
+            first.StatusCode.Should().Be(HttpStatusCode.NotFound);
+            second.StatusCode.Should().Be(HttpStatusCode.NotFound);
+            second.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+            mock.AllMocksInvoked.Should().BeTrue();
+        }
+    }
+#nullable restore
 
 }
