@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Mockly.Common;
@@ -261,9 +260,9 @@ public class RequestMockBuilder
     }
 
     /// <summary>
-    /// Responds with the specified HTTP status code.
+    /// Creates a mock with the specified responder, registers it, and returns a builder for further configuration.
     /// </summary>
-    public RequestMockResponseBuilder RespondsWithStatus(HttpStatusCode statusCode)
+    private RequestMockResponseBuilder CreateResponse(Func<RequestInfo, HttpResponseMessage> responder)
     {
         var mock = new RequestMock
         {
@@ -274,11 +273,19 @@ public class RequestMockBuilder
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
-            Responder = _ => new HttpResponseMessage(statusCode)
+            Responder = responder
         };
 
         mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return new RequestMockResponseBuilder(mock, jsonSerializerOptions);
+    }
+
+    /// <summary>
+    /// Responds with the specified HTTP status code.
+    /// </summary>
+    public RequestMockResponseBuilder RespondsWithStatus(HttpStatusCode statusCode)
+    {
+        return CreateResponse(ResponderFactory.Status(statusCode));
     }
 
     /// <summary>
@@ -304,29 +311,7 @@ public class RequestMockBuilder
     /// </summary>
     public RequestMockResponseBuilder RespondsWithJsonContent(HttpStatusCode statusCode, object content)
     {
-        var options = jsonSerializerOptions;
-
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = _ =>
-            {
-                var json = JsonSerializer.Serialize(content, options);
-                return new HttpResponseMessage(statusCode)
-                {
-                    Content = new StringContent(json, Encoding.UTF8, "application/json")
-                };
-            }
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(ResponderFactory.JsonContent(statusCode, content, jsonSerializerOptions));
     }
 
     /// <summary>
@@ -410,34 +395,7 @@ public class RequestMockBuilder
     public RequestMockResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode,
         IEnumerable<object> value)
     {
-        var options = jsonSerializerOptions;
-
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = _ =>
-            {
-                var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
-                {
-                    ["value"] = value.ToArray()
-                };
-
-                string json = JsonSerializer.Serialize(payload, options);
-                return new HttpResponseMessage(statusCode)
-                {
-                    Content = new StringContent(json, Encoding.UTF8, "application/json")
-                };
-            }
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(ResponderFactory.ODataResult(statusCode, value, odataContext: null, jsonSerializerOptions));
     }
 
     /// <summary>
@@ -459,39 +417,7 @@ public class RequestMockBuilder
     public RequestMockResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode, IEnumerable<object> value,
         string odataContext)
     {
-        var options = jsonSerializerOptions;
-
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = _ =>
-            {
-                var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
-                {
-                    ["value"] = value.ToArray()
-                };
-
-                if (!string.IsNullOrWhiteSpace(odataContext))
-                {
-                    payload["@odata.context"] = odataContext;
-                }
-
-                string json = JsonSerializer.Serialize(payload, options);
-                return new HttpResponseMessage(statusCode)
-                {
-                    Content = new StringContent(json, Encoding.UTF8, "application/json")
-                };
-            }
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(ResponderFactory.ODataResult(statusCode, value, odataContext, jsonSerializerOptions));
     }
 
     /// <summary>
@@ -527,23 +453,7 @@ public class RequestMockBuilder
     public RequestMockResponseBuilder RespondsWithContent(HttpStatusCode statusCode, string content,
         string contentType = "application/json")
     {
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = _ => new HttpResponseMessage(statusCode)
-            {
-                Content = new StringContent(content, Encoding.UTF8, contentType)
-            }
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(ResponderFactory.Content(statusCode, content, contentType));
     }
 
     /// <summary>
@@ -551,20 +461,7 @@ public class RequestMockBuilder
     /// </summary>
     public RequestMockResponseBuilder RespondsWithEmptyContent(HttpStatusCode statusCode = HttpStatusCode.NoContent)
     {
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = _ => new HttpResponseMessage(statusCode)
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(ResponderFactory.Status(statusCode));
     }
 
     /// <summary>
@@ -593,23 +490,7 @@ public class RequestMockBuilder
     /// </remarks>
     public RequestMockResponseBuilder RespondsWith(HttpStatusCode statusCode, HttpContent content)
     {
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = _ => new HttpResponseMessage(statusCode)
-            {
-                Content = content
-            }
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(ResponderFactory.HttpContent(statusCode, content));
     }
 
     /// <summary>
@@ -617,19 +498,6 @@ public class RequestMockBuilder
     /// </summary>
     public RequestMockResponseBuilder RespondsWith(Func<RequestInfo, HttpResponseMessage> responder)
     {
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = responder
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(responder);
     }
 }

@@ -15,6 +15,8 @@ public class RequestMock
 {
     private static readonly ConcurrentDictionary<string, Regex> RegexCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly object hostNormalizationLock = new();
+    private readonly object respondersLock = new();
+    private readonly List<Func<RequestInfo, HttpResponseMessage>> responders = [_ => new HttpResponseMessage()];
     private int invocationCount;
 
     private bool hostPatternNormalized;
@@ -32,7 +34,32 @@ public class RequestMock
 
     public IEnumerable<Matcher> CustomMatchers { get; internal init; } = [];
 
-    public Func<RequestInfo, HttpResponseMessage> Responder { get; set; } = _ => new HttpResponseMessage();
+    /// <summary>
+    /// Gets or sets the responder used to produce a response for a matched request.
+    /// </summary>
+    /// <remarks>
+    /// This is the first (or only) responder in the configured sequence. Additional responders can be appended
+    /// through the fluent <c>Then*</c> methods on <see cref="RequestMockResponseBuilder"/>, in which case this
+    /// property continues to represent the response returned for the first invocation.
+    /// </remarks>
+    public Func<RequestInfo, HttpResponseMessage> Responder
+    {
+        get
+        {
+            lock (respondersLock)
+            {
+                return responders[0];
+            }
+        }
+
+        set
+        {
+            lock (respondersLock)
+            {
+                responders[0] = value;
+            }
+        }
+    }
 
     public RequestCollection? RequestCollection { get; init; } = [];
 
@@ -252,11 +279,26 @@ public class RequestMock
     }
 
     /// <summary>
+    /// Appends a responder to the configured sequence of responses.
+    /// </summary>
+    /// <remarks>
+    /// Consecutive matching requests are served by consecutive responders. Once the sequence is exhausted,
+    /// the last responder is repeated for every subsequent request.
+    /// </remarks>
+    internal void AppendResponder(Func<RequestInfo, HttpResponseMessage> responder)
+    {
+        lock (respondersLock)
+        {
+            responders.Add(responder);
+        }
+    }
+
+    /// <summary>
     /// Handles the request and returns a response.
     /// </summary>
     public CapturedRequest TrackRequest(RequestInfo request)
     {
-        Interlocked.Increment(ref invocationCount);
+        int invocationIndex = Interlocked.Increment(ref invocationCount) - 1;
 
         CapturedRequest capturedRequest = new(request)
         {
@@ -265,9 +307,16 @@ public class RequestMock
             Timestamp = DateTime.UtcNow
         };
 
+        Func<RequestInfo, HttpResponseMessage> responder;
+        lock (respondersLock)
+        {
+            int responderIndex = Math.Min(invocationIndex, responders.Count - 1);
+            responder = responders[responderIndex];
+        }
+
         try
         {
-            capturedRequest.Response = Responder(request);
+            capturedRequest.Response = responder(request);
         }
 #pragma warning disable CA1031
         catch (Exception e)
