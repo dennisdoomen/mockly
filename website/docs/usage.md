@@ -105,6 +105,34 @@ mock.ForGet()
     .WithQuery("?q=*&limit=10");
 ```
 
+## Header Matching
+
+Use the first-class header matchers when you need to assert on common request metadata:
+
+```csharp
+mock.ForGet()
+    .WithPath("/api/secure")
+    .WithHeader("X-Api-Key")
+    .RespondsWithStatus(HttpStatusCode.OK);
+
+mock.ForGet()
+    .WithPath("/api/secure")
+    .WithHeader("X-Trace-Id", "abc-*")
+    .RespondsWithStatus(HttpStatusCode.OK);
+
+mock.ForGet()
+    .WithPath("/api/auth")
+    .WithBearerToken("eyJ*")
+    .RespondsWithStatus(HttpStatusCode.OK);
+
+mock.ForPost()
+    .WithPath("/api/json")
+    .WithContentType("application/json")
+    .RespondsWithStatus(HttpStatusCode.OK);
+```
+
+`WithHeader(name, valuePattern)` matches when any value of a multi-valued header satisfies the wildcard pattern. `WithContentType` matches the media type and ignores parameters such as `charset`.
+
 ## Response Configuration
 
 ### JSON Responses

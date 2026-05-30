@@ -215,6 +215,102 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Configures the request mock to match requests that contain the specified header, regardless of its value.
+    /// </summary>
+    /// <param name="name">The name of the header that must be present on the request.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <c>null</c>.</exception>
+    public RequestMockBuilder WithHeader(string name)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        return With(
+            request => request.Headers.TryGetValues(name, out _),
+            $"header \"{name}\" is present");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests that contain the specified header with a value satisfying the
+    /// given wildcard pattern. For headers with multiple values, a match on any single value is sufficient.
+    /// </summary>
+    /// <param name="name">The name of the header that must be present on the request.</param>
+    /// <param name="valuePattern">
+    /// The wildcard pattern used to match the header value, where '?' represents any single character and '*' represents
+    /// any sequence of characters.
+    /// </param>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="name"/> or <paramref name="valuePattern"/> is <c>null</c>.
+    /// </exception>
+    public RequestMockBuilder WithHeader(string name, string valuePattern)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        if (valuePattern is null)
+        {
+            throw new ArgumentNullException(nameof(valuePattern));
+        }
+
+        return With(
+            request => request.Headers.TryGetValues(name, out var values) &&
+                values.Any(value => value.MatchesWildcard(valuePattern)),
+            $"header \"{name}\" matches \"{valuePattern}\"");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests that carry an <c>Authorization</c> header using the <c>Bearer</c>
+    /// scheme with a token satisfying the given wildcard pattern.
+    /// </summary>
+    /// <param name="tokenPattern">
+    /// The wildcard pattern used to match the bearer token, where '?' represents any single character and '*' represents
+    /// any sequence of characters. Defaults to '*', which matches any non-empty token.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="tokenPattern"/> is <c>null</c>.</exception>
+    public RequestMockBuilder WithBearerToken(string tokenPattern = "*")
+    {
+        if (tokenPattern is null)
+        {
+            throw new ArgumentNullException(nameof(tokenPattern));
+        }
+
+        return With(
+            request =>
+            {
+                var authorization = request.Headers.Authorization;
+                return authorization is not null &&
+                    string.Equals(authorization.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) &&
+                    authorization.Parameter is not null &&
+                    authorization.Parameter.MatchesWildcard(tokenPattern);
+            },
+            $"bearer token matches \"{tokenPattern}\"");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests whose <c>Content-Type</c> media type satisfies the given wildcard
+    /// pattern. Any parameters such as <c>charset</c> are ignored; only the media type is compared.
+    /// </summary>
+    /// <param name="mediaTypePattern">
+    /// The wildcard pattern used to match the media type, where '?' represents any single character and '*' represents
+    /// any sequence of characters.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="mediaTypePattern"/> is <c>null</c>.</exception>
+    public RequestMockBuilder WithContentType(string mediaTypePattern)
+    {
+        if (mediaTypePattern is null)
+        {
+            throw new ArgumentNullException(nameof(mediaTypePattern));
+        }
+
+        return With(
+            request => request.ContentType is not null && request.ContentType.MatchesWildcard(mediaTypePattern),
+            $"content type matches \"{mediaTypePattern}\"");
+    }
+
+    /// <summary>
     /// Specifies a custom matcher predicate for the request.
     /// </summary>
     public RequestMockBuilder With(Func<RequestInfo, bool> matcher,

@@ -3,7 +3,7 @@ name: mockly
 description: >
   Helps write tests using Mockly — a fluent HTTP mocking library for .NET that intercepts HttpClient
   calls. Use this skill when writing unit or integration tests that need to mock HTTP requests,
-  configure responses (status codes, JSON, OData, raw content), capture and inspect requests,
+  configure responses (status codes, JSON, OData, raw content), match headers, capture and inspect requests,
   limit mock invocations, or assert HTTP interactions with FluentAssertions.
 ---
 
@@ -49,9 +49,17 @@ mock.ForPost().WithPath("/api/data").WithBody(new { name = "John" }).RespondsWit
 mock.ForPost().WithPath("/api/data").WithBodyMatchingJson("{\"name\":\"John\"}").RespondsWithStatus(HttpStatusCode.NoContent);
 mock.ForPost().WithPath("/api/data").WithBodyMatchingRegex(".*keyword.*").RespondsWithStatus(HttpStatusCode.NoContent);
 
-// Custom predicate (sync or async) — also use .With() for header/URI checks
+// Custom predicate (sync or async) — use .With() for custom body or URI checks
 mock.ForPost().WithPath("/api/data").With(req => req.Body!.Contains("keyword")).RespondsWithStatus(HttpStatusCode.NoContent);
-mock.ForGet().WithPath("/api/secure").With(req => req.Headers.Contains("X-API-Key")).RespondsWithStatus(HttpStatusCode.OK);
+```
+
+## Header Matching
+
+```csharp
+mock.ForGet().WithPath("/api/secure").WithHeader("X-API-Key").RespondsWithStatus(HttpStatusCode.OK);
+mock.ForGet().WithPath("/api/secure").WithHeader("X-Trace-Id", "abc-*").RespondsWithStatus(HttpStatusCode.OK);
+mock.ForGet().WithPath("/api/auth").WithBearerToken().RespondsWithStatus(HttpStatusCode.OK);
+mock.ForPost().WithPath("/api/json").WithContentType("application/json").RespondsWithStatus(HttpStatusCode.OK);
 ```
 
 ## Responses
