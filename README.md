@@ -140,6 +140,22 @@ mock.FailOnUnexpectedCalls = true; // Default behavior
 // Throws UnexpectedRequestException if an unmocked request is made
 ```
 
+### 📥 Import From cURL
+
+Bootstrap a mock from an existing `curl` command, such as the output of a browser's "Copy as cURL":
+
+```csharp
+mock.ImportFromCurl("""
+    curl -X POST https://api.example.com/users \
+      -H 'Content-Type: application/json' \
+      --data-raw '{"name":"mockly"}'
+    """)
+    .RespondsWithStatus(HttpStatusCode.Created);
+```
+
+The method (`-X`), URL, headers (`-H`) and body (`-d`/`--data`/`--data-raw`) are translated into the
+equivalent matching configuration. Importing HAR files is planned for a future release.
+
 ## Quick Start
 
 Install the package:

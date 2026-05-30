@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using Mockly.Common;
 #if NET472_OR_GREATER
 using System.Net.Http;
@@ -176,6 +177,51 @@ public class HttpMock
     {
         var builder = ForDelete();
         builder = ApplyUrlPattern(builder, urlPattern);
+        previousBuilder = builder;
+        return builder;
+    }
+
+    /// <summary>
+    /// Builds a request mock from a <c>curl</c> command string, such as the output of a browser's
+    /// "Copy as cURL" command.
+    /// </summary>
+    /// <remarks>
+    /// The HTTP method (<c>-X</c>), URL, headers (<c>-H</c>) and body (<c>-d</c>, <c>--data</c>, <c>--data-raw</c>, ...)
+    /// are translated into the equivalent request matching configuration. When no method is specified, <c>POST</c> is
+    /// assumed if a body is present and <c>GET</c> otherwise. Attach a response (for example
+    /// <see cref="RequestMockBuilder.RespondsWithStatus"/>) to the returned builder to complete the mock.
+    /// </remarks>
+    /// <param name="curlCommand">The <c>curl</c> command to import.</param>
+    /// <returns>A <see cref="RequestMockBuilder"/> configured to match the imported request.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="curlCommand"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="curlCommand"/> is empty or cannot be parsed.</exception>
+    public RequestMockBuilder ImportFromCurl(string curlCommand)
+    {
+        if (curlCommand is null)
+        {
+            throw new ArgumentNullException(nameof(curlCommand));
+        }
+
+        CurlRequest parsed = CurlCommandParser.Parse(curlCommand);
+
+        var builder = new RequestMockBuilder(this, ResolveMethod(parsed));
+        builder = ApplyUrlPattern(builder, parsed.Url!);
+
+        foreach (KeyValuePair<string, string> header in parsed.Headers)
+        {
+            if (IsUnsupportedContentHeader(header.Key))
+            {
+                continue;
+            }
+
+            builder = ApplyHeader(builder, header.Key, header.Value);
+        }
+
+        if (parsed.Body is not null)
+        {
+            builder = ApplyBody(builder, parsed.Body, HasJsonContentType(parsed));
+        }
+
         previousBuilder = builder;
         return builder;
     }
@@ -521,6 +567,95 @@ public class HttpMock
         }
 
         return builder;
+    }
+
+    private static HttpMethod ResolveMethod(CurlRequest parsed)
+    {
+        if (!string.IsNullOrEmpty(parsed.Method))
+        {
+            return new HttpMethod(parsed.Method!.ToUpperInvariant());
+        }
+
+        return parsed.Body is not null ? HttpMethod.Post : HttpMethod.Get;
+    }
+
+    private static RequestMockBuilder ApplyHeader(RequestMockBuilder builder, string name, string value)
+    {
+        return builder.With(request => HeaderMatches(request, name, value), $"header '{name}: {value}'");
+    }
+
+    private static RequestMockBuilder ApplyBody(RequestMockBuilder builder, string body, bool jsonContentType)
+    {
+        if (IsJsonBody(body, jsonContentType))
+        {
+            return builder.WithBodyMatchingJson(body);
+        }
+
+        return builder.With(
+            request => string.Equals(request.Body, body, StringComparison.Ordinal),
+            $"body equals \"{body}\"");
+    }
+
+    private static bool IsUnsupportedContentHeader(string name)
+    {
+        return name.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(name, "Content-Type", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasJsonContentType(CurlRequest parsed)
+    {
+        foreach (KeyValuePair<string, string> header in parsed.Headers)
+        {
+            if (string.Equals(header.Key, "Content-Type", StringComparison.OrdinalIgnoreCase) &&
+                header.Value.Contains("json", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HeaderMatches(RequestInfo request, string name, string value)
+    {
+        if (string.Equals(name, "Content-Type", StringComparison.OrdinalIgnoreCase))
+        {
+            string expected = value.Split(';')[0].Trim();
+            return request.ContentType is { } actual &&
+                string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (request.Headers.TryGetValues(name, out IEnumerable<string>? values))
+        {
+            return values.Any(v => string.Equals(v, value, StringComparison.Ordinal)) ||
+                string.Equals(string.Join(", ", values), value, StringComparison.Ordinal);
+        }
+
+        return false;
+    }
+
+    private static bool IsJsonBody(string body, bool jsonContentType)
+    {
+        string trimmed = body.TrimStart();
+        if (trimmed.Length == 0)
+        {
+            return false;
+        }
+
+        if (!jsonContentType && trimmed[0] != '{' && trimmed[0] != '[')
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
 #pragma warning restore CA1054
