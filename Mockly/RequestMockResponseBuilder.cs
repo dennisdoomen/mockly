@@ -123,7 +123,9 @@ public class RequestMockResponseBuilder
     {
         if (ContentHeaderNames.Contains(name))
         {
+#if NET472_OR_GREATER
             response.Content ??= new ByteArrayContent([]);
+#endif
             response.Content.Headers.Remove(name);
             response.Content.Headers.TryAddWithoutValidation(name, values);
         }
