@@ -80,6 +80,18 @@ mock.ForPost().WithPath("/api/auth").WithBearerToken("eyJ*").RespondsWithStatus(
 mock.ForPost().WithPath("/api/json").WithContentType("application/json").RespondsWithStatus(HttpStatusCode.OK);
 ```
 
+### 🏷️ Response Headers
+
+Configure response headers such as `Location`, `ETag` or a custom `Content-Type`. Content headers are routed to the
+response content automatically; all other headers are added to the response headers.
+
+```csharp
+mock.ForPost().WithPath("/api/users")
+    .RespondsWithStatus(HttpStatusCode.Created)
+    .WithHeader("Location", "/api/users/123")
+    .WithHeader("ETag", "\"v1\"");
+```
+
 ### 📃 Clear Reporting
 
 When an unexpected request occurs and there are configured mocks, Mockly helps you diagnose by reporting the closest matching mock (method, scheme/host/path/query) so you can quickly see what to adjust in your setup.
