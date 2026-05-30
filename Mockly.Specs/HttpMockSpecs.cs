@@ -2548,4 +2548,245 @@ public class HttpMockSpecs
 #endif
     }
 
+    public class GenericAndAdditionalVerbs
+    {
+        [Fact]
+        public async Task Can_mock_head_request()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForHead()
+                .WithPath("/api/resource")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Head, "https://localhost/api/resource");
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Can_mock_head_request_using_url_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForHead("https://localhost/api/resource")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Head, "https://localhost/api/resource");
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Can_mock_options_request()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForOptions()
+                .WithPath("/api/resource")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Options, "https://localhost/api/resource");
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        [Fact]
+        public async Task Can_mock_options_request_using_url_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForOptions("https://localhost/api/resource")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Options, "https://localhost/api/resource");
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        [Fact]
+        public async Task Can_mock_request_using_generic_for_with_standard_method()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.For(HttpMethod.Get)
+                .WithPath("/api/data")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/data");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Can_mock_request_using_generic_for_with_custom_method()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.For(new HttpMethod("PROPFIND"))
+                .WithPath("/api/dav")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(new HttpMethod("PROPFIND"), "https://localhost/api/dav");
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Generic_for_does_not_match_a_different_method()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.For(new HttpMethod("PROPFIND"))
+                .WithPath("/api/dav")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var act = () => client.GetAsync("https://localhost/api/dav");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>();
+        }
+
+        [Fact]
+        public async Task Can_mock_request_using_generic_for_with_url_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.For(HttpMethod.Options, "https://localhost/api/resource")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Options, "https://localhost/api/resource");
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        [Fact]
+        public async Task New_verbs_reuse_scheme_and_host_from_previous_builder()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .ForHttps().ForHost("somehost")
+                .WithPath("/api/test")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            // Reuse the previous builder's scheme and host for an OPTIONS mock
+            mock.ForOptions()
+                .WithPath("/api/test")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var getResponse = await client.GetAsync("https://somehost/api/test");
+            var optionsRequest = new HttpRequestMessage(HttpMethod.Options, "https://somehost/api/test");
+            var optionsResponse = await client.SendAsync(optionsRequest);
+
+            // Assert
+            getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            optionsResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        [Fact]
+        public async Task Generic_for_with_schemeless_url_pattern_matches_any_scheme()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.For(HttpMethod.Get, "localhost/api/data")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/data");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Generic_for_with_host_only_url_pattern_matches()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.For(HttpMethod.Head, "https://localhost")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Head, "https://localhost/");
+            var response = await client.SendAsync(request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Generic_for_with_host_and_query_url_pattern_matches()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.For(HttpMethod.Get, "https://localhost?q=1")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/?q=1");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+    }
+
 }

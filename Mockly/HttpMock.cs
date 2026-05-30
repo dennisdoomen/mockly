@@ -41,20 +41,31 @@ public class HttpMock
     public RequestCollection Requests { get; } = new();
 
     /// <summary>
+    /// Starts building a mock for requests using the specified HTTP <paramref name="method"/>.
+    /// Reuses settings from the previous request if available.
+    /// </summary>
+    public RequestMockBuilder For(HttpMethod method)
+    {
+        return Create(method);
+    }
+
+    /// <summary>
+    /// Shortcut overload that accepts a full URL pattern (supports wildcards) and configures scheme, host, path and query.
+    /// </summary>
+    public RequestMockBuilder For(HttpMethod method, string urlPattern)
+    {
+        var builder = ApplyUrlPattern(Create(method), urlPattern);
+        previousBuilder = builder;
+        return builder;
+    }
+
+    /// <summary>
     /// Starts building a mock for GET requests.
     /// Reuses settings from the previous request if available.
     /// </summary>
     public RequestMockBuilder ForGet()
     {
-        RequestMockBuilder mockBuilder = previousBuilder != null
-            ? new RequestMockBuilder(this, previousBuilder)
-            {
-                Method = HttpMethod.Get
-            }
-            : new RequestMockBuilder(this, HttpMethod.Get);
-
-        previousBuilder = mockBuilder;
-        return mockBuilder;
+        return Create(HttpMethod.Get);
     }
 
     /// <summary>
@@ -62,10 +73,7 @@ public class HttpMock
     /// </summary>
     public RequestMockBuilder ForGet(string urlPattern)
     {
-        var builder = ForGet();
-        builder = ApplyUrlPattern(builder, urlPattern);
-        previousBuilder = builder;
-        return builder;
+        return For(HttpMethod.Get, urlPattern);
     }
 
     /// <summary>
@@ -74,15 +82,7 @@ public class HttpMock
     /// </summary>
     public RequestMockBuilder ForPost()
     {
-        var builder = previousBuilder != null
-            ? new RequestMockBuilder(this, previousBuilder)
-            {
-                Method = HttpMethod.Post
-            }
-            : new RequestMockBuilder(this, HttpMethod.Post);
-
-        previousBuilder = builder;
-        return builder;
+        return Create(HttpMethod.Post);
     }
 
     /// <summary>
@@ -90,10 +90,7 @@ public class HttpMock
     /// </summary>
     public RequestMockBuilder ForPost(string urlPattern)
     {
-        var builder = ForPost();
-        builder = ApplyUrlPattern(builder, urlPattern);
-        previousBuilder = builder;
-        return builder;
+        return For(HttpMethod.Post, urlPattern);
     }
 
     /// <summary>
@@ -102,15 +99,7 @@ public class HttpMock
     /// </summary>
     public RequestMockBuilder ForPut()
     {
-        var builder = previousBuilder != null
-            ? new RequestMockBuilder(this, previousBuilder)
-            {
-                Method = HttpMethod.Put
-            }
-            : new RequestMockBuilder(this, HttpMethod.Put);
-
-        previousBuilder = builder;
-        return builder;
+        return Create(HttpMethod.Put);
     }
 
     /// <summary>
@@ -118,10 +107,7 @@ public class HttpMock
     /// </summary>
     public RequestMockBuilder ForPut(string urlPattern)
     {
-        var builder = ForPut();
-        builder = ApplyUrlPattern(builder, urlPattern);
-        previousBuilder = builder;
-        return builder;
+        return For(HttpMethod.Put, urlPattern);
     }
 
     /// <summary>
@@ -130,15 +116,7 @@ public class HttpMock
     /// </summary>
     public RequestMockBuilder ForPatch()
     {
-        var builder = previousBuilder != null
-            ? new RequestMockBuilder(this, previousBuilder)
-            {
-                Method = new HttpMethod("PATCH")
-            }
-            : new RequestMockBuilder(this, new HttpMethod("PATCH"));
-
-        previousBuilder = builder;
-        return builder;
+        return Create(new HttpMethod("PATCH"));
     }
 
     /// <summary>
@@ -146,10 +124,7 @@ public class HttpMock
     /// </summary>
     public RequestMockBuilder ForPatch(string urlPattern)
     {
-        var builder = ForPatch();
-        builder = ApplyUrlPattern(builder, urlPattern);
-        previousBuilder = builder;
-        return builder;
+        return For(new HttpMethod("PATCH"), urlPattern);
     }
 
     /// <summary>
@@ -158,15 +133,7 @@ public class HttpMock
     /// </summary>
     public RequestMockBuilder ForDelete()
     {
-        var builder = previousBuilder != null
-            ? new RequestMockBuilder(this, previousBuilder)
-            {
-                Method = HttpMethod.Delete
-            }
-            : new RequestMockBuilder(this, HttpMethod.Delete);
-
-        previousBuilder = builder;
-        return builder;
+        return Create(HttpMethod.Delete);
     }
 
     /// <summary>
@@ -174,8 +141,52 @@ public class HttpMock
     /// </summary>
     public RequestMockBuilder ForDelete(string urlPattern)
     {
-        var builder = ForDelete();
-        builder = ApplyUrlPattern(builder, urlPattern);
+        return For(HttpMethod.Delete, urlPattern);
+    }
+
+    /// <summary>
+    /// Starts building a mock for HEAD requests.
+    /// Reuses settings from the previous request if available.
+    /// </summary>
+    public RequestMockBuilder ForHead()
+    {
+        return Create(HttpMethod.Head);
+    }
+
+    /// <summary>
+    /// Shortcut overload that accepts a full URL pattern (supports wildcards) and configures scheme, host, path and query.
+    /// </summary>
+    public RequestMockBuilder ForHead(string urlPattern)
+    {
+        return For(HttpMethod.Head, urlPattern);
+    }
+
+    /// <summary>
+    /// Starts building a mock for OPTIONS requests.
+    /// Reuses settings from the previous request if available.
+    /// </summary>
+    public RequestMockBuilder ForOptions()
+    {
+        return Create(HttpMethod.Options);
+    }
+
+    /// <summary>
+    /// Shortcut overload that accepts a full URL pattern (supports wildcards) and configures scheme, host, path and query.
+    /// </summary>
+    public RequestMockBuilder ForOptions(string urlPattern)
+    {
+        return For(HttpMethod.Options, urlPattern);
+    }
+
+    private RequestMockBuilder Create(HttpMethod method)
+    {
+        RequestMockBuilder builder = previousBuilder != null
+            ? new RequestMockBuilder(this, previousBuilder)
+            {
+                Method = method
+            }
+            : new RequestMockBuilder(this, method);
+
         previousBuilder = builder;
         return builder;
     }
