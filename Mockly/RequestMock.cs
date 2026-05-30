@@ -41,6 +41,13 @@ public class RequestMock
     /// </summary>
     internal Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>>? AsyncResponder { get; init; }
 
+    /// <summary>
+    /// Gets the artificial delay to apply before producing the response, simulating a slow endpoint.
+    /// When set, the asynchronous response path awaits this delay (honoring the supplied
+    /// <see cref="CancellationToken"/>) before invoking the responder.
+    /// </summary>
+    internal TimeSpan? Delay { get; set; }
+
     public RequestCollection? RequestCollection { get; init; } = [];
 
     /// <summary>
@@ -341,11 +348,16 @@ public class RequestMock
     /// Invokes the asynchronous responder when configured; otherwise adapts the synchronous
     /// <see cref="Responder"/> onto the asynchronous path.
     /// </summary>
-    private Task<HttpResponseMessage> InvokeResponderAsync(RequestInfo request, CancellationToken cancellationToken)
+    private async Task<HttpResponseMessage> InvokeResponderAsync(RequestInfo request, CancellationToken cancellationToken)
     {
+        if (Delay is { } delay && delay > TimeSpan.Zero)
+        {
+            await Task.Delay(delay, cancellationToken);
+        }
+
         return AsyncResponder is not null
-            ? AsyncResponder(request, cancellationToken)
-            : Task.FromResult(Responder(request));
+            ? await AsyncResponder(request, cancellationToken)
+            : Responder(request);
     }
 
     /// <summary>
