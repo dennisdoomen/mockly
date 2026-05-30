@@ -127,6 +127,105 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Configures the request mock to match requests whose query string contains a parameter with the specified name,
+    /// regardless of its value or position relative to other query parameters.
+    /// </summary>
+    /// <param name="name">The name of the query parameter that must be present.</param>
+    /// <remarks>
+    /// Unlike <see cref="WithQuery(string)"/>, this matcher is order-independent and ignores any additional query
+    /// parameters that may be present in the request.
+    /// </remarks>
+    public RequestMockBuilder WithQueryParam(string name)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        return With(
+            request => QueryContainsParameter(request, name, valuePattern: null),
+            $"query parameter \"{name}\" is present");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests whose query string contains a parameter with the specified name
+    /// and a value matching the specified wildcard pattern, regardless of its position relative to other query parameters.
+    /// </summary>
+    /// <param name="name">The name of the query parameter that must be present.</param>
+    /// <param name="valuePattern">
+    /// The wildcard pattern used to match the parameter value, where '?' represents any single character and '*' represents
+    /// any sequence of characters.
+    /// </param>
+    /// <remarks>
+    /// Unlike <see cref="WithQuery(string)"/>, this matcher is order-independent and ignores any additional query
+    /// parameters that may be present in the request.
+    /// </remarks>
+    public RequestMockBuilder WithQueryParam(string name, string valuePattern)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        if (valuePattern is null)
+        {
+            throw new ArgumentNullException(nameof(valuePattern));
+        }
+
+        return With(
+            request => QueryContainsParameter(request, name, valuePattern),
+            $"query parameter \"{name}\" matches \"{valuePattern}\"");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests whose <c>application/x-www-form-urlencoded</c> body contains a field
+    /// with the specified name and a value matching the specified wildcard pattern, regardless of its position relative to
+    /// other form fields.
+    /// </summary>
+    /// <param name="name">The name of the form field that must be present.</param>
+    /// <param name="valuePattern">
+    /// The wildcard pattern used to match the field value, where '?' represents any single character and '*' represents
+    /// any sequence of characters.
+    /// </param>
+    /// <remarks>
+    /// This matcher relies on the request body having been prefetched, which is enabled by default.
+    /// </remarks>
+    public RequestMockBuilder WithFormField(string name, string valuePattern)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        if (valuePattern is null)
+        {
+            throw new ArgumentNullException(nameof(valuePattern));
+        }
+
+        return With(
+            request => BodyContainsFormField(request, name, valuePattern),
+            $"form field \"{name}\" matches \"{valuePattern}\"");
+    }
+
+    private static bool QueryContainsParameter(RequestInfo request, string name, string? valuePattern)
+    {
+        return request.Uri?.Query
+            .ParseUrlEncoded()
+            .Any(pair =>
+                string.Equals(pair.Key, name, StringComparison.OrdinalIgnoreCase) &&
+                (valuePattern is null || pair.Value.MatchesWildcardExactly(valuePattern))) ?? false;
+    }
+
+    private static bool BodyContainsFormField(RequestInfo request, string name, string valuePattern)
+    {
+        return request.Body
+            .ParseUrlEncoded()
+            .Any(pair =>
+                string.Equals(pair.Key, name, StringComparison.OrdinalIgnoreCase) &&
+                pair.Value.MatchesWildcardExactly(valuePattern));
+    }
+
+    /// <summary>
     /// Configures the request mock to match the request body content against a specified regular expression.
     /// </summary>
     /// <param name="regex">

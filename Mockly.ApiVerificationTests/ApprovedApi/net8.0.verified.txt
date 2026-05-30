@@ -150,10 +150,13 @@ namespace Mockly
         public Mockly.RequestMockBuilder WithBodyMatchingJson(string json) { }
         public Mockly.RequestMockBuilder WithBodyMatchingRegex([System.Diagnostics.CodeAnalysis.StringSyntax("Regex")] string regex) { }
         public Mockly.RequestMockBuilder WithContentType(string mediaTypePattern) { }
+        public Mockly.RequestMockBuilder WithFormField(string name, string valuePattern) { }
         public Mockly.RequestMockBuilder WithHeader(string name) { }
         public Mockly.RequestMockBuilder WithHeader(string name, string valuePattern) { }
         public Mockly.RequestMockBuilder WithPath(string wildcardPattern) { }
         public Mockly.RequestMockBuilder WithQuery(string wildcardPattern) { }
+        public Mockly.RequestMockBuilder WithQueryParam(string name) { }
+        public Mockly.RequestMockBuilder WithQueryParam(string name, string valuePattern) { }
         public Mockly.RequestMockBuilder WithoutQuery() { }
     }
     public class RequestMockResponseBuilder
