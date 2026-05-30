@@ -14,6 +14,18 @@ public class CapturedRequest(RequestInfo request)
     public HttpResponseMessage Response { get; internal set; } = new();
 
     /// <summary>
+    /// Gets the exception that was thrown to simulate a network-level failure for this request, or <c>null</c>
+    /// when the request produced a regular response.
+    /// </summary>
+    /// <remarks>
+    /// This is set when the matching mock was configured with one of the simulated-failure methods such as
+    /// <c>ThrowsException</c> or <c>TimesOut</c>. When set, the HTTP pipeline propagates this exception to the
+    /// <see cref="HttpClient"/> caller, and <see cref="Response"/> does not represent a response that was actually
+    /// returned to the caller.
+    /// </remarks>
+    public Exception? SimulatedFailure { get; internal set; }
+
+    /// <summary>
     /// The mock that handled this request, if any.
     /// </summary>
     internal RequestMock? Mock { get; set; }
