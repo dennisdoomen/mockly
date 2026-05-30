@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -125,6 +127,105 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Configures the request mock to match requests whose query string contains a parameter with the specified name,
+    /// regardless of its value or position relative to other query parameters.
+    /// </summary>
+    /// <param name="name">The name of the query parameter that must be present.</param>
+    /// <remarks>
+    /// Unlike <see cref="WithQuery(string)"/>, this matcher is order-independent and ignores any additional query
+    /// parameters that may be present in the request.
+    /// </remarks>
+    public RequestMockBuilder WithQueryParam(string name)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        return With(
+            request => QueryContainsParameter(request, name, valuePattern: null),
+            $"query parameter \"{name}\" is present");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests whose query string contains a parameter with the specified name
+    /// and a value matching the specified wildcard pattern, regardless of its position relative to other query parameters.
+    /// </summary>
+    /// <param name="name">The name of the query parameter that must be present.</param>
+    /// <param name="valuePattern">
+    /// The wildcard pattern used to match the parameter value, where '?' represents any single character and '*' represents
+    /// any sequence of characters.
+    /// </param>
+    /// <remarks>
+    /// Unlike <see cref="WithQuery(string)"/>, this matcher is order-independent and ignores any additional query
+    /// parameters that may be present in the request.
+    /// </remarks>
+    public RequestMockBuilder WithQueryParam(string name, string valuePattern)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        if (valuePattern is null)
+        {
+            throw new ArgumentNullException(nameof(valuePattern));
+        }
+
+        return With(
+            request => QueryContainsParameter(request, name, valuePattern),
+            $"query parameter \"{name}\" matches \"{valuePattern}\"");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests whose <c>application/x-www-form-urlencoded</c> body contains a field
+    /// with the specified name and a value matching the specified wildcard pattern, regardless of its position relative to
+    /// other form fields.
+    /// </summary>
+    /// <param name="name">The name of the form field that must be present.</param>
+    /// <param name="valuePattern">
+    /// The wildcard pattern used to match the field value, where '?' represents any single character and '*' represents
+    /// any sequence of characters.
+    /// </param>
+    /// <remarks>
+    /// This matcher relies on the request body having been prefetched, which is enabled by default.
+    /// </remarks>
+    public RequestMockBuilder WithFormField(string name, string valuePattern)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        if (valuePattern is null)
+        {
+            throw new ArgumentNullException(nameof(valuePattern));
+        }
+
+        return With(
+            request => BodyContainsFormField(request, name, valuePattern),
+            $"form field \"{name}\" matches \"{valuePattern}\"");
+    }
+
+    private static bool QueryContainsParameter(RequestInfo request, string name, string? valuePattern)
+    {
+        return request.Uri?.Query
+            .ParseUrlEncoded()
+            .Any(pair =>
+                string.Equals(pair.Key, name, StringComparison.OrdinalIgnoreCase) &&
+                (valuePattern is null || pair.Value.MatchesWildcardExactly(valuePattern))) ?? false;
+    }
+
+    private static bool BodyContainsFormField(RequestInfo request, string name, string valuePattern)
+    {
+        return request.Body
+            .ParseUrlEncoded()
+            .Any(pair =>
+                string.Equals(pair.Key, name, StringComparison.OrdinalIgnoreCase) &&
+                pair.Value.MatchesWildcardExactly(valuePattern));
+    }
+
+    /// <summary>
     /// Configures the request mock to match the request body content against a specified regular expression.
     /// </summary>
     /// <param name="regex">
@@ -212,6 +313,102 @@ public class RequestMockBuilder
         return With(
             request => request.Body is not null && request.Body.MatchesWildcard(wildcardPattern),
             $"body matches wildcard pattern \"{wildcardPattern}\"");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests that contain the specified header, regardless of its value.
+    /// </summary>
+    /// <param name="name">The name of the header that must be present on the request.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <c>null</c>.</exception>
+    public RequestMockBuilder WithHeader(string name)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        return With(
+            request => request.Headers.TryGetValues(name, out _),
+            $"header \"{name}\" is present");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests that contain the specified header with a value satisfying the
+    /// given wildcard pattern. For headers with multiple values, a match on any single value is sufficient.
+    /// </summary>
+    /// <param name="name">The name of the header that must be present on the request.</param>
+    /// <param name="valuePattern">
+    /// The wildcard pattern used to match the header value, where '?' represents any single character and '*' represents
+    /// any sequence of characters.
+    /// </param>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="name"/> or <paramref name="valuePattern"/> is <c>null</c>.
+    /// </exception>
+    public RequestMockBuilder WithHeader(string name, string valuePattern)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        if (valuePattern is null)
+        {
+            throw new ArgumentNullException(nameof(valuePattern));
+        }
+
+        return With(
+            request => request.Headers.TryGetValues(name, out var values) &&
+                values.Any(value => value.MatchesWildcard(valuePattern)),
+            $"header \"{name}\" matches \"{valuePattern}\"");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests that carry an <c>Authorization</c> header using the <c>Bearer</c>
+    /// scheme with a token satisfying the given wildcard pattern.
+    /// </summary>
+    /// <param name="tokenPattern">
+    /// The wildcard pattern used to match the bearer token, where '?' represents any single character and '*' represents
+    /// any sequence of characters. Defaults to '*', which matches any non-empty token.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="tokenPattern"/> is <c>null</c>.</exception>
+    public RequestMockBuilder WithBearerToken(string tokenPattern = "*")
+    {
+        if (tokenPattern is null)
+        {
+            throw new ArgumentNullException(nameof(tokenPattern));
+        }
+
+        return With(
+            request =>
+            {
+                var authorization = request.Headers.Authorization;
+                return authorization is not null &&
+                    string.Equals(authorization.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) &&
+                    authorization.Parameter is not null &&
+                    authorization.Parameter.MatchesWildcard(tokenPattern);
+            },
+            $"bearer token matches \"{tokenPattern}\"");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests whose <c>Content-Type</c> media type satisfies the given wildcard
+    /// pattern. Any parameters such as <c>charset</c> are ignored; only the media type is compared.
+    /// </summary>
+    /// <param name="mediaTypePattern">
+    /// The wildcard pattern used to match the media type, where '?' represents any single character and '*' represents
+    /// any sequence of characters.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="mediaTypePattern"/> is <c>null</c>.</exception>
+    public RequestMockBuilder WithContentType(string mediaTypePattern)
+    {
+        if (mediaTypePattern is null)
+        {
+            throw new ArgumentNullException(nameof(mediaTypePattern));
+        }
+
+        return With(
+            request => request.ContentType is not null && request.ContentType.MatchesWildcard(mediaTypePattern),
+            $"content type matches \"{mediaTypePattern}\"");
     }
 
     /// <summary>
@@ -339,6 +536,94 @@ public class RequestMockBuilder
     {
         object content = builder.Build()!;
         return RespondsWithJsonContent(statusCode, content);
+    }
+
+    /// <summary>
+    /// Responds with an RFC 7807 <c>application/problem+json</c> payload describing the specified problem.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code to respond with and to include as the <c>status</c> member.</param>
+    /// <param name="title">
+    /// A short, human-readable summary of the problem type. When <see langword="null"/>, the reason phrase of
+    /// <paramref name="statusCode"/> is used.
+    /// </param>
+    /// <param name="detail">A human-readable explanation specific to this occurrence of the problem.</param>
+    /// <param name="type">A URI reference that identifies the problem type.</param>
+    /// <param name="instance">A URI reference that identifies the specific occurrence of the problem.</param>
+    /// <param name="extensions">Additional members to include in the problem details payload.</param>
+    /// <remarks>
+    /// The payload is serialized using the same <see cref="JsonSerializerOptions"/> as the other JSON responders
+    /// (configurable through <see cref="Using"/>) and the response <c>Content-Type</c> is set to
+    /// <c>application/problem+json</c>.
+    /// </remarks>
+    [SuppressMessage("Maintainability", "AV1561:Signature contains too many parameters",
+        Justification = "The parameters mirror the RFC 7807 problem details members for an ergonomic single-call API.")]
+    [SuppressMessage("Member Design", "AV1553:Do not use optional parameters with default value null",
+        Justification = "The RFC 7807 members are all optional, so null is the natural way to omit them.")]
+    public RequestMockResponseBuilder RespondsWithProblemDetails(
+        HttpStatusCode statusCode,
+        string? title = null,
+        string? detail = null,
+        string? type = null,
+        string? instance = null,
+        IDictionary<string, object?>? extensions = null)
+    {
+        var options = jsonSerializerOptions;
+
+        var problemDetails = new Dictionary<string, object?>(StringComparer.Ordinal);
+
+        if (type is not null)
+        {
+            problemDetails["type"] = type;
+        }
+
+        problemDetails["title"] = title ?? GetReasonPhrase(statusCode);
+        problemDetails["status"] = (int)statusCode;
+
+        if (detail is not null)
+        {
+            problemDetails["detail"] = detail;
+        }
+
+        if (instance is not null)
+        {
+            problemDetails["instance"] = instance;
+        }
+
+        if (extensions is not null)
+        {
+            foreach (var extension in extensions)
+            {
+                problemDetails[extension.Key] = extension.Value;
+            }
+        }
+
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            Responder = _ =>
+            {
+                var json = JsonSerializer.Serialize(problemDetails, options);
+                return new HttpResponseMessage(statusCode)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/problem+json")
+                };
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    private static string? GetReasonPhrase(HttpStatusCode statusCode)
+    {
+        using var message = new HttpResponseMessage(statusCode);
+        return message.ReasonPhrase;
     }
 
     /// <summary>
@@ -568,6 +853,160 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Responds with the contents of the specified file, streamed freshly for each matching request, and status code 200 (OK).
+    /// </summary>
+    /// <remarks>
+    /// The file is opened for reading on every matching request, so the mock can be invoked multiple times and each
+    /// invocation receives its own readable stream. When <paramref name="contentType"/> is not supplied, the content type
+    /// is inferred from the file extension, defaulting to "application/octet-stream".
+    /// </remarks>
+    /// <param name="path">The path of the file whose contents are streamed as the response body.</param>
+    /// <param name="contentType">
+    /// The MIME type of the response content. When <see langword="null"/>, the content type is inferred from the file extension.
+    /// </param>
+#pragma warning disable AV1553 // Optional parameter defaults to null to mirror the documented public API contract.
+    public RequestMockResponseBuilder RespondsWithFile(string path, string? contentType = null)
+#pragma warning restore AV1553
+    {
+        if (path is null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
+        string resolvedContentType = contentType ?? InferContentTypeFromExtension(path);
+
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            Responder = _ =>
+            {
+                var stream = File.OpenRead(path);
+                var content = new StreamContent(stream)
+                {
+                    Headers =
+                    {
+                        ContentType = new MediaTypeHeaderValue(resolvedContentType),
+                        ContentLength = stream.Length
+                    }
+                };
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = content
+                };
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
+    /// Responds with the specified raw bytes and status code 200 (OK), buffering the payload so the mock can be invoked
+    /// multiple times.
+    /// </summary>
+    /// <param name="content">The bytes to return as the response body.</param>
+    /// <param name="contentType">The MIME type of the response content.</param>
+    public RequestMockResponseBuilder RespondsWithBytes(byte[] content, string contentType)
+    {
+        if (content is null)
+        {
+            throw new ArgumentNullException(nameof(content));
+        }
+
+        if (contentType is null)
+        {
+            throw new ArgumentNullException(nameof(contentType));
+        }
+
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            Responder = _ =>
+            {
+                var byteContent = new ByteArrayContent(content)
+                {
+                    Headers =
+                    {
+                        ContentType = new MediaTypeHeaderValue(contentType)
+                    }
+                };
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = byteContent
+                };
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
+    /// Responds with the specified stream and status code 200 (OK).
+    /// </summary>
+    /// <remarks>
+    /// Note: A <see cref="Stream"/> can only be consumed once, so the same <paramref name="stream"/> instance is used for all
+    /// matching requests. If the mock may be invoked more than once, prefer <see cref="RespondsWithBytes(byte[], string)"/> or
+    /// <see cref="RespondsWithFile(string, string?)"/>, which provide fresh content for every request.
+    /// </remarks>
+    /// <param name="stream">The stream whose contents are returned as the response body.</param>
+    /// <param name="contentType">The MIME type of the response content.</param>
+    public RequestMockResponseBuilder RespondsWithStream(Stream stream, string contentType)
+    {
+        if (stream is null)
+        {
+            throw new ArgumentNullException(nameof(stream));
+        }
+
+        if (contentType is null)
+        {
+            throw new ArgumentNullException(nameof(contentType));
+        }
+
+#pragma warning disable CA2000 // The content is owned by the returned HttpResponseMessage and disposed by the caller.
+        var content = new StreamContent(stream)
+        {
+            Headers =
+            {
+                ContentType = new MediaTypeHeaderValue(contentType)
+            }
+        };
+#pragma warning restore CA2000
+
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            Responder = _ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = content
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
     /// Responds with the specified HTTP content and status code 200 (OK).
     /// </summary>
     /// <param name="content">The HTTP content to include in the response.</param>
@@ -631,5 +1070,26 @@ public class RequestMockBuilder
 
         mockBuilder.AddMock(mock);
         return new RequestMockResponseBuilder(mock);
+    }
+
+    private static string InferContentTypeFromExtension(string path)
+    {
+        string extension = Path.GetExtension(path).ToUpperInvariant();
+
+        return extension switch
+        {
+            ".TXT" => "text/plain",
+            ".JSON" => "application/json",
+            ".XML" => "application/xml",
+            ".HTM" or ".HTML" => "text/html",
+            ".CSV" => "text/csv",
+            ".PDF" => "application/pdf",
+            ".PNG" => "image/png",
+            ".JPG" or ".JPEG" => "image/jpeg",
+            ".GIF" => "image/gif",
+            ".SVG" => "image/svg+xml",
+            ".ZIP" => "application/zip",
+            _ => "application/octet-stream"
+        };
     }
 }

@@ -54,6 +54,7 @@ Unlike other HTTP mocking libraries, Mockly offers:
 
 * **Fluent, intuitive API** - Chain method calls to build complex mocking scenarios with ease
 * **Wildcard pattern matching** - Match URLs using wildcards (`*`) in paths and query strings
+* **First-class header matching** - Match request headers, bearer tokens, and content types directly
 * **Custom matchers** - Use predicates for advanced request matching logic
 * **Request capture & inspection** - Automatically capture all requests with full metadata (headers, body, timestamp)
 * **Powerful assertions** - Built-in FluentAssertions extensions for verifying HTTP behavior
@@ -74,6 +75,9 @@ Mockly is created and maintained by [Dennis Doomen](https://github.com/dennisdoo
 ```csharp
 mock.ForGet().WithPath("/api/users/*").RespondsWithJsonContent(user);
 mock.ForPost().WithPath("/api/data").WithQuery("?filter=*").RespondsWithStatus(HttpStatusCode.Created);
+mock.ForGet().WithPath("/api/secure").WithHeader("X-Api-Key").RespondsWithStatus(HttpStatusCode.OK);
+mock.ForPost().WithPath("/api/auth").WithBearerToken("eyJ*").RespondsWithStatus(HttpStatusCode.OK);
+mock.ForPost().WithPath("/api/json").WithContentType("application/json").RespondsWithStatus(HttpStatusCode.OK);
 ```
 
 ### 🏷️ Response Headers

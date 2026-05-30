@@ -32,6 +32,13 @@ public class RequestMockResponseBuilder
     }
 
     /// <summary>
+    /// Gets the underlying <see cref="RequestMock"/> so the assertion packages can inspect
+    /// per-mock invocation state such as <see cref="RequestMock.InvocationCount"/> and
+    /// <see cref="RequestMock.MaxInvocations"/>.
+    /// </summary>
+    internal RequestMock RequestMock => requestMock;
+
+    /// <summary>
     /// Limits this mock to be used exactly once.
     /// </summary>
     public RequestMockResponseBuilder Once()

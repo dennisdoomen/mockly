@@ -105,6 +105,34 @@ mock.ForGet()
     .WithQuery("?q=*&limit=10");
 ```
 
+## Header Matching
+
+Use the first-class header matchers when you need to assert on common request metadata:
+
+```csharp
+mock.ForGet()
+    .WithPath("/api/secure")
+    .WithHeader("X-Api-Key")
+    .RespondsWithStatus(HttpStatusCode.OK);
+
+mock.ForGet()
+    .WithPath("/api/secure")
+    .WithHeader("X-Trace-Id", "abc-*")
+    .RespondsWithStatus(HttpStatusCode.OK);
+
+mock.ForGet()
+    .WithPath("/api/auth")
+    .WithBearerToken("eyJ*")
+    .RespondsWithStatus(HttpStatusCode.OK);
+
+mock.ForPost()
+    .WithPath("/api/json")
+    .WithContentType("application/json")
+    .RespondsWithStatus(HttpStatusCode.OK);
+```
+
+`WithHeader(name, valuePattern)` matches when any value of a multi-valued header satisfies the wildcard pattern. `WithContentType` matches the media type and ignores parameters such as `charset`.
+
 ## Response Configuration
 
 ### JSON Responses
@@ -180,6 +208,33 @@ multipart.Add(new HttpMessageContent(inner));
 mock.ForPost()
     .WithPath("/api/batch")
     .RespondsWith(HttpStatusCode.OK, multipart);
+```
+
+### File, Stream and Byte Responses
+
+For large or binary payloads (file downloads, images, PDFs) you can stream a file, a raw byte array, or an arbitrary `Stream` directly:
+
+```csharp
+// Stream a file; the file is opened freshly per request so the mock can be called multiple times.
+// The content type is inferred from the extension (defaults to application/octet-stream) unless supplied.
+mock.ForGet()
+    .WithPath("/api/report")
+    .RespondsWithFile("report.pdf");
+
+mock.ForGet()
+    .WithPath("/api/logo")
+    .RespondsWithFile("logo.dat", "image/png");
+
+// Raw bytes are buffered, so the mock can safely be invoked multiple times.
+mock.ForGet()
+    .WithPath("/api/bytes")
+    .RespondsWithBytes(imageBytes, "image/png");
+
+// A Stream can only be consumed once. Prefer RespondsWithBytes or RespondsWithFile when the
+// mock may be called more than once.
+mock.ForGet()
+    .WithPath("/api/stream")
+    .RespondsWithStream(stream, "application/octet-stream");
 ```
 
 ### Custom Responses
