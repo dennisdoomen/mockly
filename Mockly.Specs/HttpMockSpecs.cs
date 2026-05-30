@@ -3173,4 +3173,271 @@ public class HttpMockSpecs
         }
     }
 
+    public class QueryParameterMatching
+    {
+        [Fact]
+        public async Task Matches_a_query_parameter_regardless_of_order()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/search")
+                .WithQueryParam("q", "mockly")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/search?page=2&q=mockly");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Matches_a_query_parameter_when_unrelated_parameters_are_present()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/search")
+                .WithQueryParam("q", "mockly")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/search?q=mockly&sort=desc&page=3");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Matches_a_query_parameter_value_using_a_wildcard()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/search")
+                .WithQueryParam("q", "moc*")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/search?q=mockly");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Matches_a_query_parameter_by_presence_only()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/search")
+                .WithQueryParam("q")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/search?q=anything&page=1");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Does_not_match_when_the_query_parameter_is_absent()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/search")
+                .WithQueryParam("q")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var act = () => client.GetAsync("https://localhost/api/search?page=1");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*query parameter "q" is present*");
+        }
+
+        [Fact]
+        public async Task Does_not_match_when_the_query_parameter_value_differs()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/search")
+                .WithQueryParam("q", "mockly")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var act = () => client.GetAsync("https://localhost/api/search?q=other");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*query parameter "q" matches "mockly"*");
+        }
+
+        [Fact]
+        public async Task Matches_a_query_parameter_value_in_its_entirety()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/search")
+                .WithQueryParam("q", "mockly")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act: a value that merely contains the pattern must not match
+            var act = () => client.GetAsync("https://localhost/api/search?q=mockly-extended");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*query parameter "q" matches "mockly"*");
+        }
+
+        [Fact]
+        public async Task Can_combine_multiple_query_parameters()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/search")
+                .WithQueryParam("q", "mockly")
+                .WithQueryParam("page", "2")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/search?page=2&q=mockly");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Can_combine_a_query_parameter_with_a_full_query_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/search")
+                .WithQuery("?q=mockly&page=2")
+                .WithQueryParam("page", "2")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/search?q=mockly&page=2");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+    }
+
+    public class FormFieldMatching
+    {
+        [Fact]
+        public async Task Matches_a_form_field_regardless_of_order()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/oauth/token")
+                .WithFormField("grant_type", "client_credentials")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            var content = new FormUrlEncodedContent(
+            [
+                new KeyValuePair<string, string>("client_id", "abc"),
+                new KeyValuePair<string, string>("grant_type", "client_credentials"),
+            ]);
+
+            // Act
+            var response = await client.PostAsync("https://localhost/oauth/token", content);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Matches_a_form_field_value_using_a_wildcard()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/oauth/token")
+                .WithFormField("scope", "read*")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            var content = new FormUrlEncodedContent(
+            [
+                new KeyValuePair<string, string>("scope", "read write"),
+            ]);
+
+            // Act
+            var response = await client.PostAsync("https://localhost/oauth/token", content);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Does_not_match_when_the_form_field_value_differs()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/oauth/token")
+                .WithFormField("grant_type", "client_credentials")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            var content = new FormUrlEncodedContent(
+            [
+                new KeyValuePair<string, string>("grant_type", "password"),
+            ]);
+
+            // Act
+            var act = () => client.PostAsync("https://localhost/oauth/token", content);
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*form field "grant_type" matches "client_credentials"*");
+        }
+    }
 }
