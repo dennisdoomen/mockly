@@ -37,12 +37,25 @@ jobs:
         NugetArtifactsApiKey: ${{ secrets.NUGETAPIKEY }}
         GitHubApiKey: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Find coverage files
+      id: find_coverage
+      shell: pwsh
+      run: |
+        $files = Get-ChildItem -Path TestResults -Recurse -Filter "coverage.cobertura.xml" -File | Select-Object -First 1
+        if ($files) {
+          $coverageFile = $files.FullName
+          Write-Output "coverage_file=$coverageFile" >> $env:GITHUB_OUTPUT
+          Write-Host "Found coverage file: $coverageFile"
+        } else {
+          Write-Host "No coverage file found"
+        }
+
     - name: Upload code coverage
       uses: actions/upload-code-coverage@v1
-      if: always()
+      if: steps.find_coverage.outputs.coverage_file != ''
       with:
         language: csharp
-        file: TestResults/**/coverage.cobertura.xml
+        file: ${{ steps.find_coverage.outputs.coverage_file }}
         label: code-coverage/mockly
 
     - name: Check for 'lcov.info' existence
