@@ -32,10 +32,16 @@ namespace Mockly
         public bool PrefetchBody { get; set; }
         public Mockly.RequestCollection Requests { get; }
         public void Clear() { }
+        public Mockly.RequestMockBuilder For(System.Net.Http.HttpMethod method) { }
+        public Mockly.RequestMockBuilder For(System.Net.Http.HttpMethod method, string urlPattern) { }
         public Mockly.RequestMockBuilder ForDelete() { }
         public Mockly.RequestMockBuilder ForDelete(string urlPattern) { }
         public Mockly.RequestMockBuilder ForGet() { }
         public Mockly.RequestMockBuilder ForGet(string urlPattern) { }
+        public Mockly.RequestMockBuilder ForHead() { }
+        public Mockly.RequestMockBuilder ForHead(string urlPattern) { }
+        public Mockly.RequestMockBuilder ForOptions() { }
+        public Mockly.RequestMockBuilder ForOptions(string urlPattern) { }
         public Mockly.RequestMockBuilder ForPatch() { }
         public Mockly.RequestMockBuilder ForPatch(string urlPattern) { }
         public Mockly.RequestMockBuilder ForPost() { }

@@ -21,6 +21,23 @@ mock.ForGet().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.OK);
 HttpClient client = mock.GetClient(); // or mock.GetClientFactory()
 ```
 
+## HTTP Verbs
+
+```csharp
+// Convenience methods per verb (each also has a "(urlPattern)" overload)
+mock.ForGet();
+mock.ForPost();
+mock.ForPut();
+mock.ForPatch();
+mock.ForDelete();
+mock.ForHead();
+mock.ForOptions();
+
+// Generic entry point for any (including non-standard) verb
+mock.For(HttpMethod.Get).WithPath("/api/data").RespondsWithStatus(HttpStatusCode.OK);
+mock.For(new HttpMethod("PROPFIND"), "https://localhost/dav/*").RespondsWithStatus(HttpStatusCode.OK);
+```
+
 ## URL Matching
 
 ```csharp
