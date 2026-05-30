@@ -2929,4 +2929,248 @@ public class HttpMockSpecs
             responseBuilder.RequestMock.MaxInvocations.Should().Be(2);
         }
     }
+
+    public class RespondingWithBinaryPayloads
+    {
+        [Fact]
+        public async Task Can_respond_with_a_file_inferring_the_content_type_from_the_extension()
+        {
+            // Arrange
+            byte[] payload = { 1, 2, 3, 4, 5 };
+            string path = Path.ChangeExtension(Path.GetTempFileName(), ".pdf");
+            File.WriteAllBytes(path, payload);
+
+            try
+            {
+                var mock = new HttpMock();
+                mock.ForGet().WithPath("/api/file").RespondsWithFile(path);
+
+                // Act
+                using var response = await mock.GetClient().GetAsync("https://localhost/api/file");
+                byte[] downloaded = await response.Content.ReadAsByteArrayAsync();
+
+                // Assert
+                response.StatusCode.Should().Be(HttpStatusCode.OK);
+                downloaded.Should().Equal(payload);
+                response.Content.Headers.ContentType!.MediaType.Should().Be("application/pdf");
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public async Task Can_respond_with_a_file_using_an_explicit_content_type()
+        {
+            // Arrange
+            byte[] payload = { 10, 20, 30 };
+            string path = Path.ChangeExtension(Path.GetTempFileName(), ".unknownext");
+            File.WriteAllBytes(path, payload);
+
+            try
+            {
+                var mock = new HttpMock();
+                mock.ForGet().WithPath("/api/file").RespondsWithFile(path, "image/png");
+
+                // Act
+                using var response = await mock.GetClient().GetAsync("https://localhost/api/file");
+                byte[] downloaded = await response.Content.ReadAsByteArrayAsync();
+
+                // Assert
+                downloaded.Should().Equal(payload);
+                response.Content.Headers.ContentType!.MediaType.Should().Be("image/png");
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public async Task Can_respond_with_an_unknown_extension_using_the_default_content_type()
+        {
+            // Arrange
+            byte[] payload = { 7, 7, 7 };
+            string path = Path.ChangeExtension(Path.GetTempFileName(), ".weirdext");
+            File.WriteAllBytes(path, payload);
+
+            try
+            {
+                var mock = new HttpMock();
+                mock.ForGet().WithPath("/api/file").RespondsWithFile(path);
+
+                // Act
+                using var response = await mock.GetClient().GetAsync("https://localhost/api/file");
+
+                // Assert
+                response.Content.Headers.ContentType!.MediaType.Should().Be("application/octet-stream");
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public async Task Opens_the_file_freshly_for_every_invocation()
+        {
+            // Arrange
+            byte[] payload = { 42, 43, 44, 45 };
+            string path = Path.ChangeExtension(Path.GetTempFileName(), ".bin");
+            File.WriteAllBytes(path, payload);
+
+            try
+            {
+                var mock = new HttpMock();
+                mock.ForGet().WithPath("/api/file").RespondsWithFile(path);
+                var client = mock.GetClient();
+
+                // Act
+                using var firstResponse = await client.GetAsync("https://localhost/api/file");
+                byte[] first = await firstResponse.Content.ReadAsByteArrayAsync();
+
+                using var secondResponse = await client.GetAsync("https://localhost/api/file");
+                byte[] second = await secondResponse.Content.ReadAsByteArrayAsync();
+
+                // Assert
+                first.Should().Equal(payload);
+                second.Should().Equal(payload);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public async Task Can_respond_with_raw_bytes()
+        {
+            // Arrange
+            byte[] payload = { 100, 101, 102 };
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/bytes").RespondsWithBytes(payload, "application/octet-stream");
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/bytes");
+            byte[] downloaded = await response.Content.ReadAsByteArrayAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            downloaded.Should().Equal(payload);
+            response.Content.Headers.ContentType!.MediaType.Should().Be("application/octet-stream");
+        }
+
+        [Fact]
+        public async Task Buffered_bytes_can_be_served_for_multiple_invocations()
+        {
+            // Arrange
+            byte[] payload = { 5, 6, 7, 8 };
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/bytes").RespondsWithBytes(payload, "application/octet-stream");
+            var client = mock.GetClient();
+
+            // Act
+            byte[] first = await (await client.GetAsync("https://localhost/api/bytes")).Content.ReadAsByteArrayAsync();
+            byte[] second = await (await client.GetAsync("https://localhost/api/bytes")).Content.ReadAsByteArrayAsync();
+
+            // Assert
+            first.Should().Equal(payload);
+            second.Should().Equal(payload);
+        }
+
+        [Fact]
+        public async Task Can_respond_with_a_stream()
+        {
+            // Arrange
+            byte[] payload = { 200, 201, 202 };
+            var stream = new MemoryStream(payload);
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/stream").RespondsWithStream(stream, "application/pdf");
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/stream");
+            byte[] downloaded = await response.Content.ReadAsByteArrayAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            downloaded.Should().Equal(payload);
+            response.Content.Headers.ContentType!.MediaType.Should().Be("application/pdf");
+        }
+
+        [Fact]
+        public async Task A_stream_response_can_only_be_consumed_once()
+        {
+            // Arrange
+            byte[] payload = { 1, 2, 3 };
+            var stream = new ForwardOnlyStream(payload);
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/stream").RespondsWithStream(stream, "application/octet-stream");
+            var client = mock.GetClient();
+
+            // Act
+            using var firstResponse = await client.GetAsync(
+                "https://localhost/api/stream", HttpCompletionOption.ResponseHeadersRead);
+            using var firstBody = await firstResponse.Content.ReadAsStreamAsync();
+            using var firstBuffer = new MemoryStream();
+            await firstBody.CopyToAsync(firstBuffer);
+
+            using var secondResponse = await client.GetAsync(
+                "https://localhost/api/stream", HttpCompletionOption.ResponseHeadersRead);
+            using var secondBody = await secondResponse.Content.ReadAsStreamAsync();
+            using var secondBuffer = new MemoryStream();
+            await secondBody.CopyToAsync(secondBuffer);
+
+            // Assert
+            firstBuffer.ToArray().Should().Equal(payload);
+            secondBuffer.ToArray().Should().BeEmpty();
+        }
+
+        private sealed class ForwardOnlyStream : Stream
+        {
+            private readonly MemoryStream inner;
+
+            public ForwardOnlyStream(byte[] data)
+            {
+                inner = new MemoryStream(data);
+            }
+
+            public override bool CanRead => true;
+
+            public override bool CanSeek => false;
+
+            public override bool CanWrite => false;
+
+            public override long Length => throw new NotSupportedException();
+
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            public override void Flush()
+            {
+            }
+
+            public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, count);
+
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+            public override void SetLength(long value) => throw new NotSupportedException();
+
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    inner.Dispose();
+                }
+
+                base.Dispose(disposing);
+            }
+        }
+    }
+
 }

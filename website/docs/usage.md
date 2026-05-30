@@ -190,6 +190,33 @@ mock.ForPost()
     .RespondsWith(HttpStatusCode.OK, multipart);
 ```
 
+### File, Stream and Byte Responses
+
+For large or binary payloads (file downloads, images, PDFs) you can stream a file, a raw byte array, or an arbitrary `Stream` directly:
+
+```csharp
+// Stream a file; the file is opened freshly per request so the mock can be called multiple times.
+// The content type is inferred from the extension (defaults to application/octet-stream) unless supplied.
+mock.ForGet()
+    .WithPath("/api/report")
+    .RespondsWithFile("report.pdf");
+
+mock.ForGet()
+    .WithPath("/api/logo")
+    .RespondsWithFile("logo.dat", "image/png");
+
+// Raw bytes are buffered, so the mock can safely be invoked multiple times.
+mock.ForGet()
+    .WithPath("/api/bytes")
+    .RespondsWithBytes(imageBytes, "image/png");
+
+// A Stream can only be consumed once. Prefer RespondsWithBytes or RespondsWithFile when the
+// mock may be called more than once.
+mock.ForGet()
+    .WithPath("/api/stream")
+    .RespondsWithStream(stream, "application/octet-stream");
+```
+
 ### Custom Responses
 
 ```csharp
