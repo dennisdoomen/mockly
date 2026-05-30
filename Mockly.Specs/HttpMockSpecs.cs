@@ -2229,4 +2229,173 @@ public class HttpMockSpecs
 #endif
     }
 
+    public class ResponseHeaders
+    {
+        [Fact]
+        public async Task Adds_a_standard_response_header()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("api/users")
+                .RespondsWithStatus(HttpStatusCode.Created)
+                .WithHeader("Location", "/api/users/123");
+
+            // Act
+            var response = await mock.GetClient().PostAsync("https://localhost/api/users", new StringContent(""));
+
+            // Assert
+            response.Headers.Location.Should().Be(new Uri("/api/users/123", UriKind.Relative));
+        }
+
+        [Fact]
+        public async Task Routes_a_content_header_to_the_content_headers()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("api/data")
+                .RespondsWithContent("hello")
+                .WithHeader("Content-Type", "application/xml");
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/data");
+
+            // Assert
+            response.Content.Headers.ContentType!.MediaType.Should().Be("application/xml");
+        }
+
+        [Fact]
+        public async Task Creates_empty_content_when_a_content_header_is_set_without_content()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("api/data")
+                .RespondsWithStatus(HttpStatusCode.OK)
+                .WithHeader("Content-Type", "application/json");
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/data");
+
+            // Assert
+            response.Content.Should().NotBeNull();
+            response.Content.Headers.ContentType!.MediaType.Should().Be("application/json");
+        }
+
+        [Fact]
+        public async Task Adds_a_multi_value_response_header()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("api/data")
+                .RespondsWithStatus(HttpStatusCode.OK)
+                .WithHeader("X-Custom", "one", "two");
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/data");
+
+            // Assert
+            response.Headers.GetValues("X-Custom").Should().BeEquivalentTo("one", "two");
+        }
+
+        [Fact]
+        public async Task Adds_a_non_standard_header_using_try_add_without_validation()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("api/data")
+                .RespondsWithStatus(HttpStatusCode.OK)
+                .WithHeader("X-Rate-Limit", "100");
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/data");
+
+            // Assert
+            response.Headers.GetValues("X-Rate-Limit").Should().ContainSingle().Which.Should().Be("100");
+        }
+
+        [Fact]
+        public async Task Applies_the_header_on_every_invocation()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("api/data")
+                .RespondsWithStatus(HttpStatusCode.OK)
+                .WithHeader("ETag", "\"v1\"");
+
+            // Act
+            var first = await mock.GetClient().GetAsync("https://localhost/api/data");
+            var second = await mock.GetClient().GetAsync("https://localhost/api/data");
+
+            // Assert
+            first.Headers.ETag!.Tag.Should().Be("\"v1\"");
+            second.Headers.ETag!.Tag.Should().Be("\"v1\"");
+        }
+
+        [Fact]
+        public async Task Supports_chaining_multiple_headers()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("api/data")
+                .RespondsWithStatus(HttpStatusCode.OK)
+                .WithHeader("ETag", "\"v1\"")
+                .WithHeader("Cache-Control", "no-cache");
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/data");
+
+            // Assert
+            response.Headers.ETag!.Tag.Should().Be("\"v1\"");
+            response.Headers.CacheControl!.NoCache.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task The_last_configured_value_wins_when_a_header_is_set_twice()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("api/data")
+                .RespondsWithStatus(HttpStatusCode.OK)
+                .WithHeader("X-Custom", "first")
+                .WithHeader("X-Custom", "second");
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/data");
+
+            // Assert
+            response.Headers.GetValues("X-Custom").Should().ContainSingle().Which.Should().Be("second");
+        }
+
+        [Fact]
+        public void Rejects_an_empty_header_name_at_configuration_time()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var builder = mock.ForGet().WithPath("api/data").RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            Action act = () => builder.WithHeader(" ", "value");
+
+            // Assert
+            act.Should().Throw<ArgumentException>();
+        }
+
+        [Fact]
+        public async Task Is_not_affected_by_mutating_the_values_array_after_configuration()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var values = new[] { "original" };
+            mock.ForGet().WithPath("api/data")
+                .RespondsWithStatus(HttpStatusCode.OK)
+                .WithHeader("X-Custom", values);
+
+            // Act
+            values[0] = "mutated";
+            var response = await mock.GetClient().GetAsync("https://localhost/api/data");
+
+            // Assert
+            response.Headers.GetValues("X-Custom").Should().ContainSingle().Which.Should().Be("original");
+        }
+    }
+
 }

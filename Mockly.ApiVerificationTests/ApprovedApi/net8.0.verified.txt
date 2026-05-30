@@ -147,6 +147,8 @@ namespace Mockly
         public Mockly.RequestMockResponseBuilder Once() { }
         public Mockly.RequestMockResponseBuilder Times(uint count) { }
         public Mockly.RequestMockResponseBuilder Twice() { }
+        public Mockly.RequestMockResponseBuilder WithHeader(string name, string value) { }
+        public Mockly.RequestMockResponseBuilder WithHeader(string name, params string[] values) { }
     }
     public class UnexpectedRequestException : System.Exception
     {

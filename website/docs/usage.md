@@ -131,6 +131,26 @@ mock.ForPost()
     .RespondsWithStatus(HttpStatusCode.Created);
 ```
 
+### Response Headers
+
+Use `WithHeader` to add response headers such as `Location`, `ETag` or `Cache-Control`. Content headers
+(`Content-Type`, `Content-Length`, etc.) are routed to the response content automatically; all other headers are
+added to the response headers. Pass multiple values to add a multi-valued header.
+
+```csharp
+mock.ForPost()
+    .WithPath("/api/users")
+    .RespondsWithStatus(HttpStatusCode.Created)
+    .WithHeader("Location", "/api/users/123")
+    .WithHeader("ETag", "\"v1\"");
+
+// Multi-valued header
+mock.ForGet()
+    .WithPath("/api/data")
+    .RespondsWithStatus(HttpStatusCode.OK)
+    .WithHeader("X-Custom", "first", "second");
+```
+
 ### Empty Responses
 
 ```csharp
