@@ -17,6 +17,7 @@ namespace Mockly
         public System.Net.Http.HttpResponseMessage Response { get; }
         public string Scheme { get; }
         public int Sequence { get; set; }
+        public System.Exception? SimulatedFailure { get; }
         public System.DateTime Timestamp { get; }
         public System.Uri? Uri { get; }
         public System.Version Version { get; }
@@ -132,6 +133,10 @@ namespace Mockly
         public Mockly.RequestMockResponseBuilder RespondsWithODataResult<T>(System.Net.HttpStatusCode statusCode, System.Collections.Generic.IEnumerable<Mockly.IResponseBuilder<T>> builders) { }
         public Mockly.RequestMockResponseBuilder RespondsWithODataResult<T>(System.Net.HttpStatusCode statusCode, System.Collections.Generic.IEnumerable<Mockly.IResponseBuilder<T>> builders, string odataContext) { }
         public Mockly.RequestMockResponseBuilder RespondsWithStatus(System.Net.HttpStatusCode statusCode) { }
+        public Mockly.RequestMockResponseBuilder ThrowsException(System.Exception exception) { }
+        public Mockly.RequestMockResponseBuilder ThrowsException<TException>()
+            where TException : System.Exception, new () { }
+        public Mockly.RequestMockResponseBuilder TimesOut() { }
         public Mockly.RequestMockBuilder Using(System.Text.Json.JsonSerializerOptions options) { }
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, System.Threading.Tasks.Task<bool>> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, bool> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }

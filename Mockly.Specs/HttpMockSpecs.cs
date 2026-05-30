@@ -2523,4 +2523,164 @@ public class HttpMockSpecs
 #endif
     }
 
+    public class WhenSimulatingNetworkFailures
+    {
+        [Fact]
+        public async Task A_thrown_transport_exception_surfaces_to_the_caller()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/flaky").ThrowsException<HttpRequestException>();
+
+            var client = mock.GetClient();
+
+            // Act
+            Func<Task> act = () => client.GetAsync("https://localhost/flaky");
+
+            // Assert
+            await act.Should().ThrowAsync<HttpRequestException>();
+        }
+
+        [Fact]
+        public async Task A_specific_exception_instance_is_thrown_to_the_caller()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var failure = new HttpRequestException("connection reset");
+            mock.ForGet().WithPath("/flaky").ThrowsException(failure);
+
+            var client = mock.GetClient();
+
+            // Act
+            Func<Task> act = () => client.GetAsync("https://localhost/flaky");
+
+            // Assert
+            (await act.Should().ThrowAsync<HttpRequestException>())
+                .Which.Message.Should().Be("connection reset");
+        }
+
+        [Fact]
+        public async Task A_null_exception_is_rejected()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            Action act = () => mock.ForGet().WithPath("/flaky").ThrowsException(null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>();
+        }
+
+        [Fact]
+        public async Task Timing_out_throws_a_task_cancelled_exception()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/slow").TimesOut();
+
+            var client = mock.GetClient();
+
+            // Act
+            Func<Task> act = () => client.GetAsync("https://localhost/slow");
+
+            // Assert
+            await act.Should().ThrowAsync<TaskCanceledException>();
+        }
+
+        [Fact]
+        public async Task The_failed_call_is_still_captured_in_the_requests()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/flaky").ThrowsException<HttpRequestException>();
+
+            var client = mock.GetClient();
+
+            // Act
+            Func<Task> act = () => client.GetAsync("https://localhost/flaky");
+            await act.Should().ThrowAsync<HttpRequestException>();
+
+            // Assert
+            mock.Requests.Should().ContainSingle();
+            CapturedRequest captured = mock.Requests.Single();
+            captured.WasExpected.Should().BeTrue();
+            captured.Path.Should().Be("/flaky");
+            captured.SimulatedFailure.Should().BeOfType<HttpRequestException>();
+        }
+
+        [Fact]
+        public async Task The_failed_call_is_collected_in_a_request_collection()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var collected = new RequestCollection();
+            mock.ForGet().WithPath("/flaky").CollectingRequestsIn(collected).ThrowsException<HttpRequestException>();
+
+            var client = mock.GetClient();
+
+            // Act
+            Func<Task> act = () => client.GetAsync("https://localhost/flaky");
+            await act.Should().ThrowAsync<HttpRequestException>();
+
+            // Assert
+            collected.Should().ContainSingle();
+            collected.Single().SimulatedFailure.Should().BeOfType<HttpRequestException>();
+        }
+
+        [Fact]
+        public async Task A_simulated_failure_limited_to_once_only_applies_to_the_first_call()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/flaky").ThrowsException<HttpRequestException>().Once();
+
+            var client = mock.GetClient();
+
+            // Act
+            Func<Task> firstCall = () => client.GetAsync("https://localhost/flaky");
+            await firstCall.Should().ThrowAsync<HttpRequestException>();
+
+            // Assert: the second call no longer matches the exhausted mock
+            Func<Task> secondCall = () => client.GetAsync("https://localhost/flaky");
+            await secondCall.Should().ThrowAsync<UnexpectedRequestException>();
+        }
+
+        [Fact]
+        public async Task A_simulated_failure_limited_to_a_number_of_times_applies_to_each_call()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/flaky").ThrowsException<HttpRequestException>().Times(2);
+
+            var client = mock.GetClient();
+
+            // Act + Assert: both configured calls fail as simulated failures
+            Func<Task> firstCall = () => client.GetAsync("https://localhost/flaky");
+            await firstCall.Should().ThrowAsync<HttpRequestException>();
+
+            Func<Task> secondCall = () => client.GetAsync("https://localhost/flaky");
+            await secondCall.Should().ThrowAsync<HttpRequestException>();
+
+            mock.AllMocksInvoked.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task A_buggy_responder_still_results_in_a_500_response()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/bug").RespondsWith(new Func<RequestInfo, HttpResponseMessage>(
+                _ => throw new InvalidOperationException("boom")));
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/bug");
+
+            // Assert: genuine responder bugs keep the existing 500 behavior rather than propagating
+            response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        }
+    }
+
 }

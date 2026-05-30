@@ -672,4 +672,75 @@ public class RequestMockBuilder
         mockBuilder.AddMock(mock);
         return new RequestMockResponseBuilder(mock);
     }
+
+    /// <summary>
+    /// Configures the mock to simulate a network-level failure by throwing the specified <paramref name="exception"/>
+    /// instead of returning a response.
+    /// </summary>
+    /// <remarks>
+    /// The exception is propagated to the <see cref="System.Net.Http.HttpClient"/> caller rather than being converted
+    /// into a <c>500 Internal Server Error</c> response, allowing tests to verify retry, circuit-breaker and other
+    /// resilience behavior. The matching request is still recorded in <see cref="HttpMock.Requests"/> before the
+    /// exception is thrown. The same exception instance is thrown on every matching invocation.
+    /// </remarks>
+    /// <param name="exception">The exception to throw for a matching request.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="exception"/> is <c>null</c>.</exception>
+    public RequestMockResponseBuilder ThrowsException(Exception exception)
+    {
+        if (exception is null)
+        {
+            throw new ArgumentNullException(nameof(exception));
+        }
+
+        return RespondsWithSimulatedFailure(() => exception);
+    }
+
+    /// <summary>
+    /// Configures the mock to simulate a network-level failure by throwing a freshly constructed
+    /// <typeparamref name="TException"/> instead of returning a response.
+    /// </summary>
+    /// <remarks>
+    /// A new instance of <typeparamref name="TException"/> is created for every matching invocation. The exception is
+    /// propagated to the <see cref="System.Net.Http.HttpClient"/> caller rather than being converted into a
+    /// <c>500 Internal Server Error</c> response. The matching request is still recorded in
+    /// <see cref="HttpMock.Requests"/> before the exception is thrown.
+    /// </remarks>
+    /// <typeparam name="TException">The type of exception to throw for a matching request.</typeparam>
+    public RequestMockResponseBuilder ThrowsException<TException>()
+        where TException : Exception, new()
+    {
+        return RespondsWithSimulatedFailure(static () => new TException());
+    }
+
+    /// <summary>
+    /// Configures the mock to simulate an <see cref="System.Net.Http.HttpClient"/> timeout by throwing a
+    /// <see cref="TaskCanceledException"/> instead of returning a response.
+    /// </summary>
+    /// <remarks>
+    /// This mimics the behavior of a real <see cref="System.Net.Http.HttpClient"/> whose request exceeds its
+    /// configured timeout. The exception is propagated to the caller and the matching request is still recorded in
+    /// <see cref="HttpMock.Requests"/> before the exception is thrown.
+    /// </remarks>
+    public RequestMockResponseBuilder TimesOut()
+    {
+        return RespondsWithSimulatedFailure(static () => new TaskCanceledException());
+    }
+
+    private RequestMockResponseBuilder RespondsWithSimulatedFailure(Func<Exception> exceptionFactory)
+    {
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            SimulatedFailure = new SimulatedFailureResponder(exceptionFactory)
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
 }

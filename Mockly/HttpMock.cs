@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using Mockly.Common;
 #if NET472_OR_GREATER
@@ -268,6 +269,11 @@ public class HttpMock
         }
 
         Requests.Add(capturedRequest);
+
+        if (capturedRequest.SimulatedFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(capturedRequest.SimulatedFailure).Throw();
+        }
 
         if (!foundMatch && FailOnUnexpectedCalls)
         {
