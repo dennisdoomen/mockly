@@ -22,7 +22,7 @@ internal static class StringExtensions
                 yield break;
             }
 
-            string data = input.StartsWith("?", StringComparison.Ordinal) ? input.Substring(1) : input;
+            string data = input!.StartsWith("?", StringComparison.Ordinal) ? input.Substring(1) : input;
 
             foreach (string pair in data.Split('&'))
             {
