@@ -3273,7 +3273,7 @@ public class HttpMockSpecs
 
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>()
-                .WithMessage("*query parameter "q" is present*");
+                .WithMessage("*query parameter \"q\" is present*");
         }
 
         [Fact]
@@ -3294,7 +3294,7 @@ public class HttpMockSpecs
 
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>()
-                .WithMessage("*query parameter "q" matches "mockly"*");
+                .WithMessage("*query parameter \"q\" matches \"mockly\"*");
         }
 
         [Fact]
@@ -3315,7 +3315,7 @@ public class HttpMockSpecs
 
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>()
-                .WithMessage("*query parameter "q" matches "mockly"*");
+                .WithMessage("*query parameter \"q\" matches \"mockly\"*");
         }
 
         [Fact]
@@ -3437,7 +3437,7 @@ public class HttpMockSpecs
 
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>()
-                .WithMessage("*form field "grant_type" matches "client_credentials"*");
+                .WithMessage("*form field \"grant_type\" matches \"client_credentials\"*");
         }
     }
 }
