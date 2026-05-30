@@ -42,7 +42,7 @@ jobs:
       if: always()
       with:
         language: csharp
-        report: TestResults/**/coverage.cobertura.xml
+        file: TestResults/**/coverage.cobertura.xml
         label: code-coverage/mockly
 
     - name: Check for 'lcov.info' existence
