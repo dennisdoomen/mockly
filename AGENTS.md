@@ -41,6 +41,10 @@ dotnet test --filter FullyQualifiedName~Mockly.Specs.HttpMockSpecs+BasicUsage
 - Avoid new dependencies; never commit secrets; guard against ReDoS in matchers. Add any new
   analyzer packages to `Directory.Build.props` conditioned on `net8.0` with `<PrivateAssets>all</PrivateAssets>`.
 
+### Tests
+- Tests should not use terms like "should" or "when". Instead, they should use a fact-based naming convention in snake casing.
+- Test method names must describe observable behavior in business terms and must never start with or include the name of the method under test or any other code element. For example: `Returns_credit_report_for_valid_nl_company` ✅; `GetCompanyCreditReport_returns_credit_report_for_valid_nl_company_id` ❌.
+
 ## Public API changes
 
 Public API changes need an `api-approved` issue first. When the approval tests in
