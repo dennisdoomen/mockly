@@ -509,6 +509,32 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public void Throws_when_the_header_name_is_null()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            Action act = () => mock.ForGet().WithHeader(null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>().WithParameterName("name");
+        }
+
+        [Fact]
+        public void Throws_when_the_header_name_or_value_pattern_is_null()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            Action act = () => mock.ForGet().WithHeader("X-Correlation-Id", null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>().WithParameterName("valuePattern");
+        }
+
+        [Fact]
         public async Task Matches_when_the_header_value_satisfies_the_wildcard_pattern()
         {
             // Arrange
@@ -540,6 +566,26 @@ public class HttpMockSpecs
 
             var client = mock.GetClient();
             client.DefaultRequestHeaders.Add("X-Correlation-Id", "xyz-123");
+
+            // Act
+            var act = () => client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*header \"X-Correlation-Id\" matches \"abc-*\"*");
+        }
+
+        [Fact]
+        public async Task Reports_the_value_requirement_when_the_header_is_missing()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet()
+                .WithPath("/api/test")
+                .WithHeader("X-Correlation-Id", "abc-*")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
 
             // Act
             var act = () => client.GetAsync("https://localhost/api/test");
@@ -632,6 +678,39 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public void Throws_when_the_bearer_token_pattern_is_null()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            Action act = () => mock.ForGet().WithBearerToken(null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>().WithParameterName("tokenPattern");
+        }
+
+        [Fact]
+        public async Task Reports_the_bearer_token_requirement_when_the_authorization_header_is_missing()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet()
+                .WithPath("/api/test")
+                .WithBearerToken()
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var act = () => client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*bearer token matches \"*\"*");
+        }
+
+        [Fact]
         public async Task Matches_the_content_type_media_type_ignoring_parameters()
         {
             // Arrange
@@ -652,6 +731,19 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public void Throws_when_the_content_type_pattern_is_null()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            Action act = () => mock.ForPost().WithContentType(null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>().WithParameterName("mediaTypePattern");
+        }
+
+        [Fact]
         public async Task Reports_the_content_type_requirement_when_the_media_type_does_not_match()
         {
             // Arrange
@@ -666,6 +758,26 @@ public class HttpMockSpecs
 
             // Act
             var act = () => client.PostAsync("https://localhost/api/test", content);
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*content type matches \"application/json\"*");
+        }
+
+        [Fact]
+        public async Task Reports_the_content_type_requirement_when_the_content_type_is_missing()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost()
+                .WithPath("/api/test")
+                .WithContentType("application/json")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            var act = () => client.PostAsync("https://localhost/api/test", null);
 
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>()
