@@ -438,6 +438,94 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Responds with an RFC 7807 <c>application/problem+json</c> payload describing the specified problem.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code to respond with and to include as the <c>status</c> member.</param>
+    /// <param name="title">
+    /// A short, human-readable summary of the problem type. When <see langword="null"/>, the reason phrase of
+    /// <paramref name="statusCode"/> is used.
+    /// </param>
+    /// <param name="detail">A human-readable explanation specific to this occurrence of the problem.</param>
+    /// <param name="type">A URI reference that identifies the problem type.</param>
+    /// <param name="instance">A URI reference that identifies the specific occurrence of the problem.</param>
+    /// <param name="extensions">Additional members to include in the problem details payload.</param>
+    /// <remarks>
+    /// The payload is serialized using the same <see cref="JsonSerializerOptions"/> as the other JSON responders
+    /// (configurable through <see cref="Using"/>) and the response <c>Content-Type</c> is set to
+    /// <c>application/problem+json</c>.
+    /// </remarks>
+    [SuppressMessage("Maintainability", "AV1561:Signature contains too many parameters",
+        Justification = "The parameters mirror the RFC 7807 problem details members for an ergonomic single-call API.")]
+    [SuppressMessage("Member Design", "AV1553:Do not use optional parameters with default value null",
+        Justification = "The RFC 7807 members are all optional, so null is the natural way to omit them.")]
+    public RequestMockResponseBuilder RespondsWithProblemDetails(
+        HttpStatusCode statusCode,
+        string? title = null,
+        string? detail = null,
+        string? type = null,
+        string? instance = null,
+        IDictionary<string, object?>? extensions = null)
+    {
+        var options = jsonSerializerOptions;
+
+        var problemDetails = new Dictionary<string, object?>(StringComparer.Ordinal);
+
+        if (type is not null)
+        {
+            problemDetails["type"] = type;
+        }
+
+        problemDetails["title"] = title ?? GetReasonPhrase(statusCode);
+        problemDetails["status"] = (int)statusCode;
+
+        if (detail is not null)
+        {
+            problemDetails["detail"] = detail;
+        }
+
+        if (instance is not null)
+        {
+            problemDetails["instance"] = instance;
+        }
+
+        if (extensions is not null)
+        {
+            foreach (var extension in extensions)
+            {
+                problemDetails[extension.Key] = extension.Value;
+            }
+        }
+
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            Responder = _ =>
+            {
+                var json = JsonSerializer.Serialize(problemDetails, options);
+                return new HttpResponseMessage(statusCode)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/problem+json")
+                };
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    private static string? GetReasonPhrase(HttpStatusCode statusCode)
+    {
+        using var message = new HttpResponseMessage(statusCode);
+        return message.ReasonPhrase;
+    }
+
+    /// <summary>
     /// Configures an HTTP response with an OData v4 result envelope containing a single entity of the specified type
     /// and status code 200 (OK).
     /// </summary>
