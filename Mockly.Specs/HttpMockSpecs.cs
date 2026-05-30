@@ -2899,4 +2899,34 @@ public class HttpMockSpecs
     }
 #nullable restore
 
+    public class InvocationTracking
+    {
+        [Fact]
+        public async Task Configured_mock_exposes_its_invocation_count_after_calls()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var responseBuilder = mock.ForGet().WithPath("api/test").RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            await mock.GetClient().GetAsync("https://localhost/api/test");
+            await mock.GetClient().GetAsync("https://localhost/api/test");
+
+            // Assert
+            responseBuilder.RequestMock.InvocationCount.Should().Be(2);
+        }
+
+        [Fact]
+        public void Configured_mock_exposes_its_invocation_limit()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            var responseBuilder = mock.ForGet().WithPath("api/test").RespondsWithStatus(HttpStatusCode.OK).Twice();
+
+            // Assert
+            responseBuilder.RequestMock.MaxInvocations.Should().Be(2);
+        }
+    }
 }
