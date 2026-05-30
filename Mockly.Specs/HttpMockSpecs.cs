@@ -7,10 +7,10 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 #if NET8_0_OR_GREATER
 using System.Collections.Concurrent;
 using System.Net.Http.Json;
-using System.Threading;
 #endif
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -1677,7 +1677,7 @@ public class HttpMockSpecs
 
             mock.ForGet()
                 .WithPath("/api/custom")
-                .RespondsWith(_ => throw new InvalidOperationException());
+                .RespondsWith((Func<RequestInfo, HttpResponseMessage>)(_ => throw new InvalidOperationException()));
 
             // Build step removed;
             var client = mock.GetClient();
@@ -1825,6 +1825,297 @@ public class HttpMockSpecs
                     }
                 }
             });
+        }
+    }
+
+    public class WhenUsingAsyncResponders
+    {
+        [Fact]
+        public async Task An_async_responder_is_awaited()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/async")
+                .RespondsWith(async _ =>
+                {
+                    await Task.Yield();
+                    return new HttpResponseMessage(HttpStatusCode.Accepted)
+                    {
+                        Content = new StringContent("async body")
+                    };
+                });
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/async");
+            var content = await response.Content.ReadAsStringAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+            content.Should().Be("async body");
+        }
+
+        [Fact]
+        public async Task An_async_responder_with_a_cancellation_token_is_awaited()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/async-ct")
+                .RespondsWith(async (_, _) =>
+                {
+                    await Task.Yield();
+                    return new HttpResponseMessage(HttpStatusCode.Created);
+                });
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/async-ct");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+
+        [Fact]
+        public async Task The_cancellation_token_is_passed_to_the_async_responder()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            CancellationToken observedToken = default;
+
+            mock.ForGet()
+                .WithPath("/api/observe")
+                .RespondsWith((_, ct) =>
+                {
+                    observedToken = ct;
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+                });
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/observe");
+
+            // Assert
+            observedToken.CanBeCanceled.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task A_cancelled_token_is_observed_by_the_async_responder()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            using var cts = new CancellationTokenSource();
+            var wasCancelled = false;
+
+            mock.ForGet()
+                .WithPath("/api/cancel")
+                .RespondsWith(async (_, ct) =>
+                {
+#if NET8_0_OR_GREATER
+                    await cts.CancelAsync();
+#else
+                    cts.Cancel();
+#endif
+                    try
+                    {
+                        await Task.Delay(Timeout.Infinite, ct);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        wasCancelled = true;
+                        throw;
+                    }
+
+                    return new HttpResponseMessage(HttpStatusCode.OK);
+                });
+
+            var client = mock.GetClient();
+
+            // Act
+            Func<Task> act = () => client.GetAsync("https://localhost/api/cancel", cts.Token);
+
+            // Assert
+            await act.Should().ThrowAsync<OperationCanceledException>();
+            wasCancelled.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task An_async_responder_works_with_invocation_limits()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var invocations = 0;
+
+            mock.ForGet()
+                .WithPath("/api/limited")
+                .RespondsWith(_ =>
+                {
+                    Interlocked.Increment(ref invocations);
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+                })
+                .Once();
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/limited");
+
+            // Assert
+            invocations.Should().Be(1);
+            mock.AllMocksInvoked.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task An_async_responder_collects_requests()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var collected = new RequestCollection();
+
+            mock.ForPost()
+                .WithPath("/api/collect")
+                .CollectingRequestsIn(collected)
+                .RespondsWith(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Accepted)));
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/collect", new StringContent("payload"));
+
+            // Assert
+            collected.Should().ContainSingle();
+        }
+
+        [Fact]
+        public async Task An_exception_from_an_async_responder_results_in_an_internal_server_error()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/async-throw")
+                .RespondsWith(_ => Task.FromException<HttpResponseMessage>(new InvalidOperationException()));
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/async-throw");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+            response.ReasonPhrase.Should().Contain("InvalidOperationException");
+        }
+
+        [Fact]
+        public async Task An_existing_synchronous_responder_still_works()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet()
+                .WithPath("/api/sync")
+                .RespondsWith(_ => new HttpResponseMessage(HttpStatusCode.Accepted)
+                {
+                    Content = new StringContent("sync body")
+                });
+
+            var client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/sync");
+            var content = await response.Content.ReadAsStringAsync();
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+            content.Should().Be("sync body");
+        }
+
+        [Fact]
+        public async Task An_async_responder_receives_request_info()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            RequestInfo capturedInfo = null;
+
+            mock.ForPost()
+                .WithPath("/api/info")
+                .RespondsWith(async request =>
+                {
+                    capturedInfo = request;
+                    await Task.Yield();
+                    return new HttpResponseMessage(HttpStatusCode.OK);
+                });
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/info", new StringContent("hello", Encoding.UTF8, "text/plain"));
+
+            // Assert
+            capturedInfo.Should().NotBeNull();
+            capturedInfo.Method.Should().Be(HttpMethod.Post);
+            capturedInfo.Uri.AbsolutePath.Should().Be("/api/info");
+            capturedInfo.Body.Should().Be("hello");
+        }
+
+        [Fact]
+        public async Task An_async_responder_works_with_multiple_invocations()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var counter = 0;
+
+            mock.ForGet()
+                .WithPath("/api/multi")
+                .RespondsWith(_ =>
+                {
+                    Interlocked.Increment(ref counter);
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+                });
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/multi");
+            await client.GetAsync("https://localhost/api/multi");
+            await client.GetAsync("https://localhost/api/multi");
+
+            // Assert
+            counter.Should().Be(3);
+        }
+
+        [Fact]
+        public void Null_async_responder_throws_argument_null_exception()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var builder = mock.ForGet().WithPath("/api/null");
+
+            // Act
+            Action act = () => builder.RespondsWith((Func<RequestInfo, Task<HttpResponseMessage>>)null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>();
+        }
+
+        [Fact]
+        public void Null_async_responder_with_cancellation_token_throws_argument_null_exception()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var builder = mock.ForGet().WithPath("/api/null-ct");
+
+            // Act
+            Action act = () => builder.RespondsWith((Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>>)null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>();
         }
     }
 
