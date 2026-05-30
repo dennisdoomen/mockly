@@ -53,10 +53,12 @@ jobs:
     - name: Upload code coverage
       uses: actions/upload-code-coverage@v1
       if: steps.find_coverage.outputs.coverage_file != ''
+      continue-on-error: true
       with:
         language: csharp
         file: ${{ steps.find_coverage.outputs.coverage_file }}
         label: code-coverage/mockly
+        fail-on-error: false
 
     - name: Check for 'lcov.info' existence
       id: check_files
