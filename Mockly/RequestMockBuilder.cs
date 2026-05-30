@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -752,6 +754,160 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Responds with the contents of the specified file, streamed freshly for each matching request, and status code 200 (OK).
+    /// </summary>
+    /// <remarks>
+    /// The file is opened for reading on every matching request, so the mock can be invoked multiple times and each
+    /// invocation receives its own readable stream. When <paramref name="contentType"/> is not supplied, the content type
+    /// is inferred from the file extension, defaulting to "application/octet-stream".
+    /// </remarks>
+    /// <param name="path">The path of the file whose contents are streamed as the response body.</param>
+    /// <param name="contentType">
+    /// The MIME type of the response content. When <see langword="null"/>, the content type is inferred from the file extension.
+    /// </param>
+#pragma warning disable AV1553 // Optional parameter defaults to null to mirror the documented public API contract.
+    public RequestMockResponseBuilder RespondsWithFile(string path, string? contentType = null)
+#pragma warning restore AV1553
+    {
+        if (path is null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
+        string resolvedContentType = contentType ?? InferContentTypeFromExtension(path);
+
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            Responder = _ =>
+            {
+                var stream = File.OpenRead(path);
+                var content = new StreamContent(stream)
+                {
+                    Headers =
+                    {
+                        ContentType = new MediaTypeHeaderValue(resolvedContentType),
+                        ContentLength = stream.Length
+                    }
+                };
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = content
+                };
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
+    /// Responds with the specified raw bytes and status code 200 (OK), buffering the payload so the mock can be invoked
+    /// multiple times.
+    /// </summary>
+    /// <param name="content">The bytes to return as the response body.</param>
+    /// <param name="contentType">The MIME type of the response content.</param>
+    public RequestMockResponseBuilder RespondsWithBytes(byte[] content, string contentType)
+    {
+        if (content is null)
+        {
+            throw new ArgumentNullException(nameof(content));
+        }
+
+        if (contentType is null)
+        {
+            throw new ArgumentNullException(nameof(contentType));
+        }
+
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            Responder = _ =>
+            {
+                var byteContent = new ByteArrayContent(content)
+                {
+                    Headers =
+                    {
+                        ContentType = new MediaTypeHeaderValue(contentType)
+                    }
+                };
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = byteContent
+                };
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
+    /// Responds with the specified stream and status code 200 (OK).
+    /// </summary>
+    /// <remarks>
+    /// Note: A <see cref="Stream"/> can only be consumed once, so the same <paramref name="stream"/> instance is used for all
+    /// matching requests. If the mock may be invoked more than once, prefer <see cref="RespondsWithBytes(byte[], string)"/> or
+    /// <see cref="RespondsWithFile(string, string?)"/>, which provide fresh content for every request.
+    /// </remarks>
+    /// <param name="stream">The stream whose contents are returned as the response body.</param>
+    /// <param name="contentType">The MIME type of the response content.</param>
+    public RequestMockResponseBuilder RespondsWithStream(Stream stream, string contentType)
+    {
+        if (stream is null)
+        {
+            throw new ArgumentNullException(nameof(stream));
+        }
+
+        if (contentType is null)
+        {
+            throw new ArgumentNullException(nameof(contentType));
+        }
+
+#pragma warning disable CA2000 // The content is owned by the returned HttpResponseMessage and disposed by the caller.
+        var content = new StreamContent(stream)
+        {
+            Headers =
+            {
+                ContentType = new MediaTypeHeaderValue(contentType)
+            }
+        };
+#pragma warning restore CA2000
+
+        var mock = new RequestMock
+        {
+            Method = Method,
+            PathPattern = pathPattern,
+            QueryPattern = queryPattern,
+            Scheme = scheme,
+            HostPattern = hostPattern,
+            CustomMatchers = customMatchers,
+            RequestCollection = requestCollection,
+            Responder = _ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = content
+            }
+        };
+
+        mockBuilder.AddMock(mock);
+        return new RequestMockResponseBuilder(mock);
+    }
+
+    /// <summary>
     /// Responds with the specified HTTP content and status code 200 (OK).
     /// </summary>
     /// <param name="content">The HTTP content to include in the response.</param>
@@ -815,5 +971,26 @@ public class RequestMockBuilder
 
         mockBuilder.AddMock(mock);
         return new RequestMockResponseBuilder(mock);
+    }
+
+    private static string InferContentTypeFromExtension(string path)
+    {
+        string extension = Path.GetExtension(path).ToUpperInvariant();
+
+        return extension switch
+        {
+            ".TXT" => "text/plain",
+            ".JSON" => "application/json",
+            ".XML" => "application/xml",
+            ".HTM" or ".HTML" => "text/html",
+            ".CSV" => "text/csv",
+            ".PDF" => "application/pdf",
+            ".PNG" => "image/png",
+            ".JPG" or ".JPEG" => "image/jpeg",
+            ".GIF" => "image/gif",
+            ".SVG" => "image/svg+xml",
+            ".ZIP" => "application/zip",
+            _ => "application/octet-stream"
+        };
     }
 }
