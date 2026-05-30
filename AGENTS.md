@@ -41,9 +41,12 @@ Core library files (under `Mockly/`): `HttpMock.cs`, `RequestMock.cs`,
 `UnexpectedRequestException.cs`, `RequestMatchingException.cs`.
 
 > Note: the README mentions `FluentAssertions.Mockly.v7` / `.v8` packages. Those projects
-> are referenced via `InternalsVisibleTo` but are not currently present in this solution
+> are referenced via `InternalsVisibleTo` but are not present in this solution
 > (`Mockly.sln` contains `Mockly`, `Mockly.Specs`, `Mockly.ApiVerificationTests`, and the
-> Nuke `_build` project). Verify the current solution before assuming a project exists.
+> Nuke `_build` project). The FluentAssertions v7 and v8 extensions for Mockly live in a
+> separate repository:
+> [dennisdoomen/fluentassertions.mockly](https://github.com/dennisdoomen/fluentassertions.mockly).
+> Verify the current solution before assuming a project exists.
 
 ## Building
 
@@ -144,7 +147,8 @@ Mockly reviews every public API addition, change, or deletion.
 
 ## Code style and conventions
 
-- Follow the [C# Coding Guidelines](https://csharpcodingguidelines.com/).
+- Follow the C# coding guidelines as captured in the
+  [csharp-guidelines skill](https://github.com/dennisdoomen/CSharpGuidelines/tree/main/Skills/csharp-guidelines).
 - Multi-target compatible: keep the API surface working on both `net472` and `net8.0`. Use
   `#if NET472_OR_GREATER` guards only when necessary and keep divergence minimal.
 - File-scoped namespaces; `using` directives at the top, system namespaces first.
