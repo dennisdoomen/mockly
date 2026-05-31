@@ -1,21 +1,21 @@
 using System;
 using System.Linq;
-using Nuke.Common;
-using Nuke.Common.CI.GitHubActions;
-using Nuke.Common.IO;
-using Nuke.Common.ProjectModel;
-using Nuke.Common.Tooling;
-using Nuke.Common.Tools.Coverlet;
-using Nuke.Common.Tools.DotNet;
-using Nuke.Common.Tools.GitVersion;
-using Nuke.Common.Tools.ReportGenerator;
-using Nuke.Common.Utilities;
-using Nuke.Common.Utilities.Collections;
-using static Nuke.Common.Tools.DotNet.DotNetTasks;
-using static Nuke.Common.Tools.ReportGenerator.ReportGeneratorTasks;
+using Fallout.Common;
+using Fallout.Common.CI.GitHubActions;
+using Fallout.Common.IO;
+using Fallout.Common.ProjectModel;
+using Fallout.Common.Tooling;
+using Fallout.Common.Tools.Coverlet;
+using Fallout.Common.Tools.DotNet;
+using Fallout.Common.Tools.GitVersion;
+using Fallout.Common.Tools.ReportGenerator;
+using Fallout.Common.Utilities;
+using Fallout.Common.Utilities.Collections;
+using static Fallout.Common.Tools.DotNet.DotNetTasks;
+using static Fallout.Common.Tools.ReportGenerator.ReportGeneratorTasks;
 using static Serilog.Log;
 
-class Build : NukeBuild
+class Build : FalloutBuild
 {
     /// Support plugins are available for:
     ///   - JetBrains ReSharper        https://nuke.build/resharper
@@ -48,7 +48,7 @@ class Build : NukeBuild
     [Solution(GenerateProjects = true)]
     readonly Solution Solution;
 
-    [GitVersion(Framework = "net8.0", NoFetch = true, NoCache = true)]
+    [GitVersion(Framework = "net10.0", NoFetch = true, NoCache = true)]
     readonly GitVersion GitVersion;
 
     AbsolutePath ArtifactsDirectory => RootDirectory / "Artifacts";
@@ -114,7 +114,7 @@ class Build : NukeBuild
         .DependsOn(Compile)
         .Executes(() =>
         {
-            InspectCode($"Mockly.sln -o={ArtifactsDirectory / "CodeIssues.sarif"} --no-build");
+            InspectCode($"Mockly.sln -o={ArtifactsDirectory / "CodeIssues.sarif"} --no-build --dotnetcoresdk=10.0.300");
         });
 
     Target RunTests => _ => _
