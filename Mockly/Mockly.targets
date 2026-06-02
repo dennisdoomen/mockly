@@ -1,7 +1,7 @@
 <Project>
 
   <!--
-    Copies SKILL.md from this package to .agents/skills/mockly/ in the consuming repo root.
+    Copies SKILL.md and .gitignore from this package to .agents/skills/mockly/ in the consuming repo root.
     Uses InitializeSourceControlInformation (SourceLink) to locate the repo root.
     Falls back to SolutionDir if the git root cannot be determined.
     Falls back to the directory containing the nearest AGENTS.md file found above the project file.
@@ -32,6 +32,12 @@
           DestinationFiles="$(_MocklySkillRepoRoot).agents\skills\mockly\SKILL.md"
           SkipUnchangedFiles="true"
           Condition="'$(_MocklySkillRepoRoot)' != '' and Exists('$(MSBuildThisFileDirectory)..\skills\mockly\SKILL.md')"
+          ContinueOnError="true" />
+
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\skills\mockly\.gitignore"
+          DestinationFiles="$(_MocklySkillRepoRoot).agents\skills\mockly\.gitignore"
+          SkipUnchangedFiles="true"
+          Condition="'$(_MocklySkillRepoRoot)' != '' and Exists('$(MSBuildThisFileDirectory)..\skills\mockly\.gitignore')"
           ContinueOnError="true" />
 
   </Target>
