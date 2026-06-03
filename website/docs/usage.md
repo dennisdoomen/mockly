@@ -57,9 +57,15 @@ mock.ForPost()    // POST requests
 mock.ForPut()     // PUT requests
 mock.ForPatch()   // PATCH requests
 mock.ForDelete()  // DELETE requests
+mock.ForHead()    // HEAD requests
+mock.ForOptions() // OPTIONS requests
+
+// Generic method support for any verb
+mock.For(HttpMethod.Get)
+mock.For(new HttpMethod("PROPFIND"))
 ```
 
-## Full-URL Shortcuts
+### Full-URL Shortcuts
 
 Instead of configuring scheme/host/path/query separately, you can provide a single full URL pattern to each `ForXxx` method. Wildcards (`*`) are supported in the host, path, and query parts.
 
@@ -103,6 +109,45 @@ mock.ForGet().WithPath("/api/users/*");
 mock.ForGet()
     .WithPath("/api/search")
     .WithQuery("?q=*&limit=10");
+
+// Match any query string
+mock.ForGet().WithPath("/api/data").WithAnyQuery();
+
+// Match requests without any query string
+mock.ForGet().WithPath("/api/data").WithoutQuery();
+```
+
+### Query Parameter Matching
+
+Match individual query parameters regardless of their order in the URI:
+
+```csharp
+mock.ForGet()
+    .WithPath("/api/search")
+    .WithQueryParam("q", "mockly*")
+    .WithQueryParam("page", "1")
+    .RespondsWithStatus(HttpStatusCode.OK);
+```
+
+You can also match by presence only:
+
+```csharp
+mock.ForGet()
+    .WithPath("/api/search")
+    .WithQueryParam("api-key")
+    .RespondsWithStatus(HttpStatusCode.OK);
+```
+
+## Form Field Matching
+
+Match `application/x-www-form-urlencoded` request bodies by field name and value:
+
+```csharp
+mock.ForPost()
+    .WithPath("/oauth/token")
+    .WithFormField("grant_type", "client_credentials")
+    .WithFormField("scope", "read*")
+    .RespondsWithStatus(HttpStatusCode.OK);
 ```
 
 ## Header Matching
@@ -142,6 +187,45 @@ mock.ForGet()
     .WithPath("/api/user")
     .RespondsWithJsonContent(new { Id = 1, Name = "John" });
 ```
+
+#### Custom JSON Options
+
+You can supply custom `JsonSerializerOptions` for serialization:
+
+```csharp
+var options = new JsonSerializerOptions
+{
+    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+};
+
+mock.ForGet()
+    .WithPath("/api/user")
+    .Using(options)
+    .RespondsWithJsonContent(new { UserId = 1, UserName = "John" });
+```
+
+### Problem Details Responses
+
+Mockly has built-in support for [RFC 7807 Problem Details](https://datatracker.ietf.org/doc/html/rfc7807):
+
+```csharp
+mock.ForGet()
+    .WithPath("/api/users/999")
+    .RespondsWithProblemDetails(
+        HttpStatusCode.NotFound,
+        title: "User not found",
+        detail: "No user exists with id 999",
+        type: "https://example.com/problems/not-found",
+        instance: "/api/users/999",
+        extensions: new Dictionary<string, object?>
+        {
+            ["traceId"] = "00-abc-def-01"
+        });
+```
+
+## Assertions
+
+Mockly integrates with **FluentAssertions** for expressive and intention-revealing test assertions. See the [Assertions](./assertions.md) page for details on how to verify your HTTP interactions.
 
 ### String Content
 

@@ -4,6 +4,7 @@ import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
+import HomepageExample from '@site/src/components/HomepageExample';
 import Heading from '@theme/Heading';
 
 import styles from './index.module.css';
@@ -37,6 +38,7 @@ export default function Home(): ReactNode {
       description="Fluent HTTP mocking for .NET like it should have been done">
       <HomepageHeader />
       <main>
+        <HomepageExample />
         <HomepageFeatures />
       </main>
     </Layout>

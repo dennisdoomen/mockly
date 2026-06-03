@@ -1,0 +1,16 @@
+.exampleSection {
+  padding: 4rem 0;
+  background: var(--ifm-color-emphasis-100);
+}
+
+.codeWrapper {
+  max-width: 900px;
+  margin: 0 auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border-radius: var(--ifm-global-radius);
+  overflow: hidden;
+}
+
+[data-theme='dark'] .exampleSection {
+  background: var(--ifm-color-emphasis-0);
+}

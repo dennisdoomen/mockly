@@ -74,7 +74,7 @@ Registered mocks:
 
 ```csharp
 var patches = new RequestCollection();
-mock.ForPatch().WithPath("/api/update").CollectingRequestIn(patches);
+mock.ForPatch().WithPath("/api/update").CollectingRequestsIn(patches);
 
 // After test execution
 patches.Count.Should().Be(3);

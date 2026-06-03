@@ -88,6 +88,23 @@ mock.ForPatch()
 
 The object is serialized using `JsonSerializer` with default options and compared to the request body using JSON equivalence, ignoring differences in whitespace and layout.
 
+#### Custom JSON Options
+
+You can supply custom `JsonSerializerOptions` for the body matching:
+
+```csharp
+var options = new JsonSerializerOptions
+{
+    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+};
+
+mock.ForPost()
+    .WithPath("/api/data")
+    .Using(options)
+    .WithBody(new { UserId = 42, UserName = "Alice" })
+    .RespondsWithStatus(HttpStatusCode.NoContent);
+```
+
 ### Regular Expression
 
 ```csharp
@@ -166,7 +183,7 @@ var capturedRequests = new RequestCollection();
 
 mock.ForPatch()
     .WithPath("/api/update")
-    .CollectingRequestIn(capturedRequests)
+    .CollectingRequestsIn(capturedRequests)
     .RespondsWithStatus(HttpStatusCode.NoContent);
 
 // After making requests
@@ -176,65 +193,4 @@ capturedRequests.First().WasExpected.Should().BeTrue();
 
 ## Assertions
 
-### Verify All Mocks Were Called
-
-```csharp
-mock.Should().HaveAllRequestsCalled();
-```
-
-### Verify No Unexpected Requests
-
-```csharp
-mock.Requests.Should().NotContainUnexpectedCalls();
-```
-
-### Verify Request Expectations
-
-```csharp
-var request = mock.Requests.First();
-request.Should().BeExpected();
-request.WasExpected.Should().BeTrue();
-```
-
-### Assert an Unexpected Request
-
-```csharp
-var first = mock.Requests.First();
-first.Should().BeUnexpected();
-```
-
-### Collection Assertions
-
-```csharp
-mock.Requests.Should().NotBeEmpty();
-mock.Requests.Should().HaveCount(3);
-capturedRequests.Should().BeEmpty();
-```
-
-### Body Assertions on Captured Requests
-
-Use these to assert on the JSON body of a previously captured request:
-
-```csharp
-// Assert JSON-equivalence using a JSON string (ignores formatting/ordering)
-mock.Requests.Should().ContainRequest()
-    .WithBodyMatchingJson("{ \"id\": 1, \"name\": \"x\" }");
-
-// Assert the body deserializes and is equivalent to an object graph
-var expected = new { id = 1, name = "x" };
-mock.Requests.Should().ContainRequest()
-    .WithBodyEquivalentTo(expected);
-
-// Assert the body has specific properties (deserialized as a dictionary)
-var expectedProps = new Dictionary<string, string>
-{
-    ["id"] = "1",
-    ["name"] = "x"
-};
-mock.Requests.Should().ContainRequest()
-    .WithBodyHavingPropertiesOf(expectedProps);
-```
-
-:::info
-These assertions operate on captured requests (`mock.Requests`). They are part of the FluentAssertions extensions shipped with Mockly. If you disabled `HttpMock.PrefetchBody`, `RequestInfo.Body` will be `null`; enable it when you need to assert on the body.
-:::
+Mockly provides extensive support for test assertions through **FluentAssertions**. For a full guide on available assertions for mocks, collections, and requests, see the [Assertions](./assertions.md) page.
