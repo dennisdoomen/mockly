@@ -39,6 +39,7 @@ mock.ForGet()
 HttpClient client = mock.GetClient();
 
 // Act
+
 // Note: BaseAddress defaults to https://localhost/
 var response = await client.GetAsync("/api/users/123");
 var content = await response.Content.ReadAsStringAsync();
@@ -91,7 +92,7 @@ using FluentAssertions;
 public class UserServiceTests
 {
     [Fact]
-    public async Task Should_Handle_User_Operations()
+    public async Task Can_create_and_update_a_user()
     {
         // Arrange
         var mock = new HttpMock();
@@ -108,7 +109,7 @@ public class UserServiceTests
 
         mock.ForPatch()
             .WithPath("/api/users/*")
-            .CollectingRequestIn(capturedPatches)
+            .CollectingRequestsIn(capturedPatches)
             .RespondsWithStatus(HttpStatusCode.NoContent);
 
         HttpClient client = mock.GetClient();
@@ -136,5 +137,6 @@ public class UserServiceTests
 Now that you have Mockly set up, explore the following topics:
 
 - [Usage](usage.md) - Learn about basic mocking patterns
+- [Assertions](assertions.md) - Learn about intention-revealing test assertions
 - [Advanced Features](advanced.md) - Dive into custom matchers, request capture, and more
 - [Building](building.md) - Information about building the project from source

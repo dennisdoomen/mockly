@@ -68,6 +68,49 @@ Unlike other HTTP mocking libraries, Mockly offers:
 
 Mockly is created and maintained by [Dennis Doomen](https://github.com/dennisdoomen), also the creator of [FluentAssertions](https://fluentassertions.com/), [PackageGuard](https://github.com/dennisdoomen/packageguard), [Reflectify](https://github.com/dennisdoomen/reflectify), [Pathy](https://github.com/dennisdoomen/pathy) and the [.NET Library Starter Kit](https://github.com/dennisdoomen/dotnet-library-starter-kit). It's designed to work seamlessly with modern .NET testing practices and integrates naturally with FluentAssertions for expressive test assertions.
 
+## Power in Simplicity
+
+```csharp
+using var mock = new HttpMock();
+
+// 1. Match with full URL shortcuts and wildcards
+// 2. Filter by specific query parameters
+// 3. Use custom JSON options for serialization
+var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+mock.ForGet("https://api.github.com/repos/*/issues?state=open")
+    .WithQueryParam("page", "1")
+    .Using(options)
+    .RespondsWithJsonContent(new[] { 
+        new { Id = 1, Title = "Found a bug" },
+        new { Id = 2, Title = "Feature request" }
+    });
+
+// 4. Match Bearer tokens and other headers
+// 5. Match request body using JSON equivalence
+// 6. Capture requests for later verification
+var creations = new RequestCollection();
+
+mock.ForPost()
+    .WithPath("/api/users")
+    .WithBearerToken("secret-token")
+    .WithBody(new { Name = "John", Role = "Admin" })
+    .CollectingRequestsIn(creations)
+    .RespondsWithStatus(HttpStatusCode.Created);
+
+// 7. Built-in support for Problem Details (RFC 7807)
+mock.ForGet("/api/users/999")
+    .RespondsWithProblemDetails(HttpStatusCode.NotFound, "User not found");
+
+// Get the pre-configured HttpClient and start testing!
+var client = mock.GetClient();
+
+// 8. Assert your expectations with FluentAssertions
+mock.Should().HaveAllRequestsCalled();
+creations.Should().ContainRequestFor("/api/users")
+    .Which.HasHeader("X-Trace-Id");
+```
+
 ## Key Features
 
 ### 🎯 Fluent Request Matching
@@ -115,7 +158,7 @@ Registered mocks:
 
 ```csharp
 var patches = new RequestCollection();
-mock.ForPatch().WithPath("/api/update").CollectingRequestIn(patches);
+mock.ForPatch().WithPath("/api/update").CollectingRequestsIn(patches);
 
 // After test execution
 patches.Count.Should().Be(3);
@@ -131,12 +174,12 @@ mock.Requests.Should().NotContainUnexpectedCalls();
 
 // Assert JSON-equivalence using a JSON string (ignores formatting/ordering)
 mock.Requests.Should().ContainRequest()
-    .WithBodyMatchingJson("{ \"id\": 1, \"name\": \"x\" }");
+    .WithBodyMatchingJson("{ \"id\": 1, \"name\": \"John\" }");
 
 // Assert the body deserializes and is equivalent to an object graph
-var expected = new { id = 1, name = "x" };
+var expected = new { id = 1, name = "John" };
 
-mock.Requests.Should().ContainRequestForUrl("http://localhost:7021/api/*")
+mock.Requests.Should().ContainRequestFor("https://api.example.com/*")
     .WithBodyEquivalentTo(expected);
 ```
 
