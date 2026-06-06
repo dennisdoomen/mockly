@@ -52,6 +52,7 @@ namespace Mockly
         public System.Net.Http.IHttpClientFactory GetClientFactory() { }
         public System.Net.Http.HttpMessageHandler GetMessageHandler() { }
         public System.Collections.Generic.IEnumerable<Mockly.RequestMock> GetUninvokedMocks() { }
+        public Mockly.RequestMockBuilder ImportFromCurl(string curlCommand) { }
         public Mockly.HttpMock Reset() { }
     }
     public interface IResponseBuilder<out T>
