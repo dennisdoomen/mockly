@@ -241,6 +241,9 @@ mock.Should().HaveAllRequestsCalled();
 
 **For complete documentation and advanced examples, visit [mockly.org](https://mockly.org/)**
 
+> [!TIP]
+> This project ships an [Agent Skill](https://agentskills.io) that helps AI Coding Agents use Mockly effectively. [This file](./SKILL.md) will be stored in the `.agents/skills/mockly` directory of your project when you build the project. You can disable this behavior by setting `<MocklySkill>false</MocklySkill>` in your project or `Directory.Build.props`.
+
 ## Building
 
 To build this repository locally, you need:
