@@ -255,13 +255,13 @@ public class HttpMock
         mocks.Add(mock);
     }
 
-    private async Task<HttpResponseMessage> HandleRequest(HttpRequestMessage httpRequest, CancellationToken cancellationToken)
+    private async Task<HttpResponseMessage> HandleRequest(HttpRequestMessage httpRequest)
     {
         RequestInfo request = await BuildRequestInfo(httpRequest);
 
         // Try to find a matching mock
         bool foundMatch = true;
-        CapturedRequest? capturedRequest = await TryFindMatchingMock(request, cancellationToken);
+        CapturedRequest? capturedRequest = await TryFindMatchingMock(request);
         if (capturedRequest == null)
         {
             capturedRequest = new CapturedRequest(request)
@@ -381,14 +381,14 @@ public class HttpMock
         return request;
     }
 
-    private async Task<CapturedRequest?> TryFindMatchingMock(RequestInfo request, CancellationToken cancellationToken)
+    private async Task<CapturedRequest?> TryFindMatchingMock(RequestInfo request)
     {
         RequestMock? matchingMock = await mocks.FirstOrDefaultAsync(m =>
             m.IsExhausted ? Task.FromResult(false) : m.Matches(request));
 
         if (matchingMock != null)
         {
-            return await matchingMock.TrackRequestAsync(request, cancellationToken);
+            return matchingMock.TrackRequest(request);
         }
 
         return null;
@@ -422,7 +422,7 @@ public class HttpMock
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            return await mock.HandleRequest(request, cancellationToken);
+            return await mock.HandleRequest(request);
         }
     }
 

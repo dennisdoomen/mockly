@@ -1,8 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using Mockly.Common;
 #if NET472
 using System.Net.Http;
@@ -35,13 +33,6 @@ public class RequestMock
     public IEnumerable<Matcher> CustomMatchers { get; internal init; } = [];
 
     public Func<RequestInfo, HttpResponseMessage> Responder { get; set; } = _ => new HttpResponseMessage();
-
-    /// <summary>
-    /// Gets the asynchronous responder used to produce a response for a matching request.
-    /// When set, this takes precedence over <see cref="Responder"/> and receives the
-    /// <see cref="CancellationToken"/> flowing from the HTTP pipeline.
-    /// </summary>
-    internal Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>>? AsyncResponder { get; init; }
 
     public RequestCollection? RequestCollection { get; init; } = [];
 
@@ -263,11 +254,6 @@ public class RequestMock
     /// <summary>
     /// Handles the request and returns a response.
     /// </summary>
-    /// <remarks>
-    /// This synchronous overload only invokes the synchronous <see cref="Responder"/> and is preserved for
-    /// backwards compatibility. The HTTP pipeline uses <see cref="TrackRequestAsync"/> so that asynchronous
-    /// responders and cancellation are honored.
-    /// </remarks>
     public CapturedRequest TrackRequest(RequestInfo request)
     {
         Interlocked.Increment(ref invocationCount);
@@ -296,58 +282,6 @@ public class RequestMock
         RequestCollection?.Add(capturedRequest);
 
         return capturedRequest;
-    }
-
-    /// <summary>
-    /// Handles the request asynchronously and returns a response, awaiting the configured responder and
-    /// flowing the supplied <paramref name="cancellationToken"/> into it.
-    /// </summary>
-    /// <remarks>
-    /// Both synchronous and asynchronous responders converge on this single asynchronous execution path.
-    /// </remarks>
-    internal async Task<CapturedRequest> TrackRequestAsync(RequestInfo request, CancellationToken cancellationToken)
-    {
-        Interlocked.Increment(ref invocationCount);
-
-        CapturedRequest capturedRequest = new(request)
-        {
-            Mock = this,
-            WasExpected = true,
-            Timestamp = DateTime.UtcNow
-        };
-
-        try
-        {
-            capturedRequest.Response = await InvokeResponderAsync(request, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-#pragma warning disable CA1031
-        catch (Exception e)
-#pragma warning restore CA1031
-        {
-            capturedRequest.Response = new HttpResponseMessage(HttpStatusCode.InternalServerError)
-            {
-                ReasonPhrase = $"{e.GetType().Name}:{e.Message}"
-            };
-        }
-
-        RequestCollection?.Add(capturedRequest);
-
-        return capturedRequest;
-    }
-
-    /// <summary>
-    /// Invokes the asynchronous responder when configured; otherwise adapts the synchronous
-    /// <see cref="Responder"/> onto the asynchronous path.
-    /// </summary>
-    private Task<HttpResponseMessage> InvokeResponderAsync(RequestInfo request, CancellationToken cancellationToken)
-    {
-        return AsyncResponder is not null
-            ? AsyncResponder(request, cancellationToken)
-            : Task.FromResult(Responder(request));
     }
 
     /// <summary>

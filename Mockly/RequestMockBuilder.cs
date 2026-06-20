@@ -6,8 +6,6 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using Mockly.Common;
 
 #if NET472_OR_GREATER
@@ -1068,51 +1066,6 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
             Responder = responder
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
-    }
-
-    /// <summary>
-    /// Responds using a custom asynchronous responder function that is awaited when producing the response.
-    /// </summary>
-    /// <param name="responder">An asynchronous function that produces the response for a matching request.</param>
-    public RequestMockResponseBuilder RespondsWith(Func<RequestInfo, Task<HttpResponseMessage>> responder)
-    {
-        if (responder is null)
-        {
-            throw new ArgumentNullException(nameof(responder));
-        }
-
-        return RespondsWith((request, _) => responder(request));
-    }
-
-    /// <summary>
-    /// Responds using a custom asynchronous responder function that is awaited when producing the response and
-    /// receives the <see cref="CancellationToken"/> flowing from the HTTP pipeline.
-    /// </summary>
-    /// <param name="responder">
-    /// An asynchronous function that produces the response for a matching request, observing the supplied
-    /// <see cref="CancellationToken"/>.
-    /// </param>
-    public RequestMockResponseBuilder RespondsWith(Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>> responder)
-    {
-        if (responder is null)
-        {
-            throw new ArgumentNullException(nameof(responder));
-        }
-
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            AsyncResponder = responder
         };
 
         mockBuilder.AddMock(mock);
