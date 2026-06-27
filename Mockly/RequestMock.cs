@@ -82,7 +82,7 @@ public class RequestMock
         }
 
         // ReSharper disable once PropertyCanBeMadeInitOnly.Global
-        internal set
+        set
         {
             Func<RequestInfo, HttpResponseMessage> captured = value;
             lock (respondersLock)
@@ -436,6 +436,18 @@ public class RequestMock
         {
             responseMutators.Add(responseMutator);
         }
+    }
+
+    /// <summary>
+    /// Handles the request and returns a response using the configured responder sequence.
+    /// </summary>
+    /// <remarks>
+    /// This synchronous API is preserved for backward compatibility. Internally it delegates
+    /// to the asynchronous execution path without a cancellation token.
+    /// </remarks>
+    public CapturedRequest TrackRequest(RequestInfo request)
+    {
+        return TrackRequestAsync(request, CancellationToken.None).GetAwaiter().GetResult();
     }
 
     /// <summary>
