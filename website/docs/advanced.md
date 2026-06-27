@@ -170,6 +170,7 @@ mock.ForDelete()
 - Exhausted mocks are skipped when matching. If no other non-exhausted mock matches and `FailOnUnexpectedCalls` is `true` (default), an `UnexpectedRequestException` is thrown.
 - The mocks are evaluated in the order they were created.
 - The default for mocks without limits is unlimited invocations
+- Invocation limits and sequenced responses are independent. A `Times(2)` mock with three configured responses still stops matching after the second call.
 - The verification helpers consider limits:
   - `HttpMock.AllMocksInvoked` returns `true` only when each mock has been called at least once or has reached its configured `Times(..)` limit.
   - `HttpMock.GetUninvokedMocks()` lists mocks that haven't reached their required count (or have 0 calls for unlimited mocks).

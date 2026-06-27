@@ -335,6 +335,25 @@ mock.ForGet()
     });
 ```
 
+### Sequenced Responses
+
+Configure a sequence of responses for the same matched request so consecutive calls get different results:
+
+```csharp
+mock.ForGet()
+    .WithPath("/api/resource")
+    .RespondsWithStatus(HttpStatusCode.ServiceUnavailable)
+    .Then(HttpStatusCode.ServiceUnavailable)
+    .Then(HttpStatusCode.OK);
+```
+
+`Then*` mirrors the `RespondsWith*` response methods, including JSON/content/OData variants and custom delegates (`Then(Func<RequestInfo, HttpResponseMessage>)`).
+
+Behavior notes:
+
+- After the configured sequence is exhausted, the last response is reused.
+- Sequence length is independent from invocation limits (`Once()`, `Twice()`, `Times(n)`).
+
 ## Using Test Data Builders
 
 Mockly supports the `IResponseBuilder<T>` interface, allowing you to integrate test data builders seamlessly:

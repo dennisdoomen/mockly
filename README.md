@@ -192,6 +192,19 @@ mock.Requests.Should().ContainRequestFor("https://api.example.com/*")
 * Custom response generators
 * OData support
 
+### 🔁 Sequenced Responses
+
+Configure a sequence of responses for the same matched request so consecutive calls get different responses (e.g. the classic "fail twice, then succeed" retry test). Chain `Then(...)` after any `RespondsWith*` method. The last response repeats for any calls beyond the configured sequence.
+
+```csharp
+mock.ForGet().WithPath("/resource")
+    .RespondsWithStatus(HttpStatusCode.ServiceUnavailable)
+    .Then(HttpStatusCode.ServiceUnavailable)
+    .Then(HttpStatusCode.OK);
+```
+
+The `Then*` family mirrors the `RespondsWith*` methods (`ThenRespondsWithJsonContent`, `ThenRespondsWithContent`, `ThenRespondsWithODataResult`, and `Then(Func<RequestInfo, HttpResponseMessage>)`).
+
 ### 🛡️ Fail-Fast Testing
 
 ```csharp

@@ -30,6 +30,7 @@ Unlike other HTTP mocking libraries, Mockly offers:
 * **Zero configuration** - Works out of the box with sensible defaults
 * **Performance optimized** - Regex patterns are cached for efficient matching
 * **Invocation limits** - Restrict how many times a mock can respond using `Once()`, `Twice()`, or `Times(n)`
+* **Sequenced responses** - Return different responses over consecutive calls by chaining `Then(...)`
 
 ## Who created this?
 
@@ -107,6 +108,19 @@ mock.Requests.Should().ContainRequestForUrl("http://localhost:7021/api/*")
 * Custom HTTP status codes
 * Custom response generators
 * OData support
+
+### 🔁 Sequenced Responses
+
+Configure a sequence of responses for the same matched request so consecutive calls can return different results (for example, "fail twice, then succeed" retry scenarios).
+
+```csharp
+mock.ForGet().WithPath("/resource")
+    .RespondsWithStatus(HttpStatusCode.ServiceUnavailable)
+    .Then(HttpStatusCode.ServiceUnavailable)
+    .Then(HttpStatusCode.OK);
+```
+
+Any calls after the configured sequence reuse the last response.
 
 ### 🛡️ Fail-Fast Testing
 

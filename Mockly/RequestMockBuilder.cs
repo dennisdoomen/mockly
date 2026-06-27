@@ -6,12 +6,12 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using Mockly.Common;
 
 #if NET472_OR_GREATER
 using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 #endif
 
 namespace Mockly;
@@ -460,9 +460,9 @@ public class RequestMockBuilder
     }
 
     /// <summary>
-    /// Responds with the specified HTTP status code.
+    /// Creates a mock with the specified responder, registers it, and returns a builder for further configuration.
     /// </summary>
-    public RequestMockResponseBuilder RespondsWithStatus(HttpStatusCode statusCode)
+    private SequencedResponseBuilder CreateResponse(Func<RequestInfo, HttpResponseMessage> responder)
     {
         var mock = new RequestMock
         {
@@ -473,17 +473,25 @@ public class RequestMockBuilder
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
-            Responder = _ => new HttpResponseMessage(statusCode)
+            Responder = responder
         };
 
         mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return new SequencedResponseBuilder(mock, jsonSerializerOptions);
+    }
+
+    /// <summary>
+    /// Responds with the specified HTTP status code.
+    /// </summary>
+    public SequencedResponseBuilder RespondsWithStatus(HttpStatusCode statusCode)
+    {
+        return CreateResponse(ResponderFactory.Status(statusCode));
     }
 
     /// <summary>
     /// Responds with JSON content serialized from the specified object and status code 200 (OK).
     /// </summary>
-    public RequestMockResponseBuilder RespondsWithJsonContent(object content)
+    public SequencedResponseBuilder RespondsWithJsonContent(object content)
     {
         return RespondsWithJsonContent(HttpStatusCode.OK, content);
     }
@@ -493,7 +501,7 @@ public class RequestMockBuilder
     /// </summary>
     /// <typeparam name="T">The type of object to build and serialize.</typeparam>
     /// <param name="builder">The builder that will construct the object to serialize.</param>
-    public RequestMockResponseBuilder RespondsWithJsonContent<T>(IResponseBuilder<T> builder)
+    public SequencedResponseBuilder RespondsWithJsonContent<T>(IResponseBuilder<T> builder)
     {
         return RespondsWithJsonContent(HttpStatusCode.OK, builder);
     }
@@ -501,31 +509,9 @@ public class RequestMockBuilder
     /// <summary>
     /// Responds with JSON content serialized from the specified object and a specific status code.
     /// </summary>
-    public RequestMockResponseBuilder RespondsWithJsonContent(HttpStatusCode statusCode, object content)
+    public SequencedResponseBuilder RespondsWithJsonContent(HttpStatusCode statusCode, object content)
     {
-        var options = jsonSerializerOptions;
-
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = _ =>
-            {
-                var json = JsonSerializer.Serialize(content, options);
-                return new HttpResponseMessage(statusCode)
-                {
-                    Content = new StringContent(json, Encoding.UTF8, "application/json")
-                };
-            }
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(ResponderFactory.JsonContent(statusCode, content, jsonSerializerOptions));
     }
 
     /// <summary>
@@ -534,7 +520,7 @@ public class RequestMockBuilder
     /// <typeparam name="T">The type of object to build and serialize.</typeparam>
     /// <param name="statusCode">The HTTP status code to respond with.</param>
     /// <param name="builder">The builder that will construct the object to serialize.</param>
-    public RequestMockResponseBuilder RespondsWithJsonContent<T>(HttpStatusCode statusCode, IResponseBuilder<T> builder)
+    public SequencedResponseBuilder RespondsWithJsonContent<T>(HttpStatusCode statusCode, IResponseBuilder<T> builder)
     {
         object content = builder.Build()!;
         return RespondsWithJsonContent(statusCode, content);
@@ -561,7 +547,7 @@ public class RequestMockBuilder
         Justification = "The parameters mirror the RFC 7807 problem details members for an ergonomic single-call API.")]
     [SuppressMessage("Member Design", "AV1553:Do not use optional parameters with default value null",
         Justification = "The RFC 7807 members are all optional, so null is the natural way to omit them.")]
-    public RequestMockResponseBuilder RespondsWithProblemDetails(
+    public SequencedResponseBuilder RespondsWithProblemDetails(
         HttpStatusCode statusCode,
         string? title = null,
         string? detail = null,
@@ -619,7 +605,7 @@ public class RequestMockBuilder
         };
 
         mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return new SequencedResponseBuilder(mock);
     }
 
     private static string? GetReasonPhrase(HttpStatusCode statusCode)
@@ -633,7 +619,7 @@ public class RequestMockBuilder
     /// and status code 200 (OK).
     /// </summary>
     /// <param name="value">The entity to include in the OData result.</param>
-    public RequestMockResponseBuilder RespondsWithODataResult(object value)
+    public SequencedResponseBuilder RespondsWithODataResult(object value)
     {
         return RespondsWithODataResult(HttpStatusCode.OK, [value]);
     }
@@ -644,7 +630,7 @@ public class RequestMockBuilder
     /// </summary>
     /// <typeparam name="T">The type of entity to build.</typeparam>
     /// <param name="builder">The builder that will construct the entity to include in the OData result.</param>
-    public RequestMockResponseBuilder RespondsWithODataResult<T>(IResponseBuilder<T> builder)
+    public SequencedResponseBuilder RespondsWithODataResult<T>(IResponseBuilder<T> builder)
     {
         return RespondsWithODataResult(HttpStatusCode.OK, builder);
     }
@@ -654,7 +640,7 @@ public class RequestMockBuilder
     /// </summary>
     /// <param name="statusCode">The HTTP status code for the response.</param>
     /// <param name="value">The entity to include in the OData result.</param>
-    public RequestMockResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode,
+    public SequencedResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode,
         object value)
     {
         return RespondsWithODataResult(statusCode, [value]);
@@ -666,7 +652,7 @@ public class RequestMockBuilder
     /// <typeparam name="T">The type of entity to build.</typeparam>
     /// <param name="statusCode">The HTTP status code for the response.</param>
     /// <param name="builder">The builder that will construct the entity to include in the OData result.</param>
-    public RequestMockResponseBuilder RespondsWithODataResult<T>(HttpStatusCode statusCode,
+    public SequencedResponseBuilder RespondsWithODataResult<T>(HttpStatusCode statusCode,
         IResponseBuilder<T> builder)
     {
         object value = builder.Build()!;
@@ -676,7 +662,7 @@ public class RequestMockBuilder
     /// <summary>
     /// Responds with an OData v4 result envelope: { "value": [...] } and status code 200 (OK).
     /// </summary>
-    public RequestMockResponseBuilder RespondsWithODataResult(IEnumerable<object> value)
+    public SequencedResponseBuilder RespondsWithODataResult(IEnumerable<object> value)
     {
         return RespondsWithODataResult(HttpStatusCode.OK, value);
     }
@@ -686,7 +672,7 @@ public class RequestMockBuilder
     /// </summary>
     /// <typeparam name="T">The type of entities to build.</typeparam>
     /// <param name="builders">The builders that will construct the entities to include in the OData result.</param>
-    public RequestMockResponseBuilder RespondsWithODataResult<T>(IEnumerable<IResponseBuilder<T>> builders)
+    public SequencedResponseBuilder RespondsWithODataResult<T>(IEnumerable<IResponseBuilder<T>> builders)
     {
         return RespondsWithODataResult(HttpStatusCode.OK, builders);
     }
@@ -694,37 +680,10 @@ public class RequestMockBuilder
     /// <summary>
     /// Responds with an OData v4 result envelope: { "value": [...] } and a specific status code.
     /// </summary>
-    public RequestMockResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode,
+    public SequencedResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode,
         IEnumerable<object> value)
     {
-        var options = jsonSerializerOptions;
-
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = _ =>
-            {
-                var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
-                {
-                    ["value"] = value.ToArray()
-                };
-
-                string json = JsonSerializer.Serialize(payload, options);
-                return new HttpResponseMessage(statusCode)
-                {
-                    Content = new StringContent(json, Encoding.UTF8, "application/json")
-                };
-            }
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(ResponderFactory.ODataResult(statusCode, value, odataContext: null, jsonSerializerOptions));
     }
 
     /// <summary>
@@ -733,7 +692,7 @@ public class RequestMockBuilder
     /// <typeparam name="T">The type of entities to build.</typeparam>
     /// <param name="statusCode">The HTTP status code for the response.</param>
     /// <param name="builders">The builders that will construct the entities to include in the OData result.</param>
-    public RequestMockResponseBuilder RespondsWithODataResult<T>(HttpStatusCode statusCode,
+    public SequencedResponseBuilder RespondsWithODataResult<T>(HttpStatusCode statusCode,
         IEnumerable<IResponseBuilder<T>> builders)
     {
         var builtValues = builders.Select(b => b.Build()).Cast<object>();
@@ -743,42 +702,10 @@ public class RequestMockBuilder
     /// <summary>
     /// Responds with an OData v4 result envelope including the optional "@odata.context" value.
     /// </summary>
-    public RequestMockResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode, IEnumerable<object> value,
+    public SequencedResponseBuilder RespondsWithODataResult(HttpStatusCode statusCode, IEnumerable<object> value,
         string odataContext)
     {
-        var options = jsonSerializerOptions;
-
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = _ =>
-            {
-                var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
-                {
-                    ["value"] = value.ToArray()
-                };
-
-                if (!string.IsNullOrWhiteSpace(odataContext))
-                {
-                    payload["@odata.context"] = odataContext;
-                }
-
-                string json = JsonSerializer.Serialize(payload, options);
-                return new HttpResponseMessage(statusCode)
-                {
-                    Content = new StringContent(json, Encoding.UTF8, "application/json")
-                };
-            }
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(ResponderFactory.ODataResult(statusCode, value, odataContext, jsonSerializerOptions));
     }
 
     /// <summary>
@@ -788,7 +715,7 @@ public class RequestMockBuilder
     /// <param name="statusCode">The HTTP status code for the response.</param>
     /// <param name="builders">The builders that will construct the entities to include in the OData result.</param>
     /// <param name="odataContext">The OData context URL to include in the response.</param>
-    public RequestMockResponseBuilder RespondsWithODataResult<T>(HttpStatusCode statusCode, IEnumerable<IResponseBuilder<T>> builders,
+    public SequencedResponseBuilder RespondsWithODataResult<T>(HttpStatusCode statusCode, IEnumerable<IResponseBuilder<T>> builders,
         string odataContext)
     {
         var builtValues = builders.Select(b => b.Build()).Cast<object>();
@@ -800,7 +727,7 @@ public class RequestMockBuilder
     /// and a default content type of "application/json".
     /// </summary>
     /// <param name="content">The body content to return in the HTTP response.</param>
-    public RequestMockResponseBuilder RespondsWithContent(string content)
+    public SequencedResponseBuilder RespondsWithContent(string content)
     {
         return RespondsWithContent(HttpStatusCode.OK, content, "application/json");
     }
@@ -811,47 +738,18 @@ public class RequestMockBuilder
     /// <param name="statusCode">The HTTP status code to respond with.</param>
     /// <param name="content">The response content as a string.</param>
     /// <param name="contentType">The MIME type of the response content.</param>
-    public RequestMockResponseBuilder RespondsWithContent(HttpStatusCode statusCode, string content,
+    public SequencedResponseBuilder RespondsWithContent(HttpStatusCode statusCode, string content,
         string contentType = "application/json")
     {
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = _ => new HttpResponseMessage(statusCode)
-            {
-                Content = new StringContent(content, Encoding.UTF8, contentType)
-            }
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(ResponderFactory.Content(statusCode, content, contentType));
     }
 
     /// <summary>
     /// Responds with empty content.
     /// </summary>
-    public RequestMockResponseBuilder RespondsWithEmptyContent(HttpStatusCode statusCode = HttpStatusCode.NoContent)
+    public SequencedResponseBuilder RespondsWithEmptyContent(HttpStatusCode statusCode = HttpStatusCode.NoContent)
     {
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = _ => new HttpResponseMessage(statusCode)
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(ResponderFactory.Status(statusCode));
     }
 
     /// <summary>
@@ -867,7 +765,7 @@ public class RequestMockBuilder
     /// The MIME type of the response content. When <see langword="null"/>, the content type is inferred from the file extension.
     /// </param>
 #pragma warning disable AV1553 // Optional parameter defaults to null to mirror the documented public API contract.
-    public RequestMockResponseBuilder RespondsWithFile(string path, string? contentType = null)
+    public SequencedResponseBuilder RespondsWithFile(string path, string? contentType = null)
 #pragma warning restore AV1553
     {
         if (path is null)
@@ -906,7 +804,7 @@ public class RequestMockBuilder
         };
 
         mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return new SequencedResponseBuilder(mock);
     }
 
     /// <summary>
@@ -915,7 +813,7 @@ public class RequestMockBuilder
     /// </summary>
     /// <param name="content">The bytes to return as the response body.</param>
     /// <param name="contentType">The MIME type of the response content.</param>
-    public RequestMockResponseBuilder RespondsWithBytes(byte[] content, string contentType)
+    public SequencedResponseBuilder RespondsWithBytes(byte[] content, string contentType)
     {
         if (content is null)
         {
@@ -954,7 +852,7 @@ public class RequestMockBuilder
         };
 
         mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return new SequencedResponseBuilder(mock);
     }
 
     /// <summary>
@@ -967,7 +865,7 @@ public class RequestMockBuilder
     /// </remarks>
     /// <param name="stream">The stream whose contents are returned as the response body.</param>
     /// <param name="contentType">The MIME type of the response content.</param>
-    public RequestMockResponseBuilder RespondsWithStream(Stream stream, string contentType)
+    public SequencedResponseBuilder RespondsWithStream(Stream stream, string contentType)
     {
         if (stream is null)
         {
@@ -1005,7 +903,7 @@ public class RequestMockBuilder
         };
 
         mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return new SequencedResponseBuilder(mock);
     }
 
     /// <summary>
@@ -1017,7 +915,7 @@ public class RequestMockBuilder
     /// If the mock will be called multiple times, consider using the <see cref="RespondsWith(Func{RequestInfo, HttpResponseMessage})"/>
     /// overload to create a new content instance for each request.
     /// </remarks>
-    public RequestMockResponseBuilder RespondsWith(HttpContent content)
+    public SequencedResponseBuilder RespondsWith(HttpContent content)
     {
         return RespondsWith(HttpStatusCode.OK, content);
     }
@@ -1032,53 +930,24 @@ public class RequestMockBuilder
     /// If the mock will be called multiple times, consider using the <see cref="RespondsWith(Func{RequestInfo, HttpResponseMessage})"/>
     /// overload to create a new content instance for each request.
     /// </remarks>
-    public RequestMockResponseBuilder RespondsWith(HttpStatusCode statusCode, HttpContent content)
+    public SequencedResponseBuilder RespondsWith(HttpStatusCode statusCode, HttpContent content)
     {
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = _ => new HttpResponseMessage(statusCode)
-            {
-                Content = content
-            }
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(ResponderFactory.HttpContent(statusCode, content));
     }
 
     /// <summary>
     /// Responds using a custom responder function.
     /// </summary>
-    public RequestMockResponseBuilder RespondsWith(Func<RequestInfo, HttpResponseMessage> responder)
+    public SequencedResponseBuilder RespondsWith(Func<RequestInfo, HttpResponseMessage> responder)
     {
-        var mock = new RequestMock
-        {
-            Method = Method,
-            PathPattern = pathPattern,
-            QueryPattern = queryPattern,
-            Scheme = scheme,
-            HostPattern = hostPattern,
-            CustomMatchers = customMatchers,
-            RequestCollection = requestCollection,
-            Responder = responder
-        };
-
-        mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return CreateResponse(responder);
     }
 
     /// <summary>
     /// Responds using a custom asynchronous responder function that is awaited when producing the response.
     /// </summary>
     /// <param name="responder">An asynchronous function that produces the response for a matching request.</param>
-    public RequestMockResponseBuilder RespondsWith(Func<RequestInfo, Task<HttpResponseMessage>> responder)
+    public SequencedResponseBuilder RespondsWith(Func<RequestInfo, Task<HttpResponseMessage>> responder)
     {
         if (responder is null)
         {
@@ -1096,7 +965,7 @@ public class RequestMockBuilder
     /// An asynchronous function that produces the response for a matching request, observing the supplied
     /// <see cref="CancellationToken"/>.
     /// </param>
-    public RequestMockResponseBuilder RespondsWith(Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>> responder)
+    public SequencedResponseBuilder RespondsWith(Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>> responder)
     {
         if (responder is null)
         {
@@ -1112,11 +981,11 @@ public class RequestMockBuilder
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
-            AsyncResponder = responder
         };
 
+        mock.SetFirstAsyncResponder(responder);
         mockBuilder.AddMock(mock);
-        return new RequestMockResponseBuilder(mock);
+        return new SequencedResponseBuilder(mock);
     }
 
     private static string InferContentTypeFromExtension(string path)
@@ -1140,3 +1009,4 @@ public class RequestMockBuilder
         };
     }
 }
+

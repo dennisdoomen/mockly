@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Text.RegularExpressions;
 using Mockly.Common;
-#if NET472
+#if NET472_OR_GREATER
 using System.Net.Http;
 #endif
 
@@ -15,32 +15,87 @@ public class RequestMock
 {
     private static readonly ConcurrentDictionary<string, Regex> RegexCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly object hostNormalizationLock = new();
+    private readonly object respondersLock = new();
+
+    private readonly List<(Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>> Responder, uint? Count)> responders
+        = [(static (_, _) => Task.FromResult(new HttpResponseMessage()), null)];
+
+    private readonly List<Action<HttpResponseMessage>> responseMutators = [];
     private int invocationCount;
 
     private bool hostPatternNormalized;
 
+    /// <summary>
+    /// Gets the HTTP method this mock matches against.
+    /// </summary>
     public HttpMethod Method { get; init; } = HttpMethod.Get;
 
+    /// <summary>
+    /// Gets the path pattern this mock matches against, supporting wildcards (<c>*</c>).
+    /// When <c>null</c>, any path is accepted.
+    /// </summary>
     public string? PathPattern { get; init; }
 
+    /// <summary>
+    /// Gets the query string pattern this mock matches against, supporting wildcards (<c>*</c>).
+    /// When <c>null</c>, requests without a query string are accepted (unless custom matchers are configured).
+    /// </summary>
     public string? QueryPattern { get; init; }
 
     // REFACTOR: Should not be nullable in the future and replaced with an enum
-    public string? Scheme { get; init; }
-
-    public string? HostPattern { get; set; }
-
-    public IEnumerable<Matcher> CustomMatchers { get; internal init; } = [];
-
-    public Func<RequestInfo, HttpResponseMessage> Responder { get; set; } = _ => new HttpResponseMessage();
 
     /// <summary>
-    /// Gets the asynchronous responder used to produce a response for a matching request.
-    /// When set, this takes precedence over <see cref="Responder"/> and receives the
-    /// <see cref="CancellationToken"/> flowing from the HTTP pipeline.
+    /// Gets the URI scheme this mock matches against (e.g. <c>"http"</c> or <c>"https"</c>).
+    /// When <c>null</c>, both schemes are accepted.
     /// </summary>
-    internal Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>>? AsyncResponder { get; init; }
+    public string? Scheme { get; init; }
 
+    /// <summary>
+    /// Gets or sets the host pattern this mock matches against, supporting wildcards (<c>*</c>).
+    /// When <c>null</c>, any host is accepted.
+    /// </summary>
+    public string? HostPattern { get; set; }
+
+    /// <summary>
+    /// Gets the custom matchers that are evaluated in addition to the standard route criteria.
+    /// All matchers must return <c>true</c> for the mock to match a request.
+    /// </summary>
+    public IEnumerable<Matcher> CustomMatchers { get; internal init; } = [];
+
+    /// <summary>
+    /// Gets or sets the responder used to produce a response for a matched request.
+    /// </summary>
+    /// <remarks>
+    /// This is the first (or only) responder in the configured sequence. Additional responders can be appended
+    /// through the fluent <c>Then*</c> methods on <see cref="SequencedResponseBuilder"/>, in which case this
+    /// property continues to represent the response returned for the first invocation.
+    /// </remarks>
+    public Func<RequestInfo, HttpResponseMessage> Responder
+    {
+        get
+        {
+            lock (respondersLock)
+            {
+                Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>> asyncFn = responders[0].Responder;
+                return request => asyncFn(request, CancellationToken.None).GetAwaiter().GetResult();
+            }
+        }
+
+        // ReSharper disable once PropertyCanBeMadeInitOnly.Global
+        set
+        {
+            Func<RequestInfo, HttpResponseMessage> captured = value;
+            lock (respondersLock)
+            {
+                responders[0] = ((req, _) => Task.FromResult(captured(req)), responders[0].Count);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the collection that receives every <see cref="CapturedRequest"/> handled by this mock.
+    /// When <c>null</c>, captured requests are not stored.
+    /// </summary>
     public RequestCollection? RequestCollection { get; init; } = [];
 
     /// <summary>
@@ -52,7 +107,28 @@ public class RequestMock
     /// Gets the maximum number of times this mock can be invoked.
     /// If <c>null</c>, the mock can be invoked unlimited times.
     /// </summary>
-    public uint? MaxInvocations { get; internal set; }
+    public uint? MaxInvocations
+    {
+        get
+        {
+            lock (respondersLock)
+            {
+                if (responders[^1].Count is null)
+                {
+                    return null;
+                }
+
+                uint total = 0;
+
+                foreach ((_, uint? count) in responders)
+                {
+                    total += count!.Value;
+                }
+
+                return total;
+            }
+        }
+    }
 
     /// <summary>
     /// Gets a value indicating whether this mock has been exhausted, i.e.
@@ -246,6 +322,11 @@ public class RequestMock
         return score;
     }
 
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="value"/> matches <paramref name="pattern"/>,
+    /// where <c>*</c> in the pattern acts as a wildcard. Matching is case-insensitive.
+    /// Compiled regexes are cached to avoid repeated compilation.
+    /// </summary>
     private static bool MatchesPattern(string value, string pattern)
     {
         // Convert wildcard pattern to regex and cache it
@@ -259,41 +340,114 @@ public class RequestMock
     }
 
     /// <summary>
-    /// Handles the request and returns a response.
+    /// Appends a responder to the configured sequence of responses.
     /// </summary>
     /// <remarks>
-    /// This synchronous overload only invokes the synchronous <see cref="Responder"/> and is preserved for
-    /// backwards compatibility. The HTTP pipeline uses <see cref="TrackRequestAsync"/> so that asynchronous
-    /// responders and cancellation are honored.
+    /// Consecutive matching requests are served by consecutive responders. Once the sequence is exhausted,
+    /// the last responder is repeated for every subsequent request.
+    /// When a new responder is appended, the previously-last entry's unlimited slot is promoted to a
+    /// single-use count so the sequence advances after one invocation by default.
+    /// </remarks>
+    internal void AppendResponder(Func<RequestInfo, HttpResponseMessage> responder)
+    {
+        Func<RequestInfo, HttpResponseMessage> captured = responder;
+
+        lock (respondersLock)
+        {
+            ConvertLastResponderToSingleUse();
+            responders.Add(((req, _) => Task.FromResult(captured(req)), null));
+        }
+    }
+
+    /// <summary>
+    /// Appends an asynchronous responder to the configured sequence of responses.
+    /// </summary>
+    internal void AppendAsyncResponder(Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>> responder)
+    {
+        lock (respondersLock)
+        {
+            ConvertLastResponderToSingleUse();
+            responders.Add((responder, null));
+        }
+    }
+
+    /// <summary>
+    /// Sets the count for the most recently configured response in the sequence.
+    /// </summary>
+    /// <remarks>
+    /// When this response's count is exhausted the sequence advances to the next entry. If this is the last
+    /// entry in the sequence the mock becomes exhausted and stops matching further requests.
+    /// </remarks>
+    internal void SetCurrentResponseCount(uint count)
+    {
+        lock (respondersLock)
+        {
+            (Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>> responder, _) = responders[^1];
+            responders[^1] = (responder, count);
+        }
+    }
+
+    /// <summary>
+    /// Replaces the first (initial) responder with an asynchronous function.
+    /// Used by the async <c>RespondsWith</c> overloads to set the primary async responder.
+    /// </summary>
+    internal void SetFirstAsyncResponder(Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>> responder)
+    {
+        lock (respondersLock)
+        {
+            responders[0] = (responder, responders[0].Count);
+        }
+    }
+
+    /// <summary>
+    /// Converts the current last responder from an unlimited response to a single-use response.
+    /// </summary>
+    /// <remarks>
+    /// Appended responders are unlimited by default. When a new responder is appended, the previously last
+    /// responder must become single-use so the sequence can advance to the new responder after one invocation.
+    /// </remarks>
+    private void ConvertLastResponderToSingleUse()
+    {
+        (Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>> lastResponder, uint? lastCount) = responders[^1];
+
+        if (lastCount is null)
+        {
+            responders[^1] = (lastResponder, Count: 1);
+        }
+    }
+
+    /// <summary>
+    /// Registers a post-processing callback that is applied to every <see cref="HttpResponseMessage"/>
+    /// produced by this mock, after the responder generates it.
+    /// </summary>
+    /// <remarks>
+    /// Multiple mutators can be registered; they are applied in registration order.
+    /// Mutators are called by builder classes (e.g. <c>RequestMockResponseBuilder</c>) when the user
+    /// chains response-modification methods such as <c>WithHeader</c>, keeping post-processing concerns
+    /// separate from the responder sequence.
+    /// </remarks>
+    /// <param name="responseMutator">
+    /// A delegate that receives the response and can modify it in-place, for example by adding headers
+    /// or changing the status code.
+    /// </param>
+    internal void AppendResponseMutator(Action<HttpResponseMessage> responseMutator)
+    {
+        lock (respondersLock)
+        {
+            responseMutators.Add(responseMutator);
+        }
+    }
+
+    /// <summary>
+    /// Handles the request and returns a response using the configured responder sequence.
+    /// </summary>
+    /// <remarks>
+    /// This synchronous API is preserved for backward compatibility. Internally it delegates
+    /// to the asynchronous execution path without a cancellation token.
     /// </remarks>
     public CapturedRequest TrackRequest(RequestInfo request)
     {
-        Interlocked.Increment(ref invocationCount);
-
-        CapturedRequest capturedRequest = new(request)
-        {
-            Mock = this,
-            WasExpected = true,
-            Timestamp = DateTime.UtcNow
-        };
-
-        try
-        {
-            capturedRequest.Response = Responder(request);
-        }
-#pragma warning disable CA1031
-        catch (Exception e)
-#pragma warning restore CA1031
-        {
-            capturedRequest.Response = new HttpResponseMessage(HttpStatusCode.InternalServerError)
-            {
-                ReasonPhrase = $"{e.GetType().Name}:{e.Message}"
-            };
-        }
-
-        RequestCollection?.Add(capturedRequest);
-
-        return capturedRequest;
+        return TrackRequestAsync(request, CancellationToken.None).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -305,7 +459,7 @@ public class RequestMock
     /// </remarks>
     internal async Task<CapturedRequest> TrackRequestAsync(RequestInfo request, CancellationToken cancellationToken)
     {
-        Interlocked.Increment(ref invocationCount);
+        int invocationIndex = Interlocked.Increment(ref invocationCount) - 1;
 
         CapturedRequest capturedRequest = new(request)
         {
@@ -316,7 +470,7 @@ public class RequestMock
 
         try
         {
-            capturedRequest.Response = await InvokeResponderAsync(request, cancellationToken);
+            capturedRequest.Response = ApplyResponseMutators(await InvokeResponderAsync(request, invocationIndex, cancellationToken));
         }
         catch (OperationCanceledException)
         {
@@ -338,14 +492,62 @@ public class RequestMock
     }
 
     /// <summary>
-    /// Invokes the asynchronous responder when configured; otherwise adapts the synchronous
-    /// <see cref="Responder"/> onto the asynchronous path.
+    /// Invokes the responder for the given invocation index, awaiting asynchronous responders and
+    /// flowing the supplied <paramref name="cancellationToken"/> into them.
     /// </summary>
-    private Task<HttpResponseMessage> InvokeResponderAsync(RequestInfo request, CancellationToken cancellationToken)
+    private Task<HttpResponseMessage> InvokeResponderAsync(RequestInfo request, int invocationIndex, CancellationToken cancellationToken)
     {
-        return AsyncResponder is not null
-            ? AsyncResponder(request, cancellationToken)
-            : Task.FromResult(Responder(request));
+        return GetResponderForInvocation(invocationIndex)(request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Returns the responder that should handle the given zero-based <paramref name="invocationIndex"/>
+    /// by walking the sequence and subtracting each entry's count until the correct slot is found.
+    /// Falls back to the last responder once the sequence is exhausted.
+    /// </summary>
+    private Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>> GetResponderForInvocation(int invocationIndex)
+    {
+        lock (respondersLock)
+        {
+            long remaining = invocationIndex;
+
+            foreach ((Func<RequestInfo, CancellationToken, Task<HttpResponseMessage>> responder, uint? count) in responders)
+            {
+                if (count is null)
+                {
+                    return responder;
+                }
+
+                if (remaining < count.Value)
+                {
+                    return responder;
+                }
+
+                remaining -= count.Value;
+            }
+
+            return responders[^1].Responder;
+        }
+    }
+
+    /// <summary>
+    /// Applies all registered response mutators to <paramref name="response"/> in registration order
+    /// and returns the (modified) response.
+    /// </summary>
+    private HttpResponseMessage ApplyResponseMutators(HttpResponseMessage response)
+    {
+        Action<HttpResponseMessage>[] mutators;
+        lock (respondersLock)
+        {
+            mutators = [.. responseMutators];
+        }
+
+        foreach (Action<HttpResponseMessage> mutator in mutators)
+        {
+            mutator(response);
+        }
+
+        return response;
     }
 
     /// <summary>

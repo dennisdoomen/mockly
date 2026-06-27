@@ -9,7 +9,7 @@ namespace Mockly;
 /// </summary>
 public class RequestMockResponseBuilder
 {
-    private static readonly HashSet<string> ContentHeaderNames = new(StringComparer.OrdinalIgnoreCase)
+    internal static readonly HashSet<string> ContentHeaderNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "Allow",
         "Content-Disposition",
@@ -39,25 +39,25 @@ public class RequestMockResponseBuilder
     internal RequestMock RequestMock => requestMock;
 
     /// <summary>
-    /// Limits this mock to be used exactly once.
+    /// Limits the most recently configured response in the sequence to be used exactly once.
     /// </summary>
     public RequestMockResponseBuilder Once()
     {
-        requestMock.MaxInvocations = 1;
+        requestMock.SetCurrentResponseCount(1);
         return this;
     }
 
     /// <summary>
-    /// Limits this mock to be used exactly twice.
+    /// Limits the most recently configured response in the sequence to be used exactly twice.
     /// </summary>
     public RequestMockResponseBuilder Twice()
     {
-        requestMock.MaxInvocations = 2;
+        requestMock.SetCurrentResponseCount(2);
         return this;
     }
 
     /// <summary>
-    /// Limits this mock to be used exactly the specified number of times.
+    /// Limits the most recently configured response in the sequence to be used exactly the specified number of times.
     /// </summary>
     public RequestMockResponseBuilder Times(uint count)
     {
@@ -66,7 +66,7 @@ public class RequestMockResponseBuilder
             throw new ArgumentOutOfRangeException(nameof(count), count, "Cannot limit the number of mock invocations to less than 1");
         }
 
-        requestMock.MaxInvocations = count;
+        requestMock.SetCurrentResponseCount(count);
         return this;
     }
 
@@ -114,19 +114,12 @@ public class RequestMockResponseBuilder
 
         string[] capturedValues = [.. values];
 
-        Func<RequestInfo, HttpResponseMessage> existingResponder = requestMock.Responder;
-
-        requestMock.Responder = request =>
-        {
-            HttpResponseMessage response = existingResponder(request);
-            ApplyHeader(response, name, capturedValues);
-            return response;
-        };
+        requestMock.AppendResponseMutator(response => ApplyHeader(response, name, capturedValues));
 
         return this;
     }
 
-    private static void ApplyHeader(HttpResponseMessage response, string name, string[] values)
+    internal static void ApplyHeader(HttpResponseMessage response, string name, string[] values)
     {
         if (ContentHeaderNames.Contains(name))
         {
@@ -143,3 +136,4 @@ public class RequestMockResponseBuilder
         }
     }
 }
+

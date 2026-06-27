@@ -178,6 +178,10 @@ public class HttpMock
         return For(HttpMethod.Options, urlPattern);
     }
 
+    /// <summary>
+    /// Creates a new <see cref="RequestMockBuilder"/> for the given <paramref name="method"/>,
+    /// inheriting settings from the previous builder when one exists.
+    /// </summary>
     private RequestMockBuilder Create(HttpMethod method)
     {
         RequestMockBuilder builder = previousBuilder != null
@@ -250,11 +254,21 @@ public class HttpMock
         return new MockHttpMessageHandler(this);
     }
 
+    /// <summary>
+    /// Registers a fully configured <see cref="RequestMock"/> with this instance so it is
+    /// evaluated during request matching.
+    /// </summary>
     internal void AddMock(RequestMock mock)
     {
         mocks.Add(mock);
     }
 
+    /// <summary>
+    /// Intercepts an outgoing HTTP request, finds the first non-exhausted matching mock,
+    /// and returns its configured response. Records the request in <see cref="Requests"/> and
+    /// throws <see cref="UnexpectedRequestException"/> when no mock matches and
+    /// <see cref="FailOnUnexpectedCalls"/> is <c>true</c>.
+    /// </summary>
     private async Task<HttpResponseMessage> HandleRequest(HttpRequestMessage httpRequest, CancellationToken cancellationToken)
     {
         RequestInfo request = await BuildRequestInfo(httpRequest);
@@ -288,6 +302,11 @@ public class HttpMock
         return capturedRequest.Response;
     }
 
+    /// <summary>
+    /// Builds a detailed diagnostic message that includes the unmatched request, the closest
+    /// matching mock (if any), and all registered mocks, then throws an
+    /// <see cref="UnexpectedRequestException"/>.
+    /// </summary>
     private async Task ThrowDetailedException(RequestInfo request)
     {
         // Determine the closest matching mock (if any) based on a similarity score.
@@ -369,6 +388,10 @@ public class HttpMock
         throw new UnexpectedRequestException(messageBuilder.ToString());
     }
 
+    /// <summary>
+    /// Converts an <see cref="HttpRequestMessage"/> into a <see cref="RequestInfo"/>,
+    /// optionally pre-reading the body when <see cref="PrefetchBody"/> is <c>true</c>.
+    /// </summary>
     private async Task<RequestInfo> BuildRequestInfo(HttpRequestMessage httpRequest)
     {
         string? body = null;
@@ -381,6 +404,10 @@ public class HttpMock
         return request;
     }
 
+    /// <summary>
+    /// Finds the first non-exhausted mock that matches <paramref name="request"/>, invokes it,
+    /// and returns the resulting <see cref="CapturedRequest"/>. Returns <c>null</c> when no mock matches.
+    /// </summary>
     private async Task<CapturedRequest?> TryFindMatchingMock(RequestInfo request, CancellationToken cancellationToken)
     {
         RequestMock? matchingMock = await mocks.FirstOrDefaultAsync(m =>
@@ -439,6 +466,11 @@ public class HttpMock
         }
     }
 
+    /// <summary>
+    /// Parses a full URL pattern (e.g. <c>"https://api.example.com/v1/users?active=*"</c>) and
+    /// applies the scheme, host, path, and query segments to <paramref name="builder"/>.
+    /// Wildcards (<c>*</c>) are supported in every segment.
+    /// </summary>
     private static RequestMockBuilder ApplyUrlPattern(RequestMockBuilder builder, string urlPattern)
     {
         if (string.IsNullOrWhiteSpace(urlPattern))

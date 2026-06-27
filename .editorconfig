@@ -150,6 +150,12 @@ resharper_redundant_if_else_block_highlighting = none
 # If we use explicit property names in anonymous types, we do that on purpose.
 resharper_redundant_anonymous_type_property_name_highlighting = none
 
+# Public API methods in a library may only be called from external consumers not visible to InspectCode's global analysis.
+resharper_member_can_be_private_global_highlighting = none
+
+# Fluent builder methods intentionally return 'this' to allow optional chaining; not using the return value is valid.
+resharper_unused_method_return_value_global_highlighting = none
+
 ####################################################################
 ## Roslyn Analyzers and Code Fixes
 ####################################################################
@@ -374,6 +380,10 @@ dotnet_diagnostic.sa1622.severity = suggestion
 # Purpose: The property's documentation summary text should begin with: 'Gets or sets'
 # Rationale: We don't want to force this
 dotnet_diagnostic.SA1623.severity = suggestion
+
+# Purpose: Property summary documentation should begin with standard text
+# Rationale: We don't want to force this
+dotnet_diagnostic.SA1624.severity = suggestion
 
 # Purpose: Documentation text should end with a period
 # Rationale: We don't want to force this
