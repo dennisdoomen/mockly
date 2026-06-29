@@ -13,6 +13,7 @@ namespace Mockly
         public System.Net.Http.HttpMethod Method { get; }
         public string Path { get; }
         public string Query { get; }
+        public byte[]? RawBody { get; }
         public System.Net.Http.HttpResponseMessage Response { get; }
         public string Scheme { get; }
         public int Sequence { get; set; }
@@ -56,12 +57,6 @@ namespace Mockly
     {
         T Build();
     }
-    public class Matcher
-    {
-        public Matcher(System.Func<Mockly.RequestInfo, System.Threading.Tasks.Task<bool>> predicate, string? displayText) { }
-        public System.Threading.Tasks.Task<bool> IsMatch(Mockly.RequestInfo request) { }
-        public override string ToString() { }
-    }
     public class RequestCollection : System.Collections.Generic.IEnumerable<Mockly.CapturedRequest>, System.Collections.IEnumerable
     {
         public RequestCollection() { }
@@ -74,12 +69,13 @@ namespace Mockly
     }
     public class RequestInfo
     {
-        public RequestInfo(System.Net.Http.HttpRequestMessage request, string? body) { }
+        public RequestInfo(System.Net.Http.HttpRequestMessage request, byte[]? rawBody) { }
         public string? Body { get; }
         public string? ContentType { get; }
         public System.Net.Http.Headers.HttpRequestHeaders Headers { get; }
         public System.Net.Http.HttpMethod Method { get; set; }
         public System.Collections.Generic.IDictionary<string, object?> Properties { get; }
+        public byte[]? RawBody { get; }
         public System.Uri? Uri { get; }
         public System.Version Version { get; set; }
         public bool IsBodyLikelyTextual() { }
@@ -91,7 +87,6 @@ namespace Mockly
     public class RequestMock
     {
         public RequestMock() { }
-        public System.Collections.Generic.IEnumerable<Mockly.Matcher> CustomMatchers { get; }
         public string? HostPattern { get; set; }
         public int InvocationCount { get; }
         public uint? MaxInvocations { get; }

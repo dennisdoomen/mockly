@@ -328,7 +328,8 @@ public class HttpMock
 
         var messageBuilder = new StringBuilder();
         messageBuilder.AppendLine("Unexpected request to:");
-        messageBuilder.AppendLine($"  {request.Method} {request.Uri} with body of {request.Body?.Length ?? 0} bytes");
+        int bodyLength = request.RawBody?.Length ?? request.Body?.Length ?? 0;
+        messageBuilder.AppendLine($"  {request.Method} {request.Uri} with body of {bodyLength} bytes");
 
         messageBuilder.AppendLine();
         messageBuilder.AppendLine("Note that you can further inspect the executed requests through the HttpMock.Requests property.");
@@ -370,12 +371,12 @@ public class HttpMock
             }
         }
 
-        if (request.Body is not null && request.Body.Length > 0)
+        if ((request.RawBody?.Length ?? 0) > 0 || !string.IsNullOrEmpty(request.Body))
         {
             messageBuilder.AppendLine();
             messageBuilder.AppendLine($"Body ({request.ContentType}):");
 
-            if (request.IsBodyLikelyTextual())
+            if (request.IsBodyLikelyTextual() && request.Body is not null)
             {
                 messageBuilder.AppendLine($"  \"{request.Body}\"");
             }
@@ -394,14 +395,13 @@ public class HttpMock
     /// </summary>
     private async Task<RequestInfo> BuildRequestInfo(HttpRequestMessage httpRequest)
     {
-        string? body = null;
+        byte[]? rawBody = null;
         if (PrefetchBody && httpRequest.Content is not null)
         {
-            body = await httpRequest.Content.ReadAsStringAsync();
+            rawBody = await httpRequest.Content.ReadAsByteArrayAsync();
         }
 
-        var request = new RequestInfo(httpRequest, body);
-        return request;
+        return new RequestInfo(httpRequest, rawBody);
     }
 
     /// <summary>

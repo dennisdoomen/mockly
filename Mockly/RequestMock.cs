@@ -60,7 +60,7 @@ public class RequestMock
     /// Gets the custom matchers that are evaluated in addition to the standard route criteria.
     /// All matchers must return <c>true</c> for the mock to match a request.
     /// </summary>
-    public IEnumerable<Matcher> CustomMatchers { get; internal init; } = [];
+    internal IEnumerable<Matcher> CustomMatchers { get; init; } = [];
 
     /// <summary>
     /// Gets or sets the responder used to produce a response for a matched request.

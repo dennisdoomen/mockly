@@ -1051,6 +1051,7 @@ public class HttpMockSpecs
             // Assert
             request.Should().NotBeNull();
             request.Body.Should().BeNull();
+            request.RawBody.Should().BeNull();
         }
 
         [Fact]
@@ -1105,6 +1106,59 @@ public class HttpMockSpecs
             requests.IsEmpty.Should().BeFalse();
             requests.Count.Should().Be(1);
             requests.Should().ContainSingle().Which.ToString().Should().Be("PATCH https://localhost/api/update");
+        }
+
+        [Fact]
+        public async Task Exposes_the_textual_body_of_a_captured_request()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var requests = new RequestCollection();
+
+            mock.ForPost()
+                .WithPath("/api/update")
+                .CollectingRequestsIn(requests)
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/update",
+                new StringContent("hello", Encoding.UTF8, "text/plain"));
+
+            // Assert
+            CapturedRequest capturedRequest = requests.Should().ContainSingle().Which;
+            capturedRequest.Body.Should().Be("hello");
+            capturedRequest.RawBody.Should().Equal("hello"u8.ToArray());
+        }
+
+        [Fact]
+        public async Task Exposes_the_raw_bytes_of_a_binary_captured_request()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            var requests = new RequestCollection();
+
+            mock.ForPost()
+                .WithPath("/api/update")
+                .CollectingRequestsIn(requests)
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/update", new ByteArrayContent([1, 2, 3])
+            {
+                Headers =
+                {
+                    ContentType = new MediaTypeHeaderValue("application/octet-stream")
+                }
+            });
+
+            // Assert
+            CapturedRequest capturedRequest = requests.Should().ContainSingle().Which;
+            capturedRequest.Body.Should().BeNull();
+            capturedRequest.RawBody.Should().Equal(1, 2, 3);
         }
 
         [Fact]
@@ -2060,8 +2114,43 @@ public class HttpMockSpecs
             // Assert
             capturedInfo.Should().NotBeNull();
             capturedInfo.Method.Should().Be(HttpMethod.Post);
-            capturedInfo.Uri.AbsolutePath.Should().Be("/api/info");
+            capturedInfo.Uri.Should().NotBeNull();
+            capturedInfo.Uri!.AbsolutePath.Should().Be("/api/info");
             capturedInfo.Body.Should().Be("hello");
+            capturedInfo.RawBody.Should().Equal("hello"u8.ToArray());
+        }
+
+        [Fact]
+        public async Task An_async_responder_receives_binary_request_body_as_raw_bytes()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            RequestInfo capturedInfo = null;
+
+            mock.ForPost()
+                .WithPath("/api/binary-info")
+                .RespondsWith(async request =>
+                {
+                    capturedInfo = request;
+                    await Task.Yield();
+                    return new HttpResponseMessage(HttpStatusCode.OK);
+                });
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/binary-info", new ByteArrayContent([1, 2, 3])
+            {
+                Headers =
+                {
+                    ContentType = new MediaTypeHeaderValue("application/octet-stream")
+                }
+            });
+
+            // Assert
+            capturedInfo.Should().NotBeNull();
+            capturedInfo.Body.Should().BeNull();
+            capturedInfo.RawBody.Should().Equal(1, 2, 3);
         }
 
         [Fact]
@@ -3427,7 +3516,7 @@ public class HttpMockSpecs
         }
 
         [Fact]
-        public void The_Responder_property_still_exposes_the_first_response()
+        public void The_responder_property_still_exposes_the_first_response()
         {
             // Arrange
             var mock = new HttpMock();
@@ -3437,7 +3526,7 @@ public class HttpMockSpecs
 
             // Act
             var uninvoked = mock.GetUninvokedMocks().First();
-            var request = new RequestInfo(new HttpRequestMessage(HttpMethod.Get, "https://localhost/resource"), body: null);
+            var request = new RequestInfo(new HttpRequestMessage(HttpMethod.Get, "https://localhost/resource"), rawBody: null);
             var firstResponse = uninvoked.Responder(request);
 
             // Assert
@@ -4469,5 +4558,4 @@ public class HttpMockSpecs
         }
     }
 }
-
 

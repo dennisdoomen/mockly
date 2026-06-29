@@ -192,6 +192,24 @@ capturedRequests.Count.Should().Be(2);
 capturedRequests.First().WasExpected.Should().BeTrue();
 ```
 
+### Inspecting the Captured Body
+
+Each `CapturedRequest` exposes the request body both as text (`Body`) and as raw bytes (`RawBody`):
+
+```csharp
+var capturedRequest = capturedRequests.First();
+
+// The body decoded as text, or null if it's not textual (see IsBodyLikelyTextual)
+capturedRequest.Body.Should().Be("hello");
+
+// The raw, undecoded bytes of the body
+capturedRequest.RawBody.Should().Equal(Encoding.UTF8.GetBytes("hello"));
+```
+
+:::info
+`Body` and `RawBody` are only populated when `HttpMock.PrefetchBody` is `true` (the default). See [Request Body Prefetching](#request-body-prefetching) above.
+:::
+
 ## Assertions
 
 Mockly provides extensive support for test assertions through **FluentAssertions**. For a full guide on available assertions for mocks, collections, and requests, see the [Assertions](./assertions.md) page.

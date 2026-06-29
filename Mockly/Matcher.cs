@@ -1,6 +1,6 @@
 namespace Mockly;
 
-public class Matcher(Func<RequestInfo, Task<bool>> predicate, string? displayText)
+internal class Matcher(Func<RequestInfo, Task<bool>> predicate, string? displayText)
 {
     public override string ToString() => displayText ?? "Custom matcher";
 
