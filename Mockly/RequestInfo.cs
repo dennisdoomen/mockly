@@ -1,18 +1,39 @@
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 
 namespace Mockly;
 
-public class RequestInfo(HttpRequestMessage request, string? body)
+/// <summary>
+/// Provides information about a request that was captured by a mock.
+/// </summary>
+public class RequestInfo
 {
+    private readonly HttpRequestMessage request;
+
+    public RequestInfo(HttpRequestMessage request, byte[]? rawBody)
+    {
+        this.request = request;
+        RawBody = rawBody;
+        Body = DeserializeBodyIfTextual(rawBody);
+    }
+
+    /// <summary>
+    /// Gets the URI of the HTTP request, representing the full address, including the scheme, host, path, and query string, if present.
+    /// </summary>
     public Uri? Uri => request.RequestUri;
 
-    public string? Body { get; } = body;
+    public string? Body { get; }
+
+    /// <summary>
+    /// The request body as raw bytes, if prefetched.
+    /// </summary>
+    public byte[]? RawBody { get; }
 
     /// <summary>
     /// The content type of the request body, if any.
     /// </summary>
-    public string? ContentType { get; } = request.Content?.Headers.ContentType?.MediaType;
+    public string? ContentType => request.Content?.Headers.ContentType?.MediaType;
 
     public HttpRequestHeaders Headers
     {
@@ -102,5 +123,37 @@ public class RequestInfo(HttpRequestMessage request, string? body)
             "application/x-www-form-urlencoded" or
             "application/graphql" or
             "application/sql";
+    }
+
+    /// <summary>
+    /// Deserializes the provided raw body byte array into a textual representation if it is likely to be textual.
+    /// </summary>
+    private string? DeserializeBodyIfTextual(byte[]? rawBody)
+    {
+        if (rawBody is null || rawBody.Length == 0 || !IsBodyLikelyTextual())
+        {
+            return null;
+        }
+
+        Encoding encoding = GetEncoding() ?? Encoding.UTF8;
+        return encoding.GetString(rawBody);
+    }
+
+    private Encoding? GetEncoding()
+    {
+        string? charset = request.Content?.Headers.ContentType?.CharSet;
+        if (string.IsNullOrWhiteSpace(charset))
+        {
+            return null;
+        }
+
+        try
+        {
+            return Encoding.GetEncoding(charset);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
     }
 }
