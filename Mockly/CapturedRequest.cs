@@ -73,6 +73,14 @@ public class CapturedRequest(RequestInfo request)
     }
 
     /// <summary>
+    /// Gets the raw body bytes of the captured HTTP request.
+    /// </summary>
+    public byte[]? RawBody
+    {
+        get => request.RawBody;
+    }
+
+    /// <summary>
     /// The collection of HTTP request headers associated with the captured request.
     /// </summary>
     public HttpRequestHeaders Headers

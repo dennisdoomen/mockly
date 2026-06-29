@@ -1051,6 +1051,7 @@ public class HttpMockSpecs
             // Assert
             request.Should().NotBeNull();
             request.Body.Should().BeNull();
+            request.RawBody.Should().BeNull();
         }
 
         [Fact]
@@ -2062,6 +2063,40 @@ public class HttpMockSpecs
             capturedInfo.Method.Should().Be(HttpMethod.Post);
             capturedInfo.Uri.AbsolutePath.Should().Be("/api/info");
             capturedInfo.Body.Should().Be("hello");
+            capturedInfo.RawBody.Should().Equal(Encoding.UTF8.GetBytes("hello"));
+        }
+
+        [Fact]
+        public async Task An_async_responder_receives_binary_request_body_as_raw_bytes()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            RequestInfo capturedInfo = null;
+
+            mock.ForPost()
+                .WithPath("/api/binary-info")
+                .RespondsWith(async request =>
+                {
+                    capturedInfo = request;
+                    await Task.Yield();
+                    return new HttpResponseMessage(HttpStatusCode.OK);
+                });
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/binary-info", new ByteArrayContent([1, 2, 3])
+            {
+                Headers =
+                {
+                    ContentType = new MediaTypeHeaderValue("application/octet-stream")
+                }
+            });
+
+            // Assert
+            capturedInfo.Should().NotBeNull();
+            capturedInfo.Body.Should().BeNull();
+            capturedInfo.RawBody.Should().Equal([1, 2, 3]);
         }
 
         [Fact]
@@ -4469,5 +4504,4 @@ public class HttpMockSpecs
         }
     }
 }
-
 

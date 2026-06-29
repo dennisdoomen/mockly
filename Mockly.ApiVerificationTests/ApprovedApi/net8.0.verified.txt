@@ -14,6 +14,7 @@ namespace Mockly
         public System.Net.Http.HttpRequestOptions Options { get; }
         public string Path { get; }
         public string Query { get; }
+        public byte[]? RawBody { get; }
         public System.Net.Http.HttpResponseMessage Response { get; }
         public string Scheme { get; }
         public int Sequence { get; set; }
@@ -77,11 +78,13 @@ namespace Mockly
     public class RequestInfo
     {
         public RequestInfo(System.Net.Http.HttpRequestMessage request, string? body) { }
+        public RequestInfo(System.Net.Http.HttpRequestMessage request, string? body, byte[]? rawBody) { }
         public string? Body { get; }
         public string? ContentType { get; }
         public System.Net.Http.Headers.HttpRequestHeaders Headers { get; }
         public System.Net.Http.HttpMethod Method { get; set; }
         public System.Net.Http.HttpRequestOptions Options { get; }
+        public byte[]? RawBody { get; }
         public System.Uri? Uri { get; }
         public System.Version Version { get; set; }
         public System.Net.Http.HttpVersionPolicy VersionPolicy { get; set; }
