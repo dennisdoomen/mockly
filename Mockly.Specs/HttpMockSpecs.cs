@@ -881,6 +881,53 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Cannot_match_body_with_an_unrecognized_content_type_by_default()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/api/test")
+                .WithBody("*something*")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            var content = new ByteArrayContent(Encoding.UTF8.GetBytes("a body with something in it"));
+            content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+            // Act
+            var action = async () => await client.PostAsync("https://localhost/api/test", content);
+
+            // Assert
+            await action.Should().ThrowAsync<UnexpectedRequestException>();
+        }
+
+        [Fact]
+        public async Task Can_force_a_body_with_an_unrecognized_content_type_to_be_treated_as_textual()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/api/test")
+                .WithBody("*something*")
+                .TreatBodyAsTextual()
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            var content = new ByteArrayContent(Encoding.UTF8.GetBytes("a body with something in it"));
+            content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+            // Act
+            var response = await client.PostAsync("https://localhost/api/test", content);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        [Fact]
         public async Task Can_match_the_body_against_a_json_string_ignoring_layout()
         {
             // Arrange

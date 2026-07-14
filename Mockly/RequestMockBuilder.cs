@@ -29,6 +29,7 @@ public class RequestMockBuilder
     private string? hostPattern = "localhost";
     private RequestCollection? requestCollection;
     private JsonSerializerOptions? jsonSerializerOptions;
+    private bool forceTextualBody;
 
     internal RequestMockBuilder(HttpMock mockBuilder, HttpMethod method)
     {
@@ -318,6 +319,21 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Forces the captured request body to be treated as textual for this mock, even when its Content-Type
+    /// isn't recognized as textual (e.g. an unrecognized or binary-looking media type).
+    /// </summary>
+    /// <remarks>
+    /// Use this as an escape hatch when the request body is actually text but uses a Content-Type that Mockly
+    /// doesn't recognize as textual, so that <see cref="RequestInfo.Body"/> gets populated and body-based
+    /// matchers such as <see cref="WithBody(string)"/> can match against it.
+    /// </remarks>
+    public RequestMockBuilder TreatBodyAsTextual()
+    {
+        forceTextualBody = true;
+        return this;
+    }
+
+    /// <summary>
     /// Configures the request mock to match requests that contain the specified header, regardless of its value.
     /// </summary>
     /// <param name="name">The name of the header that must be present on the request.</param>
@@ -472,6 +488,7 @@ public class RequestMockBuilder
             Scheme = scheme,
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
+            ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
             Responder = responder
         };
@@ -593,6 +610,7 @@ public class RequestMockBuilder
             Scheme = scheme,
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
+            ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
             Responder = _ =>
             {
@@ -783,6 +801,7 @@ public class RequestMockBuilder
             Scheme = scheme,
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
+            ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
             Responder = _ =>
             {
@@ -833,6 +852,7 @@ public class RequestMockBuilder
             Scheme = scheme,
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
+            ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
             Responder = _ =>
             {
@@ -895,6 +915,7 @@ public class RequestMockBuilder
             Scheme = scheme,
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
+            ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
             Responder = _ => new HttpResponseMessage(HttpStatusCode.OK)
             {
@@ -980,6 +1001,7 @@ public class RequestMockBuilder
             Scheme = scheme,
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
+            ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
         };
 

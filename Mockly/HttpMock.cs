@@ -401,7 +401,11 @@ public class HttpMock
             rawBody = await httpRequest.Content.ReadAsByteArrayAsync();
         }
 
-        return new RequestInfo(httpRequest, rawBody);
+        // If any registered mock opted into TreatBodyAsTextual(), decode the body as text even when its
+        // Content-Type isn't recognized as textual.
+        bool forceTextualBody = mocks.Any(mock => mock.ForceTextualBody);
+
+        return new RequestInfo(httpRequest, rawBody) { ForceTextualBody = forceTextualBody };
     }
 
     /// <summary>
