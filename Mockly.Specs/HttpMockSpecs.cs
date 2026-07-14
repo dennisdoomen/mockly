@@ -858,6 +858,29 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Can_match_a_multipart_batch_body_against_a_wildcard_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost()
+                .WithPath("/$batch")
+                .WithBody("*fnv_managerportfoliorules*")
+                .RespondsWithStatus(HttpStatusCode.NoContent);
+
+            var client = mock.GetClient();
+
+            var multipartContent = new MultipartContent("mixed", "batch_" + Guid.NewGuid());
+            multipartContent.Add(new StringContent("some fnv_managerportfoliorules query payload"));
+
+            // Act
+            var response = await client.PostAsync("https://localhost/$batch", multipartContent);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        [Fact]
         public async Task Can_match_the_body_against_a_json_string_ignoring_layout()
         {
             // Arrange

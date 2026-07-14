@@ -103,6 +103,14 @@ public class RequestInfo
             return true;
         }
 
+        // multipart/* (e.g. multipart/mixed, multipart/related, multipart/form-data) bodies used by
+        // batch requests (such as OData $batch) are themselves text envelopes around their parts, even
+        // though individual parts could contain binary content.
+        if (mediaType.StartsWith("multipart/", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
         // RFC 6839 structured syntax suffixes
         if (mediaType.EndsWith("+json", StringComparison.Ordinal) ||
             mediaType.EndsWith("+xml", StringComparison.Ordinal) ||
