@@ -15,15 +15,22 @@ public class RequestInfo
     {
         this.request = request;
         RawBody = rawBody;
-        Body = DeserializeBodyIfTextual(rawBody);
     }
+
+    /// <summary>
+    /// When set, forces <see cref="Body"/> to be populated from <see cref="RawBody"/> regardless of whether
+    /// <see cref="IsBodyLikelyTextual"/> recognizes the Content-Type as textual. Set internally by
+    /// <see cref="HttpMock"/> when a registered mock opted in via
+    /// <see cref="RequestMockBuilder.TreatBodyAsTextual"/>.
+    /// </summary>
+    internal bool ForceTextualBody { get; init; }
 
     /// <summary>
     /// Gets the URI of the HTTP request, representing the full address, including the scheme, host, path, and query string, if present.
     /// </summary>
     public Uri? Uri => request.RequestUri;
 
-    public string? Body { get; }
+    public string? Body => DeserializeBodyIfTextual();
 
     /// <summary>
     /// The request body as raw bytes, if prefetched.
@@ -134,17 +141,18 @@ public class RequestInfo
     }
 
     /// <summary>
-    /// Deserializes the provided raw body byte array into a textual representation if it is likely to be textual.
+    /// Deserializes the raw body byte array into a textual representation if it is likely to be textual, or if
+    /// <see cref="ForceTextualBody"/> is <c>true</c>.
     /// </summary>
-    private string? DeserializeBodyIfTextual(byte[]? rawBody)
+    private string? DeserializeBodyIfTextual()
     {
-        if (rawBody is null || rawBody.Length == 0 || !IsBodyLikelyTextual())
+        if (RawBody is null || RawBody.Length == 0 || (!IsBodyLikelyTextual() && !ForceTextualBody))
         {
             return null;
         }
 
         Encoding encoding = GetEncoding() ?? Encoding.UTF8;
-        return encoding.GetString(rawBody);
+        return encoding.GetString(RawBody);
     }
 
     private Encoding? GetEncoding()

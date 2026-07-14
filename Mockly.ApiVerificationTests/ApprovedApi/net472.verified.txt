@@ -134,6 +134,7 @@ namespace Mockly
         public Mockly.SequencedResponseBuilder RespondsWithProblemDetails(System.Net.HttpStatusCode statusCode, string? title = null, string? detail = null, string? type = null, string? instance = null, System.Collections.Generic.IDictionary<string, object?>? extensions = null) { }
         public Mockly.SequencedResponseBuilder RespondsWithStatus(System.Net.HttpStatusCode statusCode) { }
         public Mockly.SequencedResponseBuilder RespondsWithStream(System.IO.Stream stream, string contentType) { }
+        public Mockly.RequestMockBuilder TreatBodyAsTextual() { }
         public Mockly.RequestMockBuilder Using(System.Text.Json.JsonSerializerOptions options) { }
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, System.Threading.Tasks.Task<bool>> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, bool> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }

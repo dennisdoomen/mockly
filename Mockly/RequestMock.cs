@@ -63,6 +63,12 @@ public class RequestMock
     internal IEnumerable<Matcher> CustomMatchers { get; init; } = [];
 
     /// <summary>
+    /// Gets whether this mock forces the captured request body to be treated as textual, even when its
+    /// Content-Type isn't recognized as textual. See <see cref="RequestMockBuilder.TreatBodyAsTextual"/>.
+    /// </summary>
+    internal bool ForceTextualBody { get; init; }
+
+    /// <summary>
     /// Gets or sets the responder used to produce a response for a matched request.
     /// </summary>
     /// <remarks>

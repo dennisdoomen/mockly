@@ -114,6 +114,18 @@ mock.ForPost()
     .RespondsWithStatus(HttpStatusCode.NoContent);
 ```
 
+### Forcing a Body to be Treated as Textual
+
+Body matchers (`WithBody`, `WithBodyMatchingJson`, `WithBodyMatchingRegex`, and form-field matching) only work when the request's Content-Type is recognized as textual (`text/*`, `multipart/*`, `application/json`, `application/xml`, and similar). If your request uses a Content-Type Mockly doesn't recognize as textual — but the body is actually text — opt in with `TreatBodyAsTextual()`:
+
+```csharp
+mock.ForPost()
+    .WithPath("/api/test")
+    .WithBody("*something*")
+    .TreatBodyAsTextual()
+    .RespondsWithStatus(HttpStatusCode.NoContent);
+```
+
 ## Request Body Prefetching
 
 By default, Mockly prefetches the request body for matchers. You can disable this to defer reading content inside your predicate:
