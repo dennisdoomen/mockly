@@ -893,7 +893,7 @@ public class HttpMockSpecs
 
             var client = mock.GetClient();
 
-            var content = new ByteArrayContent(Encoding.UTF8.GetBytes("a body with something in it"));
+            var content = new ByteArrayContent("a body with something in it"u8.ToArray());
             content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
             // Act
@@ -917,7 +917,7 @@ public class HttpMockSpecs
 
             var client = mock.GetClient();
 
-            var content = new ByteArrayContent(Encoding.UTF8.GetBytes("a body with something in it"));
+            var content = new ByteArrayContent("a body with something in it"u8.ToArray());
             content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
             // Act
