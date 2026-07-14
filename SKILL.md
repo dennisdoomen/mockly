@@ -68,6 +68,11 @@ mock.ForPost().WithPath("/api/data").WithBodyMatchingRegex(".*keyword.*").Respon
 
 // Custom predicate (sync or async) — use .With() for custom body or URI checks
 mock.ForPost().WithPath("/api/data").With(req => req.Body!.Contains("keyword")).RespondsWithStatus(HttpStatusCode.NoContent);
+
+// Body matching (WithBody, WithBodyMatchingJson, etc.) only works when the Content-Type is recognized as
+// textual (text/*, multipart/*, application/json, application/xml, and similar). For an unrecognized or
+// binary-looking Content-Type that is actually text, opt in with TreatBodyAsTextual():
+mock.ForPost().WithPath("/api/data").WithBody("*keyword*").TreatBodyAsTextual().RespondsWithStatus(HttpStatusCode.NoContent);
 ```
 
 ## Header Matching
