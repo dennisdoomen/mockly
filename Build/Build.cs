@@ -3,7 +3,6 @@ using System.Linq;
 using Fallout.Common;
 using Fallout.Common.CI.GitHubActions;
 using Fallout.Common.IO;
-using Fallout.Common.ProjectModel;
 using Fallout.Common.Tooling;
 using Fallout.Common.Tools.Coverlet;
 using Fallout.Common.Tools.DotNet;
