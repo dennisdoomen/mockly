@@ -99,6 +99,13 @@ public class RequestMock
     }
 
     /// <summary>
+    /// Gets the artificial delay to apply before producing the response, simulating a slow endpoint.
+    /// When set, the asynchronous response path awaits this delay (honoring the supplied
+    /// <see cref="CancellationToken"/>) before invoking the responder.
+    /// </summary>
+    internal TimeSpan? Delay { get; set; }
+
+    /// <summary>
     /// Gets the collection that receives every <see cref="CapturedRequest"/> handled by this mock.
     /// When <c>null</c>, captured requests are not stored.
     /// </summary>
@@ -501,9 +508,14 @@ public class RequestMock
     /// Invokes the responder for the given invocation index, awaiting asynchronous responders and
     /// flowing the supplied <paramref name="cancellationToken"/> into them.
     /// </summary>
-    private Task<HttpResponseMessage> InvokeResponderAsync(RequestInfo request, int invocationIndex, CancellationToken cancellationToken)
+    private async Task<HttpResponseMessage> InvokeResponderAsync(RequestInfo request, int invocationIndex, CancellationToken cancellationToken)
     {
-        return GetResponderForInvocation(invocationIndex)(request, cancellationToken);
+        if (Delay is { } delay && delay > TimeSpan.Zero)
+        {
+            await Task.Delay(delay, cancellationToken);
+        }
+
+        return await GetResponderForInvocation(invocationIndex)(request, cancellationToken);
     }
 
     /// <summary>

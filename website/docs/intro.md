@@ -31,6 +31,7 @@ Unlike other HTTP mocking libraries, Mockly offers:
 * **Performance optimized** - Regex patterns are cached for efficient matching
 * **Invocation limits** - Restrict how many times a mock can respond using `Once()`, `Twice()`, or `Times(n)`
 * **Sequenced responses** - Return different responses over consecutive calls by chaining `Then(...)`
+* **Response latency** - Simulate slow endpoints with `After(TimeSpan)` to test timeout, cancellation and resilience
 
 ## Who created this?
 
