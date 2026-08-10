@@ -2338,16 +2338,17 @@ public class HttpMockSpecs
 
             var client = mock.GetClient();
             using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+            var token = cts.Token;
 
             // Act
-            Func<Task> act = () => client.GetAsync("https://localhost/slow", cts.Token);
+            Func<Task> act = () => client.GetAsync("https://localhost/slow", token);
 
             // Assert
             await act.Should().ThrowAsync<OperationCanceledException>();
         }
 
         [Fact]
-        public async Task A_negative_delay_is_rejected()
+        public void A_negative_delay_is_rejected()
         {
             // Arrange
             var mock = new HttpMock();

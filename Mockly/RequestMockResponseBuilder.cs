@@ -147,6 +147,7 @@ public class RequestMockResponseBuilder
     /// </remarks>
     /// <param name="delay">The amount of time to wait before producing the response.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="delay"/> is negative.</exception>
+    // ReSharper disable once UnusedMethodReturnValue.Global -- fluent builder method, consistent with Once()/Twice()/Times()
     public RequestMockResponseBuilder After(TimeSpan delay)
     {
         if (delay < TimeSpan.Zero)
