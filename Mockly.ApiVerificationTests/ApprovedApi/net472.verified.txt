@@ -17,6 +17,7 @@ namespace Mockly
         public System.Net.Http.HttpResponseMessage Response { get; }
         public string Scheme { get; }
         public int Sequence { get; set; }
+        public System.Exception? SimulatedFailure { get; }
         public System.DateTime Timestamp { get; }
         public System.Uri? Uri { get; }
         public System.Version Version { get; }
@@ -134,6 +135,10 @@ namespace Mockly
         public Mockly.SequencedResponseBuilder RespondsWithProblemDetails(System.Net.HttpStatusCode statusCode, string? title = null, string? detail = null, string? type = null, string? instance = null, System.Collections.Generic.IDictionary<string, object?>? extensions = null) { }
         public Mockly.SequencedResponseBuilder RespondsWithStatus(System.Net.HttpStatusCode statusCode) { }
         public Mockly.SequencedResponseBuilder RespondsWithStream(System.IO.Stream stream, string contentType) { }
+        public Mockly.RequestMockResponseBuilder ThrowsException(System.Exception exception) { }
+        public Mockly.RequestMockResponseBuilder ThrowsException<TException>()
+            where TException : System.Exception, new () { }
+        public Mockly.RequestMockResponseBuilder TimesOut() { }
         public Mockly.RequestMockBuilder TreatBodyAsTextual() { }
         public Mockly.RequestMockBuilder Using(System.Text.Json.JsonSerializerOptions options) { }
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, System.Threading.Tasks.Task<bool>> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }

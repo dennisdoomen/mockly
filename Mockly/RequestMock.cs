@@ -106,6 +106,13 @@ public class RequestMock
     internal TimeSpan? Delay { get; set; }
 
     /// <summary>
+    /// Gets the responder that represents an intentionally simulated transport failure, if configured.
+    /// When set, the asynchronous response path records the request and then signals the HTTP pipeline to
+    /// propagate the produced exception to the caller instead of converting it into a <c>500</c> response.
+    /// </summary>
+    internal SimulatedFailureResponder? SimulatedFailure { get; init; }
+
+    /// <summary>
     /// Gets the collection that receives every <see cref="CapturedRequest"/> handled by this mock.
     /// When <c>null</c>, captured requests are not stored.
     /// </summary>
@@ -481,6 +488,16 @@ public class RequestMock
             Timestamp = DateTime.UtcNow
         };
 
+        if (SimulatedFailure is not null)
+        {
+            await ApplyConfiguredDelayAsync(cancellationToken);
+
+            capturedRequest.SimulatedFailure = SimulatedFailure.CreateException();
+            RequestCollection?.Add(capturedRequest);
+
+            return capturedRequest;
+        }
+
         try
         {
             capturedRequest.Response = ApplyResponseMutators(await InvokeResponderAsync(request, invocationIndex, cancellationToken));
@@ -510,10 +527,7 @@ public class RequestMock
     /// </summary>
     private async Task<HttpResponseMessage> InvokeResponderAsync(RequestInfo request, int invocationIndex, CancellationToken cancellationToken)
     {
-        if (Delay is { } delay && delay > TimeSpan.Zero)
-        {
-            await Task.Delay(delay, cancellationToken);
-        }
+        await ApplyConfiguredDelayAsync(cancellationToken);
 
         return await GetResponderForInvocation(invocationIndex)(request, cancellationToken);
     }
@@ -566,6 +580,17 @@ public class RequestMock
         }
 
         return response;
+    }
+
+    /// <summary>
+    /// Awaits the configured <see cref="Delay"/> (if any), honoring the supplied <paramref name="cancellationToken"/>.
+    /// </summary>
+    private async Task ApplyConfiguredDelayAsync(CancellationToken cancellationToken)
+    {
+        if (Delay is { } delay && delay > TimeSpan.Zero)
+        {
+            await Task.Delay(delay, cancellationToken);
+        }
     }
 
     /// <summary>
