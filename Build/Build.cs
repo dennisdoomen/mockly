@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using Fallout.Common;
 using Fallout.Common.CI.GitHubActions;
@@ -147,12 +148,27 @@ class Build : FalloutBuild
         {
             var project = Solution.GetProject("Mockly.ApiVerificationTests");
 
-            DotNetTest(s => s
-                .SetConfiguration(Configuration)
-                .SetProcessEnvironmentVariable("DOTNET_CLI_UI_LANGUAGE", "en-US")
-                .SetResultsDirectory(TestResultsDirectory)
-                .SetProjectFile(project)
-                .AddLoggers($"trx;LogFileName={project!.Name}.trx"));
+            // xunit.v3 ships its own Microsoft.Testing.Platform-based test host, and running that through
+            // `dotnet test`'s legacy VSTest bridge is no longer supported on .NET 10 SDK and later. Invoking the
+            // built executable directly runs it natively via Microsoft.Testing.Platform instead.
+            // Mockly.ApiVerificationTests only targets net8.0, so that framework moniker is hardcoded below.
+            AbsolutePath executable = project!.Directory / "bin" / Configuration / "net8.0" / $"{project.Name}.exe";
+
+            var startInfo = new ProcessStartInfo(executable)
+            {
+                Arguments = $"-result-trx \"{TestResultsDirectory / $"{project.Name}.trx"}\"",
+                WorkingDirectory = project.Directory,
+                UseShellExecute = false
+            };
+            startInfo.EnvironmentVariables["DOTNET_CLI_UI_LANGUAGE"] = "en-US";
+
+            using var process = Process.Start(startInfo);
+            process!.WaitForExit();
+
+            if (process.ExitCode != 0)
+            {
+                throw new Exception($"Process '{executable}' exited with code {process.ExitCode}.");
+            }
         });
 
     Target ScanPackages => _ => _
