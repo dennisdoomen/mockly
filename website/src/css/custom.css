@@ -36,6 +36,14 @@
   --ifm-code-font-size: 92%;
   --docusaurus-highlighted-code-line-bg: rgba(31, 157, 99, 0.1);
 
+  /* Mirrors of the footer colors above, kept outside the --ifm-footer-*
+   * namespace so `.footer--dark` (below) can reassert them without
+   * self-referencing the property it's overriding. */
+  --mockly-footer-bg: #101f17;
+  --mockly-footer-color: #c7d6cd;
+  --mockly-footer-link-color: #dcebe3;
+  --mockly-footer-title-color: #ffffff;
+
   --mockly-hero-bg: #0e1512;
   --mockly-hero-panel: #16201b;
   --mockly-hero-panel-border: #28362e;
@@ -67,6 +75,11 @@
   --ifm-footer-link-color: #cfe6da;
   --ifm-footer-title-color: #ffffff;
   --docusaurus-highlighted-code-line-bg: rgba(79, 209, 144, 0.15);
+
+  --mockly-footer-bg: #0b100d;
+  --mockly-footer-color: #8fa89c;
+  --mockly-footer-link-color: #cfe6da;
+  --mockly-footer-title-color: #ffffff;
 }
 
 /* Headings use the same display face as the announcement graphics */
@@ -92,6 +105,19 @@ code, pre, kbd {
   font-family: var(--ifm-font-family-monospace);
 }
 
+/*
+ * Infima's own `.footer--dark` rule hard-codes a gray footer palette
+ * directly on the footer element, which always wins over the brand
+ * colors inherited from :root / [data-theme='dark'] above (a property
+ * set on the element itself beats an inherited value regardless of
+ * source order). Re-point it at the --mockly-footer-* mirrors instead
+ * of the --ifm-footer-* variables themselves, since assigning a custom
+ * property from its own name creates a reference cycle (invalid value,
+ * renders as transparent).
+ */
 .footer--dark {
-  --ifm-footer-background-color: var(--ifm-footer-background-color);
+  --ifm-footer-background-color: var(--mockly-footer-bg);
+  --ifm-footer-color: var(--mockly-footer-color);
+  --ifm-footer-link-color: var(--mockly-footer-link-color);
+  --ifm-footer-title-color: var(--mockly-footer-title-color);
 }
