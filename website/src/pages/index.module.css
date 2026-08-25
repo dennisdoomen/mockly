@@ -3,21 +3,97 @@
  * and scoped locally.
  */
 
+/*
+ * The hero stays dark regardless of the site's light/dark mode toggle -
+ * it's a branded "poster" section, matching the carousel graphics this
+ * styling is based on, the same way the navbar/footer stay dark there too.
+ */
 .heroBanner {
-  padding: 4rem 0;
+  padding: 5rem 0 4rem;
   text-align: center;
   position: relative;
   overflow: hidden;
+  background: var(--mockly-hero-bg);
+  color: var(--mockly-hero-text);
 }
 
 @media screen and (max-width: 996px) {
   .heroBanner {
-    padding: 2rem;
+    padding: 3rem 1.5rem;
   }
+}
+
+.heroEyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mockly-hero-accent);
+  margin-bottom: 1rem;
+}
+
+.heroTitle {
+  color: var(--mockly-hero-text) !important;
+  font-size: 3.5rem !important;
+}
+
+.heroSubtitle {
+  color: var(--mockly-hero-text-muted);
+  font-size: 1.25rem;
+  max-width: 640px;
+  margin: 0 auto 2rem;
 }
 
 .buttons {
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 3rem;
+}
+
+.buttons :global(.button--secondary) {
+  background: var(--mockly-hero-accent);
+  border-color: var(--mockly-hero-accent);
+  color: #0e1512;
+  font-weight: 600;
+}
+
+.buttons :global(.button--secondary):hover {
+  background: var(--mockly-hero-accent-dim);
+  border-color: var(--mockly-hero-accent-dim);
+  color: #ffffff;
+}
+
+.heroPanel {
+  max-width: 620px;
+  margin: 0 auto;
+  background: var(--mockly-hero-panel);
+  border: 1px solid var(--mockly-hero-panel-border);
+  border-radius: 14px;
+  padding: 1.75rem 2rem;
+  text-align: left;
+}
+
+.heroCode {
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.15rem;
+  color: var(--mockly-hero-text);
+  padding: 0;
+}
+
+.heroCodeString,
+.heroCodeDot {
+  color: var(--mockly-hero-accent);
+}
+
+.heroCodePunct {
+  color: var(--mockly-hero-text-muted);
+}
+
+.heroCaption {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--mockly-hero-text-muted);
+  margin-top: 0.9rem;
 }

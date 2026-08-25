@@ -4,38 +4,83 @@
  * work well for content-centric websites.
  */
 
-/* Mockly brand colors - Cyan to Purple gradient */
+/*
+ * Mockly brand system - matches the green/graphite identity used in
+ * Mockly's social/announcement graphics. Signal green reads as both an
+ * HTTP 2xx and a passing test at once, which is what Mockly is for.
+ *
+ * Dark mode below mirrors that palette closely. Light mode is a derived
+ * equivalent (same hue family, deepened for contrast on a white
+ * background) rather than a literal copy, since the source material was
+ * designed dark-only and this site needs to support both.
+ */
+
+/* Light mode (default) */
 :root {
-  --ifm-color-primary: #5B7DD8;
-  --ifm-color-primary-dark: #4567d1;
-  --ifm-color-primary-darker: #3b5dc9;
-  --ifm-color-primary-darkest: #2f4ba6;
-  --ifm-color-primary-light: #7193df;
-  --ifm-color-primary-lighter: #7d9de2;
-  --ifm-color-primary-lightest: #a1b7eb;
-  --ifm-color-secondary: #8B5FCE;
-  --ifm-color-info: #3BABD9;
-  --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(91, 125, 216, 0.1);
+  --ifm-color-primary: #1f9d63;
+  --ifm-color-primary-dark: #1c8d59;
+  --ifm-color-primary-darker: #1a8553;
+  --ifm-color-primary-darkest: #156d45;
+  --ifm-color-primary-light: #22ad6d;
+  --ifm-color-primary-lighter: #24b573;
+  --ifm-color-primary-lightest: #3fcf8c;
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #f4f9f6;
+  --ifm-font-color-base: #1b2b23;
+  --ifm-heading-color: #101f17;
+  --ifm-navbar-background-color: #ffffff;
+  --ifm-footer-background-color: #101f17;
+  --ifm-footer-color: #c7d6cd;
+  --ifm-footer-link-color: #dcebe3;
+  --ifm-footer-title-color: #ffffff;
+  --ifm-code-font-size: 92%;
+  --docusaurus-highlighted-code-line-bg: rgba(31, 157, 99, 0.1);
+
+  --mockly-hero-bg: #0e1512;
+  --mockly-hero-panel: #16201b;
+  --mockly-hero-panel-border: #28362e;
+  --mockly-hero-accent: #4fd190;
+  --mockly-hero-accent-dim: #379468;
+  --mockly-hero-text: #e8f5ee;
+  --mockly-hero-text-muted: #8fa89c;
+
+  --ifm-font-family-base: 'Manrope', system-ui, -apple-system, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
-  --ifm-color-primary: #7193df;
-  --ifm-color-primary-dark: #5B7DD8;
-  --ifm-color-primary-darker: #4567d1;
-  --ifm-color-primary-darkest: #2f4ba6;
-  --ifm-color-primary-light: #8ea8e5;
-  --ifm-color-primary-lighter: #a1b7eb;
-  --ifm-color-primary-lightest: #c3d2f4;
-  --ifm-color-secondary: #9f7dd8;
-  --ifm-color-info: #5bc1e6;
-  --docusaurus-highlighted-code-line-bg: rgba(91, 125, 216, 0.3);
+  --ifm-color-primary: #4fd190;
+  --ifm-color-primary-dark: #379468;
+  --ifm-color-primary-darker: #2f8a5e;
+  --ifm-color-primary-darkest: #24704b;
+  --ifm-color-primary-light: #6fdaa4;
+  --ifm-color-primary-lighter: #8ee0b8;
+  --ifm-color-primary-lightest: #b8ecd2;
+  --ifm-background-color: #0e1512;
+  --ifm-background-surface-color: #16201b;
+  --ifm-font-color-base: #e8f5ee;
+  --ifm-heading-color: #eef8f2;
+  --ifm-navbar-background-color: #0e1512;
+  --ifm-footer-background-color: #0b100d;
+  --ifm-footer-color: #8fa89c;
+  --ifm-footer-link-color: #cfe6da;
+  --ifm-footer-title-color: #ffffff;
+  --docusaurus-highlighted-code-line-bg: rgba(79, 209, 144, 0.15);
 }
 
-/* Gradient header styling */
-.hero--primary {
-  background: linear-gradient(135deg, #3BABD9 0%, #5B7DD8 50%, #8B5FCE 100%);
+/* Headings use the same display face as the announcement graphics */
+.navbar__title,
+.footer__title,
+h1, h2, h3, h4, h5, h6,
+.hero__title {
+  font-family: 'Space Grotesk', var(--ifm-font-family-base);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.navbar {
+  border-bottom: 1px solid var(--ifm-toc-border-color);
 }
 
 /* Logo styling */
@@ -43,7 +88,10 @@
   height: 2rem;
 }
 
-/* Make the footer match the dark theme */
+code, pre, kbd {
+  font-family: var(--ifm-font-family-monospace);
+}
+
 .footer--dark {
-  --ifm-footer-background-color: #1c1e21;
+  --ifm-footer-background-color: var(--ifm-footer-background-color);
 }
