@@ -13,7 +13,7 @@ public class CurlImportSpecs
     public class BasicRequests
     {
         [Fact]
-        public async Task Can_import_a_simple_get_request()
+        public async Task Imports_a_simple_get_request()
         {
             // Arrange
             var mock = new HttpMock();
@@ -28,7 +28,7 @@ public class CurlImportSpecs
         }
 
         [Fact]
-        public async Task Can_import_a_request_without_the_curl_executable_prefix()
+        public async Task Imports_a_request_without_the_curl_executable_prefix()
         {
             // Arrange
             var mock = new HttpMock();
@@ -82,6 +82,51 @@ public class CurlImportSpecs
 
             // Act
             var act = () => mock.GetClient().GetAsync("https://api.example.com/users");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>();
+        }
+
+        [Fact]
+        public async Task Defaults_to_http_when_the_url_has_no_scheme()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ImportFromCurl("curl api.example.com/users")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            var act = () => mock.GetClient().GetAsync("https://api.example.com/users");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>();
+        }
+
+        [Fact]
+        public async Task Matches_a_url_encoded_query_value_against_the_decoded_request_query()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ImportFromCurl("curl 'https://api.example.com/search?q=hello%20world'")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://api.example.com/search?q=hello%20world");
+
+            // Assert
+            response.Should().Be200Ok();
+        }
+
+        [Fact]
+        public async Task Treats_a_literal_asterisk_in_the_path_as_a_literal_character()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ImportFromCurl("curl 'https://api.example.com/users/*'")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            var act = () => mock.GetClient().GetAsync("https://api.example.com/users/1");
 
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>();
@@ -190,6 +235,72 @@ public class CurlImportSpecs
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>();
         }
+
+        [Fact]
+        public async Task Matches_a_multi_token_header_by_its_original_separator()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ImportFromCurl("curl https://api.example.com/users -A 'Mozilla/5.0 Foo/1.0'")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://api.example.com/users");
+            request.Headers.UserAgent.ParseAdd("Mozilla/5.0 Foo/1.0");
+            var response = await mock.GetClient().SendAsync(request);
+
+            // Assert
+            response.Should().Be200Ok();
+        }
+
+        [Fact]
+        public async Task Requires_a_header_to_be_absent_when_it_was_suppressed_with_a_trailing_colon()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ImportFromCurl("curl https://api.example.com/users -H 'Accept:'")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://api.example.com/users");
+
+            // Assert
+            response.Should().Be200Ok();
+        }
+
+        [Fact]
+        public async Task A_request_with_the_suppressed_header_present_is_not_matched()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ImportFromCurl("curl https://api.example.com/users -H 'Accept:'")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://api.example.com/users");
+            request.Headers.Add("Accept", "application/json");
+            var act = () => mock.GetClient().SendAsync(request);
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>();
+        }
+
+        [Fact]
+        public async Task Requires_an_explicitly_empty_header_value_when_using_the_trailing_semicolon_syntax()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ImportFromCurl("curl https://api.example.com/users -H 'X-Empty;'")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            // Act
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://api.example.com/users");
+            request.Headers.Add("X-Empty", string.Empty);
+            var response = await mock.GetClient().SendAsync(request);
+
+            // Assert
+            response.Should().Be200Ok();
+        }
     }
 
     public class Bodies
@@ -261,6 +372,35 @@ public class CurlImportSpecs
             // Assert
             await act.Should().ThrowAsync<UnexpectedRequestException>();
         }
+
+        [Fact]
+        public async Task Encodes_a_data_urlencode_value_the_way_curl_sends_it()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ImportFromCurl("curl -X POST https://api.example.com/users --data-urlencode 'name=John Doe'")
+                .RespondsWithStatus(HttpStatusCode.Created);
+
+            // Act
+            var content = new StringContent("name=John+Doe");
+            var response = await mock.GetClient().PostAsync("https://api.example.com/users", content);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+
+        [Fact]
+        public void Rejects_a_data_urlencode_file_reference()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            var act = () => mock.ImportFromCurl("curl -X POST https://api.example.com/users --data-urlencode '@file.txt'");
+
+            // Assert
+            act.Should().Throw<ArgumentException>().WithMessage("*file reference*");
+        }
     }
 
     public class ShellSyntax
@@ -300,6 +440,23 @@ public class CurlImportSpecs
 
             // Assert
             response.Should().Be200Ok();
+        }
+
+        [Fact]
+        public async Task Supports_a_backslash_escaped_apostrophe_outside_quotes()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ImportFromCurl(
+                    "curl -X POST https://api.example.com/users -d 'name=It'\\''s a test'")
+                .RespondsWithStatus(HttpStatusCode.Created);
+
+            // Act
+            var content = new StringContent("name=It's a test");
+            var response = await mock.GetClient().PostAsync("https://api.example.com/users", content);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
         }
     }
 
