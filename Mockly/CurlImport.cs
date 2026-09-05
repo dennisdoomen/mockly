@@ -404,12 +404,12 @@ internal sealed class CurlCommandParser
                     "The cURL option '--data-urlencode' with a file reference (@filename or name@filename) is not supported.");
             }
 
-            return WebUtility.UrlEncode(raw) ?? string.Empty;
+            return WebUtility.UrlEncode(raw);
         }
 
         string name = raw.Substring(0, separator);
         string content = raw.Substring(separator + 1);
-        string encodedContent = WebUtility.UrlEncode(content) ?? string.Empty;
+        string encodedContent = WebUtility.UrlEncode(content);
 
         return name.Length == 0 ? encodedContent : $"{name}={encodedContent}";
     }
