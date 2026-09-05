@@ -2,9 +2,12 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Runtime.ExceptionServices;
 using System.Text;
+using System.Text.Json;
 using Mockly.Common;
 #if NET472_OR_GREATER
 using System.Net.Http;
+#else
+using System.Net.Http.Headers;
 #endif
 
 #pragma warning disable CA1054
@@ -191,6 +194,53 @@ public class HttpMock
                 Method = method
             }
             : new RequestMockBuilder(this, method);
+
+        previousBuilder = builder;
+        return builder;
+    }
+
+    /// <summary>
+    /// Builds a request mock from a <c>curl</c> command string, such as the output of a browser's
+    /// "Copy as cURL" command.
+    /// </summary>
+    /// <remarks>
+    /// The HTTP method (<c>-X</c>), URL, headers (<c>-H</c>) and body (<c>-d</c>, <c>--data</c>, <c>--data-raw</c>, ...)
+    /// are translated into the equivalent request matching configuration. When no method is specified, <c>POST</c> is
+    /// assumed if a body is present and <c>GET</c> otherwise. Attach a response (for example
+    /// <see cref="RequestMockBuilder.RespondsWithStatus"/>) to the returned builder to complete the mock.
+    /// </remarks>
+    /// <param name="curlCommand">The <c>curl</c> command to import.</param>
+    /// <returns>A <see cref="RequestMockBuilder"/> configured to match the imported request.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="curlCommand"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="curlCommand"/> is empty or cannot be parsed.</exception>
+    public RequestMockBuilder ImportFromCurl(string curlCommand)
+    {
+        if (curlCommand is null)
+        {
+            throw new ArgumentNullException(nameof(curlCommand));
+        }
+
+        CurlRequest parsed = CurlCommandParser.Parse(curlCommand);
+
+        var builder = new RequestMockBuilder(this, ResolveMethod(parsed));
+        builder = ApplyCurlUrl(builder, parsed.Url!);
+
+        foreach (KeyValuePair<string, string?> header in parsed.Headers)
+        {
+            if (IsUnsupportedContentHeader(header.Key))
+            {
+                continue;
+            }
+
+            builder = header.Value is null
+                ? ApplyHeaderExclusion(builder, header.Key)
+                : ApplyHeader(builder, header.Key, header.Value);
+        }
+
+        if (parsed.Body is not null)
+        {
+            builder = ApplyBody(builder, parsed.Body, HasJsonContentType(parsed));
+        }
 
         previousBuilder = builder;
         return builder;
@@ -477,6 +527,51 @@ public class HttpMock
     }
 
     /// <summary>
+    /// Configures scheme, host, path and query for a curl-imported URL using literal (non-wildcard) semantics,
+    /// since the URL comes from an actual request rather than being an intentional Mockly matching pattern.
+    /// </summary>
+    private static RequestMockBuilder ApplyCurlUrl(RequestMockBuilder builder, string rawUrl)
+    {
+        Uri uri = ParseCurlUrl(rawUrl);
+
+        builder = string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase)
+            ? builder.ForHttps()
+            : builder.ForHttp();
+
+        builder = builder.ForHost(uri.IsDefaultPort ? uri.Host : $"{uri.Host}:{uri.Port}");
+
+        string path = uri.AbsolutePath;
+        builder = builder.With(
+            request => string.Equals(request.Uri?.AbsolutePath, path, StringComparison.Ordinal),
+            $"path equals '{path}'");
+
+        string query = WebUtility.UrlDecode(uri.Query);
+        builder = builder.With(
+            request => string.Equals(WebUtility.UrlDecode(request.Uri?.Query ?? string.Empty), query, StringComparison.Ordinal),
+            query.Length > 0 ? $"query equals '{query}'" : "no query string");
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Parses a curl URL into an absolute <see cref="Uri"/>, defaulting to the <c>http</c> scheme when none is
+    /// specified, matching curl's own default (unlike Mockly's builder, which defaults to <c>https</c>).
+    /// </summary>
+    private static Uri ParseCurlUrl(string rawUrl)
+    {
+        string trimmed = rawUrl.Trim();
+
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out Uri? uri) &&
+            (string.Equals(uri.Scheme, "http", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase)))
+        {
+            return uri;
+        }
+
+        return new Uri("http://" + trimmed, UriKind.Absolute);
+    }
+
+    /// <summary>
     /// Parses a full URL pattern (e.g. <c>"https://api.example.com/v1/users?active=*"</c>) and
     /// applies the scheme, host, path, and query segments to <paramref name="builder"/>.
     /// Wildcards (<c>*</c>) are supported in every segment.
@@ -574,6 +669,127 @@ public class HttpMock
         }
 
         return builder;
+    }
+
+    private static HttpMethod ResolveMethod(CurlRequest parsed)
+    {
+        if (!string.IsNullOrEmpty(parsed.Method))
+        {
+            return new HttpMethod(parsed.Method!.ToUpperInvariant());
+        }
+
+        return parsed.Body is not null ? HttpMethod.Post : HttpMethod.Get;
+    }
+
+    private static RequestMockBuilder ApplyHeader(RequestMockBuilder builder, string name, string value)
+    {
+        return builder.With(request => HeaderMatches(request, name, value), $"header '{name}: {value}'");
+    }
+
+    /// <summary>
+    /// Configures the mock to require the given header to be absent, mirroring curl's <c>-H 'Name:'</c> syntax
+    /// which suppresses a header rather than sending it with an empty value.
+    /// </summary>
+    private static RequestMockBuilder ApplyHeaderExclusion(RequestMockBuilder builder, string name)
+    {
+        if (string.Equals(name, "Content-Type", StringComparison.OrdinalIgnoreCase))
+        {
+            return builder.With(request => request.ContentType is null, $"header '{name}' is absent");
+        }
+
+        return builder.With(request => !request.Headers.Contains(name), $"header '{name}' is absent");
+    }
+
+    private static RequestMockBuilder ApplyBody(RequestMockBuilder builder, string body, bool jsonContentType)
+    {
+        if (IsJsonBody(body, jsonContentType))
+        {
+            return builder.WithBodyMatchingJson(body);
+        }
+
+        return builder.With(
+            request => string.Equals(request.Body, body, StringComparison.Ordinal),
+            $"body equals \"{body}\"");
+    }
+
+    private static bool IsUnsupportedContentHeader(string name)
+    {
+        return name.StartsWith("Content-", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(name, "Content-Type", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasJsonContentType(CurlRequest parsed)
+    {
+        foreach (KeyValuePair<string, string?> header in parsed.Headers)
+        {
+            if (string.Equals(header.Key, "Content-Type", StringComparison.OrdinalIgnoreCase) &&
+                header.Value is not null && header.Value.Contains("json", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HeaderMatches(RequestInfo request, string name, string value)
+    {
+        if (string.Equals(name, "Content-Type", StringComparison.OrdinalIgnoreCase))
+        {
+            string expected = value.Split(';')[0].Trim();
+            return request.ContentType is { } actual &&
+                string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+        }
+
+#if NET8_0_OR_GREATER
+        // Use the raw, non-validated header representation so headers whose values are split into multiple
+        // tokens by .NET's typed parsing (such as User-Agent, which is space- rather than comma-separated)
+        // are compared using their original textual form instead of being rejoined with a comma.
+        if (!request.Headers.NonValidated.TryGetValues(name, out HeaderStringValues values))
+        {
+            return false;
+        }
+
+        return values.Any(v => string.Equals(v, value, StringComparison.Ordinal)) ||
+            string.Equals(values.ToString(), value, StringComparison.Ordinal);
+#else
+        // net472 lacks HttpHeaders.NonValidated, so the original separator can't be recovered; try both the
+        // comma (the list syntax most headers use) and the space (used by product-token headers like
+        // User-Agent) to reconstruct the value .NET split into multiple tokens.
+        if (!request.Headers.TryGetValues(name, out IEnumerable<string>? values))
+        {
+            return false;
+        }
+
+        List<string> materializedValues = values.ToList();
+        return materializedValues.Any(v => string.Equals(v, value, StringComparison.Ordinal)) ||
+            string.Equals(string.Join(", ", materializedValues), value, StringComparison.Ordinal) ||
+            string.Equals(string.Join(" ", materializedValues), value, StringComparison.Ordinal);
+#endif
+    }
+
+    private static bool IsJsonBody(string body, bool jsonContentType)
+    {
+        string trimmed = body.TrimStart();
+        if (trimmed.Length == 0)
+        {
+            return false;
+        }
+
+        if (!jsonContentType && trimmed[0] != '{' && trimmed[0] != '[')
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
 #pragma warning restore CA1054
