@@ -19,8 +19,18 @@ namespace Mockly;
 /// </summary>
 public class HttpMock
 {
+    private static readonly HttpClient PassThroughClient = new(new HttpClientHandler
+    {
+        CheckCertificateRevocationList = true
+    });
+
     private readonly List<RequestMock> mocks = new();
+    private readonly List<HttpArchiveEntry> replayRecordings = new();
+    private readonly List<HttpArchiveEntry> recordedEntries = new();
     private RequestMockBuilder? previousBuilder;
+    private string? recordingPath;
+    private bool passThroughUnmatched;
+    private RecordingValuePolicy recordingValuePolicy = RecordingValuePolicy.RedactSensitive;
 
     /// <summary>
     /// Gets or sets whether to fail when unexpected HTTP requests are detected.
@@ -43,6 +53,56 @@ public class HttpMock
     /// Gets all captured requests.
     /// </summary>
     public RequestCollection Requests { get; } = new();
+
+    /// <summary>
+    /// Configures unmatched requests to be sent to the real server instead of failing.
+    /// </summary>
+    public HttpMock PassThroughUnmatched()
+    {
+        passThroughUnmatched = true;
+        FailOnUnexpectedCalls = false;
+        return this;
+    }
+
+    /// <summary>
+    /// Records pass-through requests and responses in a HAR-compatible JSON file.
+    /// Sensitive headers are redacted by default; call <see cref="KeepSensitiveRecordingValues"/> to retain them.
+    /// </summary>
+    public HttpMock RecordingTo(string path)
+    {
+        if (path is null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
+        recordingPath = path;
+        return PassThroughUnmatched();
+    }
+
+    /// <summary>
+    /// Allows sensitive header values to be written to subsequent recordings.
+    /// </summary>
+    public HttpMock KeepSensitiveRecordingValues()
+    {
+        recordingValuePolicy = RecordingValuePolicy.KeepSensitive;
+        return this;
+    }
+
+    /// <summary>
+    /// Loads a HAR-compatible JSON file and serves matching requests without using the network.
+    /// </summary>
+    public HttpMock LoadRecordings(string path)
+    {
+        if (path is null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
+        HttpArchive archive = HttpArchiveConverter.Parse(File.ReadAllText(path));
+        replayRecordings.Clear();
+        replayRecordings.AddRange(archive.Log.Entries);
+        return this;
+    }
 
     /// <summary>
     /// Starts building a mock for requests using the specified HTTP <paramref name="method"/>.
@@ -350,12 +410,76 @@ public class HttpMock
             ExceptionDispatchInfo.Capture(capturedRequest.SimulatedFailure).Throw();
         }
 
+        if (!foundMatch && replayRecordings.Count > 0)
+        {
+            HttpArchiveEntry? recording = replayRecordings.FirstOrDefault(entry => HttpArchiveConverter.Matches(entry, request));
+            if (recording is not null)
+            {
+                capturedRequest.Response.Dispose();
+                capturedRequest.Response = HttpArchiveConverter.CreateResponse(recording);
+                foundMatch = true;
+                capturedRequest.WasExpected = true;
+            }
+        }
+
+        if (!foundMatch && passThroughUnmatched)
+        {
+            using HttpRequestMessage forwardedRequest = await CloneRequest(httpRequest, request.RawBody);
+            HttpResponseMessage response = await PassThroughClient.SendAsync(forwardedRequest, cancellationToken);
+            capturedRequest.Response.Dispose();
+            capturedRequest.Response = response;
+            capturedRequest.WasExpected = true;
+            foundMatch = true;
+
+            if (recordingPath is not null)
+            {
+                await RecordAsync(response, forwardedRequest);
+            }
+        }
+
         if (!foundMatch && FailOnUnexpectedCalls)
         {
             await ThrowDetailedException(request);
         }
 
         return capturedRequest.Response;
+    }
+
+    private async Task RecordAsync(HttpResponseMessage response, HttpRequestMessage request)
+    {
+        HttpArchiveEntry entry = await HttpArchiveConverter.CreateEntryAsync(request, response, recordingValuePolicy);
+        recordedEntries.Add(entry);
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(recordingPath!))!);
+#if NET8_0_OR_GREATER
+        await File.WriteAllTextAsync(recordingPath!, HttpArchiveConverter.Serialize(recordedEntries));
+#else
+        File.WriteAllText(recordingPath!, HttpArchiveConverter.Serialize(recordedEntries));
+#endif
+    }
+
+    private static async Task<HttpRequestMessage> CloneRequest(HttpRequestMessage request, byte[]? rawBody)
+    {
+        var clone = new HttpRequestMessage(request.Method, request.RequestUri)
+        {
+            Version = request.Version
+        };
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in request.Headers)
+        {
+            clone.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        }
+
+        if (request.Content is not null)
+        {
+            byte[] body = rawBody ?? await request.Content.ReadAsByteArrayAsync();
+            clone.Content = new ByteArrayContent(body);
+            foreach (KeyValuePair<string, IEnumerable<string>> header in request.Content.Headers)
+            {
+                clone.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+        }
+
+        return clone;
     }
 
     /// <summary>
@@ -452,7 +576,7 @@ public class HttpMock
     private async Task<RequestInfo> BuildRequestInfo(HttpRequestMessage httpRequest)
     {
         byte[]? rawBody = null;
-        if (PrefetchBody && httpRequest.Content is not null)
+        if ((PrefetchBody || passThroughUnmatched || replayRecordings.Count > 0) && httpRequest.Content is not null)
         {
             rawBody = await httpRequest.Content.ReadAsByteArrayAsync();
         }

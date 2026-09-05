@@ -38,6 +38,57 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Serves_response_from_loaded_har_recording()
+        {
+            // Arrange
+            string path = Path.GetTempFileName();
+            const string recording = """
+                {
+                  "log": {
+                    "version": "1.2",
+                    "entries": [
+                      {
+                        "request": {
+                          "method": "GET",
+                          "url": "https://localhost/api/recorded"
+                        },
+                        "response": {
+                          "status": 201,
+                          "statusText": "Created",
+                          "headers": [],
+                          "content": {
+                            "size": 7,
+                            "mimeType": "text/plain",
+                            "text": "cmVjb3Jk",
+                            "encoding": "base64"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+                """;
+            File.WriteAllText(path, recording);
+
+            try
+            {
+                var mock = new HttpMock().LoadRecordings(path);
+
+                // Act
+                HttpResponseMessage response = await mock.GetClient().GetAsync("https://localhost/api/recorded");
+
+                // Assert
+                response.StatusCode.Should().Be(HttpStatusCode.Created);
+                (await response.Content.ReadAsStringAsync()).Should().Be("record");
+                mock.Requests.First()!.WasExpected.Should().BeTrue();
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
         public async Task Ignores_preceding_slashes_in_the_path()
         {
             // Arrange
@@ -4875,4 +4926,3 @@ public class HttpMockSpecs
     }
 
 }
-
