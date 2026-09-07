@@ -22,7 +22,7 @@ namespace Mockly.Specs;
 public class HttpMockSpecs
 {
     /// <summary>
-    /// Writes a recording file asynchronously. <see cref="File.WriteAllTextAsync"/> is only available
+    /// Writes a recording file asynchronously. <c>File.WriteAllTextAsync</c> is only available
     /// starting with .NET Core, so net472 falls back to the synchronous overload.
     /// </summary>
     private static Task WriteRecordingAsync(string path, string contents)
@@ -32,6 +32,19 @@ public class HttpMockSpecs
 #else
         File.WriteAllText(path, contents);
         return Task.CompletedTask;
+#endif
+    }
+
+    /// <summary>
+    /// Reads a recording file asynchronously. <c>File.ReadAllTextAsync</c> is only available
+    /// starting with .NET Core, so net472 falls back to the synchronous overload.
+    /// </summary>
+    private static Task<string> ReadRecordingAsync(string path)
+    {
+#if NET8_0_OR_GREATER
+        return File.ReadAllTextAsync(path);
+#else
+        return Task.FromResult(File.ReadAllText(path));
 #endif
     }
 
@@ -278,10 +291,8 @@ public class HttpMockSpecs
             {
                 var mock = new HttpMock().RecordingTo(path);
 
-                using var request = new HttpRequestMessage(HttpMethod.Post, origin.Url)
-                {
-                    Content = new StringContent("ping", Encoding.UTF8, "text/plain")
-                };
+                using var request = new HttpRequestMessage(HttpMethod.Post, origin.Url);
+                request.Content = new StringContent("ping", Encoding.UTF8, "text/plain");
                 request.Headers.TryAddWithoutValidation("Cookie", "user=alice123");
 
                 // Act
@@ -295,7 +306,7 @@ public class HttpMockSpecs
                 origin.ReceivedCookieHeader.Should().Be("user=alice123");
                 origin.ReceivedBody.Should().Be("ping");
 
-                string json = File.ReadAllText(path);
+                string json = await ReadRecordingAsync(path);
                 using JsonDocument document = JsonDocument.Parse(json);
                 JsonElement entry = document.RootElement.GetProperty("log").GetProperty("entries")[0];
                 entry.GetProperty("request").GetProperty("method").GetString().Should().Be("POST");
@@ -331,7 +342,7 @@ public class HttpMockSpecs
                 await mock.GetClient().SendAsync(request);
 
                 // Assert
-                string json = File.ReadAllText(path);
+                string json = await ReadRecordingAsync(path);
                 using JsonDocument document = JsonDocument.Parse(json);
                 JsonElement requestHeaders = document.RootElement.GetProperty("log").GetProperty("entries")[0]
                     .GetProperty("request").GetProperty("headers");
@@ -5215,6 +5226,8 @@ internal sealed class LocalHttpServer : IDisposable
 
             // On .NET Framework, HttpListener parses the Cookie header into context.Request.Cookies
             // and removes it from Headers, so fall back to reconstructing it from there.
+            // CookieCollection only implements the non-generic IEnumerable on net472, so the cast
+            // below is required there even though it is redundant on net8.0.
             ReceivedCookieHeader = context.Request.Headers["Cookie"]
                 ?? string.Join("; ", context.Request.Cookies.Cast<Cookie>().Select(cookie => $"{cookie.Name}={cookie.Value}"));
             if (ReceivedCookieHeader.Length == 0)

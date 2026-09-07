@@ -117,7 +117,7 @@ internal static class HttpArchiveConverter
                 Content = new HttpArchiveContent
                 {
                     Size = responseBody.Length,
-                    MimeType = response.Content?.Headers.ContentType?.ToString(),
+                    MimeType = response.Content.Headers.ContentType?.ToString(),
                     Text = Convert.ToBase64String(responseBody),
                     Encoding = "base64"
                 }
