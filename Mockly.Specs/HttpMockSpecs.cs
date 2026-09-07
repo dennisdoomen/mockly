@@ -62,6 +62,7 @@ public class HttpMockSpecs
                             "text": "cmVjb3Jk",
                             "encoding": "base64"
                           }
+
                         }
                       }
                     ]
@@ -81,6 +82,105 @@ public class HttpMockSpecs
                 response.StatusCode.Should().Be(HttpStatusCode.Created);
                 (await response.Content.ReadAsStringAsync()).Should().Be("record");
                 mock.Requests.First()!.WasExpected.Should().BeTrue();
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public async Task Serves_response_from_matching_post_recording()
+        {
+            // Arrange
+            string path = Path.GetTempFileName();
+            const string recording = """
+                {
+                  "log": {
+                    "entries": [
+                      {
+                        "request": {
+                          "method": "POST",
+                          "url": "https://localhost/api/recorded",
+                          "postData": {
+                            "mimeType": "application/json",
+                            "text": "eyJpZCI6MX0="
+                          }
+                        },
+                        "response": {
+                          "status": 202,
+                          "headers": [
+                            { "name": "X-Recorded", "value": "true" }
+                          ],
+                          "content": {
+                            "mimeType": "application/json",
+                            "text": "eyJvayI6dHJ1ZX0=",
+                            "encoding": "base64"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+                """;
+            File.WriteAllText(path, recording);
+
+            try
+            {
+                var mock = new HttpMock().LoadRecordings(path);
+
+                // Act
+                using var content = new StringContent("{\"id\":1}", Encoding.UTF8, "application/json");
+                HttpResponseMessage response = await mock.GetClient().PostAsync("https://localhost/api/recorded", content);
+
+                // Assert
+                response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+                response.Headers.GetValues("X-Recorded").Should().ContainSingle("true");
+                (await response.Content.ReadAsStringAsync()).Should().Be("{\"ok\":true}");
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public async Task Does_not_replay_recording_for_different_request_body()
+        {
+            // Arrange
+            string path = Path.GetTempFileName();
+            const string recording = """
+                {
+                  "log": {
+                    "entries": [
+                      {
+                        "request": {
+                          "method": "POST",
+                          "url": "https://localhost/api/recorded",
+                          "postData": { "text": "b2xk" }
+                        },
+                        "response": {
+                          "status": 201,
+                          "content": { "text": "b2s=", "encoding": "base64" }
+                        }
+                      }
+                    ]
+                  }
+                }
+                """;
+            File.WriteAllText(path, recording);
+            var mock = new HttpMock { FailOnUnexpectedCalls = false }.LoadRecordings(path);
+
+            try
+            {
+                // Act
+                HttpResponseMessage response = await mock.GetClient().PostAsync(
+                    "https://localhost/api/recorded",
+                    new StringContent("new"));
+
+                // Assert
+                response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+                mock.Requests.First()!.WasExpected.Should().BeFalse();
             }
             finally
             {
