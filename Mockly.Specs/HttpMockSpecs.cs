@@ -21,6 +21,20 @@ namespace Mockly.Specs;
 
 public class HttpMockSpecs
 {
+    /// <summary>
+    /// Writes a recording file asynchronously. <see cref="File.WriteAllTextAsync"/> is only available
+    /// starting with .NET Core, so net472 falls back to the synchronous overload.
+    /// </summary>
+    private static Task WriteRecordingAsync(string path, string contents)
+    {
+#if NET8_0_OR_GREATER
+        return File.WriteAllTextAsync(path, contents);
+#else
+        File.WriteAllText(path, contents);
+        return Task.CompletedTask;
+#endif
+    }
+
     public class BasicUsage
     {
         [Fact]
@@ -69,7 +83,7 @@ public class HttpMockSpecs
                   }
                 }
                 """;
-            File.WriteAllText(path, recording);
+            await WriteRecordingAsync(path, recording);
 
             try
             {
@@ -110,7 +124,8 @@ public class HttpMockSpecs
                         "response": {
                           "status": 202,
                           "headers": [
-                            { "name": "X-Recorded", "value": "true" }
+                            { "name": "X-Recorded", "value": "true" },
+                            { "name": "Content-Language", "value": "en-US" }
                           ],
                           "content": {
                             "mimeType": "application/json",
@@ -123,7 +138,7 @@ public class HttpMockSpecs
                   }
                 }
                 """;
-            File.WriteAllText(path, recording);
+            await WriteRecordingAsync(path, recording);
 
             try
             {
@@ -136,6 +151,7 @@ public class HttpMockSpecs
                 // Assert
                 response.StatusCode.Should().Be(HttpStatusCode.Accepted);
                 response.Headers.GetValues("X-Recorded").Should().ContainSingle("true");
+                response.Content.Headers.ContentLanguage.Should().ContainSingle("en-US");
                 (await response.Content.ReadAsStringAsync()).Should().Be("{\"ok\":true}");
             }
             finally
@@ -168,7 +184,7 @@ public class HttpMockSpecs
                   }
                 }
                 """;
-            File.WriteAllText(path, recording);
+            await WriteRecordingAsync(path, recording);
             var mock = new HttpMock { FailOnUnexpectedCalls = false }.LoadRecordings(path);
 
             try
@@ -181,6 +197,148 @@ public class HttpMockSpecs
                 // Assert
                 response.StatusCode.Should().Be(HttpStatusCode.NotFound);
                 mock.Requests.First()!.WasExpected.Should().BeFalse();
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public async Task Does_not_replay_recording_for_different_request_url()
+        {
+            // Arrange
+            string path = Path.GetTempFileName();
+            const string recording = """
+                {
+                  "log": {
+                    "entries": [
+                      {
+                        "request": {
+                          "method": "POST",
+                          "url": "https://localhost/api/recorded"
+                        },
+                        "response": {
+                          "status": 201,
+                          "content": { "text": "b2s=", "encoding": "base64" }
+                        }
+                      }
+                    ]
+                  }
+                }
+                """;
+            File.WriteAllText(path, recording);
+            var mock = new HttpMock { FailOnUnexpectedCalls = false }.LoadRecordings(path);
+
+            try
+            {
+                // Act
+                HttpResponseMessage response = await mock.GetClient().PostAsync(
+                    "https://localhost/api/other",
+                    new StringContent("new"));
+
+                // Assert
+                response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+                mock.Requests.First()!.WasExpected.Should().BeFalse();
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public void Recording_to_a_null_path_throws()
+        {
+            // Act
+            Action act = () => new HttpMock().RecordingTo(null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>();
+        }
+
+        [Fact]
+        public void Loading_recordings_from_a_null_path_throws()
+        {
+            // Act
+            Action act = () => new HttpMock().LoadRecordings(null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>();
+        }
+
+        [Fact]
+        public async Task Records_a_passed_through_request_and_its_response()
+        {
+            // Arrange
+            string path = Path.GetTempFileName();
+            using var origin = new LocalHttpServer(HttpStatusCode.Created, "text/plain", "pong");
+
+            try
+            {
+                var mock = new HttpMock().RecordingTo(path);
+
+                using var request = new HttpRequestMessage(HttpMethod.Post, origin.Url)
+                {
+                    Content = new StringContent("ping", Encoding.UTF8, "text/plain")
+                };
+                request.Headers.TryAddWithoutValidation("Cookie", "user=alice123");
+
+                // Act
+                HttpResponseMessage response = await mock.GetClient().SendAsync(request);
+
+                // Assert
+                response.StatusCode.Should().Be(HttpStatusCode.Created);
+                (await response.Content.ReadAsStringAsync()).Should().Be("pong");
+                mock.Requests.First()!.WasExpected.Should().BeTrue();
+
+                origin.ReceivedCookieHeader.Should().Be("user=alice123");
+                origin.ReceivedBody.Should().Be("ping");
+
+                string json = File.ReadAllText(path);
+                using JsonDocument document = JsonDocument.Parse(json);
+                JsonElement entry = document.RootElement.GetProperty("log").GetProperty("entries")[0];
+                entry.GetProperty("request").GetProperty("method").GetString().Should().Be("POST");
+
+                JsonElement requestHeaders = entry.GetProperty("request").GetProperty("headers");
+                requestHeaders.EnumerateArray()
+                    .Single(header => header.GetProperty("name").GetString() == "Cookie")
+                    .GetProperty("value").GetString().Should().Be("[REDACTED]");
+
+                entry.GetProperty("response").GetProperty("status").GetInt32().Should().Be(201);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public async Task Keeps_sensitive_header_values_when_configured_to_do_so()
+        {
+            // Arrange
+            string path = Path.GetTempFileName();
+            using var origin = new LocalHttpServer(HttpStatusCode.OK, "text/plain", "pong");
+
+            try
+            {
+                var mock = new HttpMock().RecordingTo(path).KeepSensitiveRecordingValues();
+
+                using var request = new HttpRequestMessage(HttpMethod.Get, origin.Url);
+                request.Headers.TryAddWithoutValidation("Cookie", "user=alice123");
+
+                // Act
+                await mock.GetClient().SendAsync(request);
+
+                // Assert
+                string json = File.ReadAllText(path);
+                using JsonDocument document = JsonDocument.Parse(json);
+                JsonElement requestHeaders = document.RootElement.GetProperty("log").GetProperty("entries")[0]
+                    .GetProperty("request").GetProperty("headers");
+
+                requestHeaders.EnumerateArray()
+                    .Single(header => header.GetProperty("name").GetString() == "Cookie")
+                    .GetProperty("value").GetString().Should().Be("user=alice123");
             }
             finally
             {
@@ -5025,4 +5183,72 @@ public class HttpMockSpecs
         }
     }
 
+}
+
+#nullable enable
+
+/// <summary>
+/// A minimal local HTTP server used to exercise Mockly's pass-through and recording behavior
+/// against a real network round-trip, without introducing any new package dependencies.
+/// </summary>
+internal sealed class LocalHttpServer : IDisposable
+{
+    private readonly HttpListener listener;
+
+    public LocalHttpServer(HttpStatusCode responseStatusCode, string responseContentType, string responseBody)
+    {
+        int port = GetFreeTcpPort();
+        Url = $"http://127.0.0.1:{port}/ping";
+
+        listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        listener.Start();
+
+        listener.BeginGetContext(OnGetContext, null);
+
+        void OnGetContext(IAsyncResult result)
+        {
+            HttpListenerContext context = listener.EndGetContext(result);
+
+            using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+            ReceivedBody = reader.ReadToEnd();
+
+            // On .NET Framework, HttpListener parses the Cookie header into context.Request.Cookies
+            // and removes it from Headers, so fall back to reconstructing it from there.
+            ReceivedCookieHeader = context.Request.Headers["Cookie"]
+                ?? string.Join("; ", context.Request.Cookies.Cast<Cookie>().Select(cookie => $"{cookie.Name}={cookie.Value}"));
+            if (ReceivedCookieHeader.Length == 0)
+            {
+                ReceivedCookieHeader = null;
+            }
+
+            byte[] buffer = Encoding.UTF8.GetBytes(responseBody);
+            context.Response.StatusCode = (int)responseStatusCode;
+            context.Response.ContentType = responseContentType;
+            context.Response.ContentLength64 = buffer.Length;
+            context.Response.OutputStream.Write(buffer, 0, buffer.Length);
+            context.Response.OutputStream.Close();
+        }
+    }
+
+    public string Url { get; }
+
+    public string? ReceivedBody { get; private set; }
+
+    public string? ReceivedCookieHeader { get; private set; }
+
+    private static int GetFreeTcpPort()
+    {
+        var tcpListener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        tcpListener.Start();
+        int port = ((IPEndPoint)tcpListener.LocalEndpoint).Port;
+        tcpListener.Stop();
+        return port;
+    }
+
+    public void Dispose()
+    {
+        listener.Stop();
+        listener.Close();
+    }
 }

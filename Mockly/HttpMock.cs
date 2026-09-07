@@ -21,7 +21,12 @@ public class HttpMock
 {
     private static readonly HttpClient PassThroughClient = new(new HttpClientHandler
     {
-        CheckCertificateRevocationList = true
+        CheckCertificateRevocationList = true,
+
+        // Mockly forwards the original request's headers verbatim, including any Cookie header.
+        // Leaving cookie handling enabled would let the handler's cookie container silently
+        // override or drop that header.
+        UseCookies = false
     });
 
     private readonly List<RequestMock> mocks = new();
@@ -70,12 +75,7 @@ public class HttpMock
     /// </summary>
     public HttpMock RecordingTo(string path)
     {
-        if (path is null)
-        {
-            throw new ArgumentNullException(nameof(path));
-        }
-
-        recordingPath = path;
+        recordingPath = path ?? throw new ArgumentNullException(nameof(path));
         return PassThroughUnmatched();
     }
 
@@ -433,7 +433,7 @@ public class HttpMock
 
             if (recordingPath is not null)
             {
-                await RecordAsync(response, forwardedRequest);
+                await RecordAsync(response, forwardedRequest, request.RawBody);
             }
         }
 
@@ -445,9 +445,9 @@ public class HttpMock
         return capturedRequest.Response;
     }
 
-    private async Task RecordAsync(HttpResponseMessage response, HttpRequestMessage request)
+    private async Task RecordAsync(HttpResponseMessage response, HttpRequestMessage request, byte[]? requestBody)
     {
-        HttpArchiveEntry entry = await HttpArchiveConverter.CreateEntryAsync(request, response, recordingValuePolicy);
+        HttpArchiveEntry entry = await HttpArchiveConverter.CreateEntryAsync(request, response, recordingValuePolicy, requestBody);
         recordedEntries.Add(entry);
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(recordingPath!))!);
 #if NET8_0_OR_GREATER

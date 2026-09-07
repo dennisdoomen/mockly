@@ -19,6 +19,7 @@ internal sealed class HttpArchive
 #pragma warning disable SA1516
 internal sealed class HttpArchiveLog
 {
+    // ReSharper disable once UnusedMember.Global -- part of the HAR 1.2 schema, kept for format compliance
     public string Version { get; init; } = "1.2";
     public List<HttpArchiveEntry> Entries { get; init; } = [];
 }
@@ -27,6 +28,8 @@ internal sealed class HttpArchiveEntry
 {
     public HttpArchiveRequest Request { get; init; } = new();
     public HttpArchiveResponse Response { get; init; } = new();
+
+    // ReSharper disable once UnusedAutoPropertyAccessor.Global -- part of the HAR schema, kept for format compliance
     public DateTime StartedDateTime { get; init; }
 }
 
@@ -34,6 +37,8 @@ internal sealed class HttpArchiveRequest
 {
     public string Method { get; init; } = string.Empty;
     public string Url { get; init; } = string.Empty;
+
+    // ReSharper disable once UnusedAutoPropertyAccessor.Global -- part of the HAR schema, kept for format compliance
     public List<HttpArchiveHeader> Headers { get; init; } = [];
     public HttpArchivePostData? PostData { get; init; }
 }
@@ -54,12 +59,14 @@ internal sealed class HttpArchiveHeader
 
 internal sealed class HttpArchivePostData
 {
+    // ReSharper disable once UnusedAutoPropertyAccessor.Global -- part of the HAR schema, kept for format compliance
     public string? MimeType { get; init; }
     public string? Text { get; init; }
 }
 
 internal sealed class HttpArchiveContent
 {
+    // ReSharper disable once UnusedAutoPropertyAccessor.Global -- part of the HAR schema, kept for format compliance
     public int Size { get; init; }
     public string? MimeType { get; init; }
     public string? Text { get; init; }
@@ -77,12 +84,14 @@ internal static class HttpArchiveConverter
     };
 
     public static async Task<HttpArchiveEntry> CreateEntryAsync(HttpRequestMessage request, HttpResponseMessage response,
-        RecordingValuePolicy valuePolicy)
+        RecordingValuePolicy valuePolicy, byte[]? requestBodyOverride)
     {
-        byte[] responseBody = response.Content is null
-            ? []
-            : await response.Content.ReadAsByteArrayAsync();
-        byte[]? requestBody = request.Content is null ? null : await request.Content.ReadAsByteArrayAsync();
+        byte[] responseBody = await response.Content.ReadAsByteArrayAsync();
+
+        // Prefer the caller-supplied bytes when available: on .NET Framework, HttpClientHandler
+        // disposes the request's content once it has been sent, so re-reading it here would throw.
+        byte[]? requestBody = requestBodyOverride
+            ?? (request.Content is null ? null : await request.Content.ReadAsByteArrayAsync());
 
         return new HttpArchiveEntry
         {
@@ -182,10 +191,7 @@ internal static class HttpArchiveConverter
     private static List<HttpArchiveHeader> GetHeaders(HttpResponseMessage response, RecordingValuePolicy valuePolicy)
     {
         var headers = response.Headers.ToList();
-        if (response.Content is not null)
-        {
-            headers.AddRange(response.Content.Headers);
-        }
+        headers.AddRange(response.Content.Headers);
 
         return GetHeaders(headers, valuePolicy);
     }
