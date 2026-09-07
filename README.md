@@ -166,21 +166,6 @@ patches.Count.Should().Be(3);
 patches.First().Path.Should().Contain("/api/update");
 ```
 
-### 🔁 Record and Replay
-
-Record unmatched traffic against a real service and replay it later without network access. Recordings use a
-HAR-compatible JSON format and redact sensitive headers by default.
-
-```csharp
-mock.PassThroughUnmatched()
-    .RecordingTo("Recordings/github.json");
-
-// In the offline test:
-mock.LoadRecordings("Recordings/github.json");
-```
-
-Call `KeepSensitiveRecordingValues()` before `RecordingTo` only when sensitive header values are safe to store.
-
 ### ✅ Powerful Assertions
 
 ```csharp
