@@ -27,6 +27,10 @@ namespace Mockly.Http
         public bool AllMocksInvoked { get; }
         public bool FailOnUnexpectedCalls { get; set; }
         public bool PrefetchBody { get; set; }
+        public Mockly.HttpMock KeepSensitiveRecordingValues() { }
+        public Mockly.HttpMock LoadRecordings(string path) { }
+        public Mockly.HttpMock PassThroughUnmatched() { }
+        public Mockly.HttpMock RecordingTo(string path) { }
         public Mockly.Http.RequestCollection Requests { get; }
         public void Clear() { }
         public Mockly.Http.RequestMockBuilder ForDelete() { }

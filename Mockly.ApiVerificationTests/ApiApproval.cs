@@ -27,7 +27,7 @@ public class ApiApproval
         var configuration = typeof(ApiApproval).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()!.Configuration;
         var assemblyFile = SourcePath / "Mockly" / "bin" / configuration / framework / "Mockly.dll";
         var assembly = Assembly.LoadFile(assemblyFile);
-        var publicApi = assembly.GeneratePublicApi(options: null);
+        string publicApi = assembly.GeneratePublicApi(options: null).ReplaceLineEndings("\n");
 
         return Verifier
             .Verify(publicApi)

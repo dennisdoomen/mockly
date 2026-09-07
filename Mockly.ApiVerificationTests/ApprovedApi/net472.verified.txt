@@ -53,6 +53,10 @@ namespace Mockly
         public System.Net.Http.HttpMessageHandler GetMessageHandler() { }
         public System.Collections.Generic.IEnumerable<Mockly.RequestMock> GetUninvokedMocks() { }
         public Mockly.RequestMockBuilder ImportFromCurl(string curlCommand) { }
+        public Mockly.HttpMock KeepSensitiveRecordingValues() { }
+        public Mockly.HttpMock LoadRecordings(string path) { }
+        public Mockly.HttpMock PassThroughUnmatched() { }
+        public Mockly.HttpMock RecordingTo(string path) { }
         public Mockly.HttpMock Reset() { }
     }
     public interface IResponseBuilder<out T>
