@@ -26,6 +26,23 @@ mock.ForGet()
 HttpClient client = mock.GetClient(); // BaseAddress defaults to https://localhost/
 ```
 
+## Import From cURL
+
+Bootstrap a mock from an existing `curl` command, such as the output of a browser's "Copy as cURL":
+
+```csharp
+mock.ImportFromCurl("""
+    curl -X POST https://api.example.com/users \
+      -H 'Content-Type: application/json' \
+      --data-raw '{"name":"mockly"}'
+    """)
+    .RespondsWithStatus(HttpStatusCode.Created);
+```
+
+The method (`-X`), URL, headers (`-H`) and body (`-d`/`--data`/`--data-raw`) are translated into the equivalent
+matching configuration. When no method is specified, `POST` is assumed if a body is present and `GET` otherwise.
+Attach a response to the returned builder, just like any other mock, to complete the configuration.
+
 ## Getting an HttpClient, IHttpClientFactory or HttpMessageHandler
 
 Mockly provides three ways to wire the mock into your code under test:
@@ -332,6 +349,38 @@ mock.ForGet()
         response.Headers.Add("X-Custom-Header", "value");
         response.Content = new StringContent("Custom content");
         return response;
+    });
+```
+
+A custom responder can also be asynchronous, which is useful when producing the response requires awaiting
+something (e.g. reading a file or calling another service):
+
+```csharp
+mock.ForGet()
+    .WithPath("/api/custom")
+    .RespondsWith(async request =>
+    {
+        string content = await File.ReadAllTextAsync("response.json");
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(content)
+        };
+    });
+```
+
+Add a `CancellationToken` parameter to observe the token flowing from the HTTP pipeline, for example to pass it on
+to an awaited call:
+
+```csharp
+mock.ForGet()
+    .WithPath("/api/custom")
+    .RespondsWith(async (request, cancellationToken) =>
+    {
+        string content = await File.ReadAllTextAsync("response.json", cancellationToken);
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(content)
+        };
     });
 ```
 

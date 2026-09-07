@@ -253,6 +253,42 @@ mock.ForGet()
 - If `HttpClient.Timeout` is shorter than the delay, the request throws a `TaskCanceledException`, just like a real `HttpClient`.
 - If the `CancellationToken` passed to the request is cancelled while the delay is in progress, an `OperationCanceledException` is thrown.
 
+## Simulating Network Failures
+
+Use `ThrowsException` or `TimesOut` to simulate a network-level failure instead of returning a response. This lets
+you verify retry, circuit-breaker and other resilience behavior without relying on a real, flaky network.
+
+```csharp
+var mock = new HttpMock();
+
+mock.ForGet()
+    .WithPath("/flaky")
+    .ThrowsException<HttpRequestException>();
+```
+
+Throw a specific exception instance instead:
+
+```csharp
+mock.ForGet()
+    .WithPath("/flaky")
+    .ThrowsException(new HttpRequestException("connection reset"));
+```
+
+Simulate an `HttpClient` timeout, which throws a `TaskCanceledException`:
+
+```csharp
+mock.ForGet()
+    .WithPath("/slow")
+    .TimesOut();
+```
+
+### Behavior Notes
+
+- The exception is propagated to the `HttpClient` caller rather than being converted into a `500 Internal Server Error` response.
+- The matching request is still recorded (e.g. in `HttpMock.Requests`) before the exception is thrown.
+- `ThrowsException(Exception)` throws the same instance on every matching invocation; `ThrowsException<TException>()` creates a fresh instance each time.
+- Combine with invocation limits (`Once()`, `Times(n)`) to fail only the first few calls before succeeding.
+
 ## Request Collection
 
 Capture requests for specific mocks:
