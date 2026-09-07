@@ -151,6 +151,53 @@ mock.ForPost()
 - **When to disable**: Turn it off for scenarios with large or streaming content where reading the body up front is expensive or undesirable. In that case, `RequestInfo.Body` will be `null` unless your own predicate reads it.
 - **Impact on assertions**: Body-based assertions require the body to be available. Keep `PrefetchBody` enabled if you plan to assert on the request body after the call.
 
+## Record and Replay
+
+Record unmatched requests against a real service and replay them later without a network connection. Recording files use
+the [HTTP Archive (HAR)](https://w3c.github.io/web-performance/specs/HAR/Overview.html) JSON format.
+
+### Recording Requests
+
+Use `RecordingTo` to send unmatched requests to the real service and write their requests and responses to a file:
+
+```csharp
+using var mock = new HttpMock()
+    .RecordingTo("Recordings/github.json");
+
+HttpClient client = mock.GetClient();
+HttpResponseMessage response = await client.GetAsync(
+    "https://api.github.com/repos/dennisdoomen/mockly/issues");
+```
+
+`RecordingTo` enables pass-through requests. Configured mocks still take precedence, so Mockly records only unmatched
+requests.
+
+Mockly replaces the values of `Authorization`, `Cookie`, `Proxy-Authorization`, and `Set-Cookie` headers with
+`[REDACTED]`. Call `KeepSensitiveRecordingValues` before `RecordingTo` only if it is safe to store the values:
+
+```csharp
+using var mock = new HttpMock()
+    .KeepSensitiveRecordingValues()
+    .RecordingTo("Recordings/github.json");
+```
+
+### Replaying Requests
+
+Use `LoadRecordings` to serve responses from a recording without contacting the real service:
+
+```csharp
+using var mock = new HttpMock()
+    .LoadRecordings("Recordings/github.json");
+
+HttpClient client = mock.GetClient();
+HttpResponseMessage response = await client.GetAsync(
+    "https://api.github.com/repos/dennisdoomen/mockly/issues");
+```
+
+Mockly selects a recording by HTTP method and exact URL. If the recording contains a request body, Mockly also requires
+the request body to match. If no recording matches, Mockly handles the request as an unexpected request. You can add
+`PassThroughUnmatched` to contact the real service for missing recordings.
+
 ## Limiting Mock Invocations
 
 Sometimes you want a mock to respond only a limited number of times. You can restrict a mock using the fluent methods `Once()`, `Twice()`, or `Times(int count)` on the request builder.
