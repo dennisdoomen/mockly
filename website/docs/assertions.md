@@ -22,25 +22,34 @@ dotnet add package FluentAssertions.Mockly.v8
 dotnet add package FluentAssertions.Mockly.v7
 ```
 
+All the assertions below become available as soon as you install one of these packages, through a `Should()` extension method on `HttpMock`, `RequestCollection`, `CapturedRequest` and the builder returned by `mock.ForGet()`/`mock.ForPost()`/etc.
+
 ## HttpMock Assertions
 
 You can perform high-level assertions on the `HttpMock` instance itself to ensure all configured mocks were utilized.
 
 ```csharp
-using var mock = new HttpMock();
+var mock = new HttpMock();
 mock.ForGet("/api/users").RespondsWithStatus(HttpStatusCode.OK);
 
 // ... perform actions ...
 
 // Verify that all configured mocks were called at least once
 mock.Should().HaveAllRequestsCalled();
+```
 
-// Verify that mocks were called in a specific order
+You can also verify that a set of mocks were first invoked in a particular order:
+
+```csharp
 var mock1 = mock.ForGet("/api/first").RespondsWithStatus(HttpStatusCode.OK);
 var mock2 = mock.ForGet("/api/second").RespondsWithStatus(HttpStatusCode.OK);
 
+// ... perform actions ...
+
 mock.Should().HaveCalledInOrder(mock1, mock2);
 ```
+
+`HaveCalledInOrder` compares the first captured request for each mock, so it still passes if `mock1` (or `mock2`) was invoked multiple times, as long as the first observed invocation of `mock1` happened before the first observed invocation of `mock2`.
 
 ### Unexpected Requests
 
@@ -52,24 +61,37 @@ mock.Requests.Should().NotContainUnexpectedCalls();
 
 ## Setup Assertions
 
-If you keep a reference to a mock setup, you can assert on it directly.
+If you keep a reference to a mock setup (the object returned by `ForGet()`, `ForPost()`, etc.), you can assert on its invocation count directly.
 
 ```csharp
 var userMock = mock.ForGet("/api/users/*").RespondsWithStatus(HttpStatusCode.OK);
 
 // ... perform actions ...
 
+// At least one invocation
 userMock.Should().HaveBeenCalled();
-userMock.Should().HaveBeenCalled(Because.Of("the user list should be refreshed"));
+
+// Exactly one invocation
+userMock.Should().HaveBeenCalled(1);
+userMock.Should().HaveBeenCalledTimes(1);
+
+// Never invoked
+userMock.Should().NotHaveBeenCalled();
+```
+
+Like any other FluentAssertions method, these accept an optional `because`/`becauseArgs` pair to explain the reason for the assertion:
+
+```csharp
+userMock.Should().HaveBeenCalled("the user list should have been refreshed");
 ```
 
 ## Request Collection Assertions
 
-When using a `RequestCollection` to capture requests, you can use specialized assertions to inspect the captured data.
+When using a `RequestCollection` to capture requests — either the mock's own `mock.Requests`, or one you pass to `CollectingRequestsIn` — you can use specialized assertions to inspect the captured data. `RequestCollection` also supports the standard FluentAssertions collection assertions, such as `NotBeEmpty()` and `HaveCount()`.
 
 ```csharp
 var captured = new RequestCollection();
-mock.ForPost("/api/data").CollectingRequestsIn(captured).RespondsWithStatus(HttpStatusCode.OK);
+mock.ForPost().WithPath("/api/data").CollectingRequestsIn(captured).RespondsWithStatus(HttpStatusCode.OK);
 
 // ... perform actions ...
 
@@ -77,30 +99,52 @@ mock.ForPost("/api/data").CollectingRequestsIn(captured).RespondsWithStatus(Http
 captured.Should().NotBeEmpty();
 captured.Should().HaveCount(2);
 
-// Assert on the presence of specific requests using URL patterns
+// Assert on the presence of any request, or a request matching a URL pattern
+captured.Should().ContainRequest();
 captured.Should().ContainRequestFor("/api/data");
 captured.Should().NotContainRequestFor("/api/other");
 ```
 
-## Chaining Assertions
+`ContainRequestFor` and `NotContainRequestFor` also accept an `HttpMethod`, or a method prefix directly in the URL pattern string, to scope the match to a specific verb:
 
-The `ContainRequestFor` assertion allows you to chain further checks on the matched request using the `Which` property.
+```csharp
+captured.Should().ContainRequestFor(HttpMethod.Post, "/api/data");
+captured.Should().ContainRequestFor("POST /api/data");
+
+captured.Should().NotContainRequestFor(HttpMethod.Delete, "/api/data");
+captured.Should().NotContainRequestFor("DELETE /api/data");
+```
+
+## Chaining Assertions On a Matched Request
+
+`ContainRequest()` and `ContainRequestFor(...)` return a `ContainedRequestAssertions` object for the matching request(s), which you can use to assert on headers, body, query string and more. Each of the assertions below succeeds as soon as *any* of the matched requests satisfies it, and returns an `AndWhichConstraint`, so you can keep chaining with `.And`:
 
 ```csharp
 captured.Should().ContainRequestFor("/api/data")
-    .Which.HasHeader("X-Custom-Header", "ExpectedValue")
+    .WithHeader("X-Custom-Header", "Expected*")
     .And.WithBody("*part-of-body*")
     .And.WithBearerToken();
 ```
 
 ### Available Chained Assertions
 
-On the result of `ContainRequestFor(...).Which`, you can use:
+On the result of `ContainRequest()` / `ContainRequestFor(...)`, you can use:
 
-- `HasHeader(name, [value])`: Verifies the presence and optionally the value of a header.
-- `WithBody(pattern)`: Verifies the request body matches a string or wildcard pattern.
-- `WithBearerToken()`: Verifies that a Bearer token is present in the `Authorization` header.
-- `WithQuery(query)`: Verifies the request query string.
+- `WithHeader(name)` / `WithHeader(name, valuePattern)` — the request has the given header, optionally with a value matching a wildcard pattern.
+- `WithBearerToken()` / `WithBearerToken(tokenPattern)` — the request has an `Authorization: Bearer` header, optionally with a token matching a wildcard pattern.
+- `WithBody(pattern)` — the request body matches a wildcard pattern.
+- `WithQueryParam(name)` / `WithQueryParam(name, valuePattern)` — the request's query string has the given parameter, optionally with a value matching a wildcard pattern.
+- `WithFormField(name, valuePattern)` — the URL-encoded form body has the given field with a value matching a wildcard pattern.
+- `WithResponseHeader(name)` / `WithResponseHeader(name, value)` — the response received for the request has the given header, optionally with a value matching a wildcard pattern.
+- The [body assertions](#body-assertions-on-captured-requests) below (`WithBodyMatchingJson`, `WithBodyEquivalentTo`, ...).
+
+To drop back down to the matched `CapturedRequest` itself — for example, to assert it `BeExpected()` — use `.Which`:
+
+```csharp
+captured.Should().ContainRequestFor("/api/data")
+    .WithBearerToken()
+    .Which.Should().BeExpected();
+```
 
 ## Body Assertions on Captured Requests
 
@@ -116,7 +160,8 @@ var expected = new { id = 1, name = "John" };
 mock.Requests.Should().ContainRequest()
     .WithBodyEquivalentTo(expected);
 
-// Assert the body has specific properties (deserialized as a dictionary)
+// Assert the body has at least the given top-level properties (deserialized as a dictionary);
+// extra properties in the body are ignored
 var expectedProps = new Dictionary<string, string>
 {
     ["id"] = "1",
@@ -124,19 +169,32 @@ var expectedProps = new Dictionary<string, string>
 };
 mock.Requests.Should().ContainRequest()
     .WithBodyHavingPropertiesOf(expectedProps);
+
+// Assert the body has exactly the given top-level properties, no more, no less
+mock.Requests.Should().ContainRequest()
+    .WithBodyHavingPropertiesEqualTo(expectedProps);
+
+// Assert a single top-level property and its value
+mock.Requests.Should().ContainRequest()
+    .WithBodyHavingProperty("id", "1");
 ```
 
 :::info
-These assertions require the request body to be available in memory. If you disabled `HttpMock.PrefetchBody`, these assertions will fail as `RequestInfo.Body` will be `null`.
+These assertions require the request body to be available in memory. If you disabled `HttpMock.PrefetchBody`, these assertions will fail as `CapturedRequest.Body` will be `null`.
 :::
 
 ## Individual Request Assertions
 
-You can also assert on individual `CapturedRequest` objects.
+You can also assert on individual `CapturedRequest` objects, for example after locating one via `captured.First()` or through `.Which` on a chained assertion.
 
 ```csharp
 var request = captured.First();
 
 request.Should().BeExpected();
-request.Should().NotBeUnexpected();
+```
+
+Or the opposite, to confirm a request was *not* matched by any configured mock:
+
+```csharp
+request.Should().BeUnexpected();
 ```
