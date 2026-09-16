@@ -115,6 +115,31 @@ captured.Should().NotContainRequestFor(HttpMethod.Delete, "/api/data");
 captured.Should().NotContainRequestFor("DELETE /api/data");
 ```
 
+You can also verify that no requests were captured at all, regardless of URL:
+
+```csharp
+captured.Should().NotContainRequest();
+```
+
+### Count, Order, and Timing
+
+`ContainRequestsFor` verifies how many matching requests were captured, using the standard
+FluentAssertions occurrence constraints. `ContainRequestsInOrder` verifies that requests were
+captured in the given sequence, and `AllHaveBeenSentWithin` verifies that the first and last
+captured request were sent no further apart than the given `TimeSpan`.
+
+```csharp
+captured.Should().ContainRequestsFor("/api/data", Exactly.Times(2));
+captured.Should().ContainRequestsFor(HttpMethod.Post, "/api/data", AtLeast.Once());
+
+captured.Should().ContainRequestsInOrder("/api/first", "/api/second");
+captured.Should().ContainRequestsInOrder(
+    (HttpMethod.Post, "/api/data"),
+    (HttpMethod.Get, "/api/data"));
+
+captured.Should().AllHaveBeenSentWithin(TimeSpan.FromSeconds(1));
+```
+
 ## Chaining Assertions On a Matched Request
 
 `ContainRequest()` and `ContainRequestFor(...)` return a `ContainedRequestAssertions` object for the matching request(s), which you can use to assert on headers, body, query string and more. Each of the assertions below succeeds as soon as *any* of the matched requests satisfies it, and returns an `AndWhichConstraint`, so you can keep chaining with `.And`:
@@ -123,7 +148,7 @@ captured.Should().NotContainRequestFor("DELETE /api/data");
 captured.Should().ContainRequestFor("/api/data")
     .WithHeader("X-Custom-Header", "Expected*")
     .And.WithBody("*part-of-body*")
-    .And.WithBearerToken();
+    .And.WithBearerToken("expected-token");
 ```
 
 ### Available Chained Assertions
@@ -145,6 +170,22 @@ captured.Should().ContainRequestFor("/api/data")
     .WithBearerToken()
     .Which.Should().BeExpected();
 ```
+
+### Excluding Sensitive Request Data
+
+Use `Without...` assertions after `ContainRequestFor` to verify that every matching request
+omits sensitive data. A matching request with the rejected data causes the assertion to fail.
+
+```csharp
+captured.Should().ContainRequestFor("/api/users")
+    .WithoutHeader("X-Internal-Token")
+    .And.WithoutQueryParam("debug")
+    .And.WithoutBodyProperty("password");
+```
+
+Header names are matched without case sensitivity. Query parameter names and JSON property names
+are case-sensitive. `WithoutBodyProperty` only inspects the top-level properties of a JSON object.
+It fails for missing, empty, malformed, or non-object JSON bodies.
 
 ## Body Assertions on Captured Requests
 
@@ -197,4 +238,14 @@ Or the opposite, to confirm a request was *not* matched by any configured mock:
 
 ```csharp
 request.Should().BeUnexpected();
+```
+
+### Simulated Failures
+
+When a mock simulates a failure, verify the captured request directly.
+
+```csharp
+var request = captured.First();
+
+request.Should().BeASimulatedFailure();
 ```
