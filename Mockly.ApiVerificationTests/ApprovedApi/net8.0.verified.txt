@@ -130,6 +130,7 @@ namespace Mockly
         public Mockly.SequencedResponseBuilder RespondsWithJsonContent(System.Net.HttpStatusCode statusCode, object content) { }
         public Mockly.SequencedResponseBuilder RespondsWithJsonContent<T>(Mockly.IResponseBuilder<T> builder) { }
         public Mockly.SequencedResponseBuilder RespondsWithJsonContent<T>(System.Net.HttpStatusCode statusCode, Mockly.IResponseBuilder<T> builder) { }
+        public Mockly.SequencedResponseBuilder RespondsWithOAuthToken(string accessToken, System.TimeSpan expiresIn, string tokenType = "Bearer") { }
         public Mockly.SequencedResponseBuilder RespondsWithODataResult(System.Collections.Generic.IEnumerable<object> value) { }
         public Mockly.SequencedResponseBuilder RespondsWithODataResult(object value) { }
         public Mockly.SequencedResponseBuilder RespondsWithODataResult(System.Net.HttpStatusCode statusCode, System.Collections.Generic.IEnumerable<object> value) { }
@@ -141,8 +142,10 @@ namespace Mockly
         public Mockly.SequencedResponseBuilder RespondsWithODataResult<T>(System.Net.HttpStatusCode statusCode, System.Collections.Generic.IEnumerable<Mockly.IResponseBuilder<T>> builders) { }
         public Mockly.SequencedResponseBuilder RespondsWithODataResult<T>(System.Net.HttpStatusCode statusCode, System.Collections.Generic.IEnumerable<Mockly.IResponseBuilder<T>> builders, string odataContext) { }
         public Mockly.SequencedResponseBuilder RespondsWithProblemDetails(System.Net.HttpStatusCode statusCode, string? title = null, string? detail = null, string? type = null, string? instance = null, System.Collections.Generic.IDictionary<string, object?>? extensions = null) { }
+        public Mockly.SequencedResponseBuilder RespondsWithRateLimit(System.TimeSpan retryAfter) { }
         public Mockly.SequencedResponseBuilder RespondsWithStatus(System.Net.HttpStatusCode statusCode) { }
         public Mockly.SequencedResponseBuilder RespondsWithStream(System.IO.Stream stream, string contentType) { }
+        public Mockly.SequencedResponseBuilder RespondsWithUnauthorizedThenSuccess(string json) { }
         public Mockly.RequestMockResponseBuilder ThrowsException(System.Exception exception) { }
         public Mockly.RequestMockResponseBuilder ThrowsException<TException>()
             where TException : System.Exception, new () { }
@@ -152,6 +155,8 @@ namespace Mockly
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, System.Threading.Tasks.Task<bool>> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
         public Mockly.RequestMockBuilder With(System.Func<Mockly.RequestInfo, bool> matcher, [System.Runtime.CompilerServices.CallerArgumentExpression("matcher")] string? matcherText = null) { }
         public Mockly.RequestMockBuilder WithAnyQuery() { }
+        public Mockly.RequestMockBuilder WithApiKey(string headerName, string valuePattern = "*") { }
+        public Mockly.RequestMockBuilder WithBasicAuth(string username, string password) { }
         public Mockly.RequestMockBuilder WithBearerToken(string tokenPattern = "*") { }
         public Mockly.RequestMockBuilder WithBody(object body) { }
         public Mockly.RequestMockBuilder WithBody(string wildcardPattern) { }
