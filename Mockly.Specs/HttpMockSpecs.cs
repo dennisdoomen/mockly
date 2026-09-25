@@ -1032,6 +1032,133 @@ public class HttpMockSpecs
         }
 
         [Fact]
+        public async Task Matches_basic_auth_credentials()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet()
+                .WithPath("/api/test")
+                .WithBasicAuth("user", "pass")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", "dXNlcjpwYXNz");
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Reports_the_basic_auth_requirement_when_the_credentials_do_not_match()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet()
+                .WithPath("/api/test")
+                .WithBasicAuth("user", "pass")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", "d3Jvbmc6Y3JlZHM=");
+
+            // Act
+            var act = () => client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*basic auth credentials for \"user\"*");
+        }
+
+        [Fact]
+        public void Throws_when_the_basic_auth_username_or_password_is_null()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            Action act = () => mock.ForGet().WithBasicAuth(null!, "pass");
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>().WithParameterName("username");
+        }
+
+        [Fact]
+        public async Task Matches_an_api_key_header_with_any_value_by_default()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet()
+                .WithPath("/api/secure")
+                .WithApiKey("X-Api-Key")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+            client.DefaultRequestHeaders.Add("X-Api-Key", "any-value");
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/secure");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Matches_an_api_key_header_against_a_wildcard_pattern()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet()
+                .WithPath("/api/secure")
+                .WithApiKey("X-Api-Key", "key-*")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+            client.DefaultRequestHeaders.Add("X-Api-Key", "key-123");
+
+            // Act
+            var response = await client.GetAsync("https://localhost/api/secure");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Reports_the_api_key_requirement_when_the_header_is_missing()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet()
+                .WithPath("/api/secure")
+                .WithApiKey("X-Api-Key")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var act = () => client.GetAsync("https://localhost/api/secure");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>()
+                .WithMessage("*API key header \"X-Api-Key\" matches \"*\"*");
+        }
+
+        [Fact]
+        public void Throws_when_the_api_key_header_name_or_value_pattern_is_null()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            Action act = () => mock.ForGet().WithApiKey("X-Api-Key", null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>().WithParameterName("valuePattern");
+        }
+
+        [Fact]
         public async Task Matches_the_content_type_media_type_ignoring_parameters()
         {
             // Arrange
@@ -4491,6 +4618,147 @@ public class HttpMockSpecs
         }
     }
 #nullable restore
+
+    public class WhenRespondingWithOAuthTokens
+    {
+        [Fact]
+        public async Task Emits_the_standard_oauth_token_shape()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/token")
+                .RespondsWithOAuthToken("abc", TimeSpan.FromMinutes(5));
+
+            // Act
+            var response = await mock.GetClient().PostAsync("https://localhost/token", new StringContent(""));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.Content.Headers.ContentType!.MediaType.Should().Be("application/json");
+
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var root = document.RootElement;
+            root.GetProperty("access_token").GetString().Should().Be("abc");
+            root.GetProperty("token_type").GetString().Should().Be("Bearer");
+            root.GetProperty("expires_in").GetInt32().Should().Be(300);
+        }
+
+        [Fact]
+        public async Task Allows_overriding_the_token_type()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/token")
+                .RespondsWithOAuthToken("abc", TimeSpan.FromMinutes(5), tokenType: "MAC");
+
+            // Act
+            var response = await mock.GetClient().PostAsync("https://localhost/token", new StringContent(""));
+
+            // Assert
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            document.RootElement.GetProperty("token_type").GetString().Should().Be("MAC");
+        }
+
+        [Fact]
+        public void Throws_when_the_access_token_is_null()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            Action act = () => mock.ForPost().WithPath("/token").RespondsWithOAuthToken(null!, TimeSpan.FromMinutes(5));
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>().WithParameterName("accessToken");
+        }
+    }
+
+    public class WhenRespondingWithUnauthorizedThenSuccess
+    {
+        [Fact]
+        public async Task Responds_with_unauthorized_on_the_first_call_and_success_afterwards()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/data")
+                .RespondsWithUnauthorizedThenSuccess("""{"value":42}""");
+
+            var client = mock.GetClient();
+
+            // Act
+            var first = await client.GetAsync("https://localhost/api/data");
+            var second = await client.GetAsync("https://localhost/api/data");
+
+            // Assert
+            first.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+            second.StatusCode.Should().Be(HttpStatusCode.OK);
+            (await second.Content.ReadAsStringAsync()).Should().Be("""{"value":42}""");
+        }
+
+        [Fact]
+        public async Task Keeps_responding_with_success_on_further_calls()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/data")
+                .RespondsWithUnauthorizedThenSuccess("""{"value":42}""");
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/data");
+            await client.GetAsync("https://localhost/api/data");
+            var third = await client.GetAsync("https://localhost/api/data");
+
+            // Assert
+            third.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public void Throws_when_the_json_is_null()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            Action act = () => mock.ForGet().WithPath("/api/data").RespondsWithUnauthorizedThenSuccess(null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>().WithParameterName("json");
+        }
+    }
+
+    public class WhenRespondingWithRateLimit
+    {
+        [Fact]
+        public async Task Responds_with_too_many_requests_and_a_retry_after_header()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForGet().WithPath("/api/data")
+                .RespondsWithRateLimit(TimeSpan.FromSeconds(2));
+
+            // Act
+            var response = await mock.GetClient().GetAsync("https://localhost/api/data");
+
+            // Assert
+            ((int)response.StatusCode).Should().Be(429);
+            response.Headers.GetValues("Retry-After").Should().ContainSingle().Which.Should().Be("2");
+        }
+
+        [Fact]
+        public void Throws_when_the_retry_after_duration_is_negative()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            Action act = () => mock.ForGet().WithPath("/api/data").RespondsWithRateLimit(TimeSpan.FromSeconds(-1));
+
+            // Assert
+            act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("retryAfter");
+        }
+    }
 
     public class InvocationTracking
     {
