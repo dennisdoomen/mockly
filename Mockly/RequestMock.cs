@@ -254,6 +254,109 @@ public class RequestMock
     }
 
     /// <summary>
+    /// Evaluates every matching criterion of this mock against the given request, for diagnostic reporting only.
+    /// Unlike <see cref="Matches"/>, this does not short-circuit on the first failing criterion, so it can report
+    /// why every criterion passed or failed.
+    /// </summary>
+    internal async Task<IReadOnlyList<MatchCriterion>> GetMatchDetailsAsync(RequestInfo request)
+    {
+        NormalizeHostPatternOnce();
+
+        var results = new List<MatchCriterion>();
+
+        bool methodOk = request.Method.Equals(Method);
+        results.Add(new MatchCriterion
+        {
+            Label = "method",
+            Passed = methodOk,
+            Detail = methodOk ? Method.Method : $"expected {Method.Method} but found {request.Method.Method}"
+        });
+
+        bool schemeOk = Scheme is null || request.Uri is null ||
+            string.Equals(request.Uri.Scheme, Scheme, StringComparison.OrdinalIgnoreCase);
+
+        bool hostOk = HostPattern is null || request.Uri is null ||
+            MatchesPattern(request.Uri.Host + ":" + request.Uri.Port, HostPattern);
+
+        string schemeHostDetail;
+        if (schemeOk && hostOk)
+        {
+            schemeHostDetail = request.Uri is not null ? $"{request.Uri.Scheme}://{request.Uri.Host}" : "(no URI)";
+        }
+        else if (!schemeOk)
+        {
+            schemeHostDetail = $"expected scheme \"{Scheme}\" but found \"{request.Uri?.Scheme}\"";
+        }
+        else
+        {
+            schemeHostDetail = $"expected host matching \"{HostPattern}\" but found \"{request.Uri?.Host}\"";
+        }
+
+        results.Add(new MatchCriterion { Label = "scheme/host", Passed = schemeOk && hostOk, Detail = schemeHostDetail });
+
+        var path = WebUtility.UrlDecode(request.Uri?.AbsolutePath ?? string.Empty);
+        bool pathOk = PathPattern is null || MatchesPattern(path.TrimStart('/'), PathPattern.TrimStart('/'));
+        results.Add(new MatchCriterion
+        {
+            Label = "path",
+            Passed = pathOk,
+            Detail = pathOk ? (path.Length == 0 ? "/" : path) : $"expected path matching \"{PathPattern}\" but found \"{path}\""
+        });
+
+        string query = WebUtility.UrlDecode(request.Uri?.Query ?? string.Empty);
+        bool queryOk;
+        string queryDetail;
+        if (QueryPattern is not null)
+        {
+            queryOk = MatchesPattern(query, QueryPattern);
+            queryDetail = queryOk
+                ? (query.Length == 0 ? "(none)" : query)
+                : $"expected query matching \"{QueryPattern}\" but found \"{(query.Length == 0 ? "(none)" : query)}\"";
+        }
+        else if (query.Length > 0 && !CustomMatchers.Any())
+        {
+            queryOk = false;
+            queryDetail = $"expected no query string but found \"{query}\"";
+        }
+        else
+        {
+            queryOk = true;
+            queryDetail = query.Length == 0 ? "(none)" : query;
+        }
+
+        results.Add(new MatchCriterion { Label = "query", Passed = queryOk, Detail = queryDetail });
+
+        foreach (Matcher matcher in CustomMatchers)
+        {
+            bool matcherOk = await matcher.IsMatch(request);
+            string detail = matcherOk
+                ? matcher.ToString()
+                : await matcher.DescribeMismatch(request) ?? $"{matcher} did not match";
+
+            results.Add(new MatchCriterion { Label = DeriveCriterionLabel(matcher), Passed = matcherOk, Detail = detail });
+        }
+
+        return results;
+    }
+
+    private static string DeriveCriterionLabel(Matcher matcher)
+    {
+        string text = matcher.ToString();
+
+        if (text.StartsWith("header ", StringComparison.Ordinal))
+        {
+            return "header";
+        }
+
+        if (text.StartsWith("body ", StringComparison.Ordinal))
+        {
+            return "body";
+        }
+
+        return "matcher";
+    }
+
+    /// <summary>
     /// Calculates a score representing how closely this mock matches the given request.
     /// </summary>
     internal async Task<int> GetMatchScoreAsync(RequestInfo request)
@@ -633,4 +736,17 @@ public class RequestMock
         var matcherDescriptions = string.Join(" or ", CustomMatchers);
         return $"{route} where {matcherDescriptions}";
     }
+}
+
+/// <summary>
+/// Represents the outcome of evaluating a single matching criterion (method, scheme/host, path, query or a
+/// custom matcher) of a <see cref="RequestMock"/> against a request, for diagnostic reporting only.
+/// </summary>
+internal sealed class MatchCriterion
+{
+    public string Label { get; init; } = "";
+
+    public bool Passed { get; init; }
+
+    public string Detail { get; init; } = "";
 }

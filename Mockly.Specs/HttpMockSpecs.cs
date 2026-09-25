@@ -1709,6 +1709,10 @@ public class HttpMockSpecs
 
                     Closest matching mock:
                       GET https://localhost:443/fnv_collectiveschemes(123*)
+                        method       ✓ GET
+                        scheme/host  ✓ https://localhost
+                        path         ✗ expected path matching "/fnv_collectiveschemes(123*)" but found "/fnv_collectiveschemes(111)"
+                        query        ✓ (none)
 
                     Registered mocks:
                      - GET https://localhost:443/fnv_collectiveschemes
@@ -1779,6 +1783,10 @@ public class HttpMockSpecs
 
                     Closest matching mock:
                       GET https://*/api/contacts*?expand=true
+                        method       ✓ GET
+                        scheme/host  ✓ https://localhost
+                        path         ✓ /api/contacts/123
+                        query        ✗ expected query matching "?expand=true" but found "?unknownParam=true"
 
                     Registered mocks:
                      - GET https://*/api/contacts* (without query string)
@@ -1887,6 +1895,164 @@ public class HttpMockSpecs
                     Body (application/octet-stream):
                       (binary content)
                     """);
+        }
+
+        [Fact]
+        public async Task Reports_why_a_missing_header_did_not_match_in_the_closest_mock()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet().WithPath("/api/test")
+                .WithHeader("X-Tenant", "acme")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            mock.ForGet().WithPath("/api/other")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var act = () => client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<UnexpectedRequestException>();
+            exception.Which.Message.Should()
+                .Contain("expected \"X-Tenant: acme\" but the request had no such header");
+        }
+
+        [Fact]
+        public async Task Reports_why_a_header_value_mismatch_failed_in_the_closest_mock()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForGet().WithPath("/api/test")
+                .WithHeader("X-Tenant", "acme")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            mock.ForGet().WithPath("/api/other")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+            client.DefaultRequestHeaders.Add("X-Tenant", "other");
+
+            // Act
+            var act = () => client.GetAsync("https://localhost/api/test");
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<UnexpectedRequestException>();
+            exception.Which.Message.Should()
+                .Contain("expected header \"X-Tenant\" to match \"acme\" but found \"other\"");
+        }
+
+        [Fact]
+        public async Task Reports_the_json_body_property_difference_in_the_closest_mock()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost().WithPath("/api/users")
+                .WithBody(new { role = "Admin" })
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            mock.ForPost().WithPath("/api/other")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var act = () => client.PostAsync("https://localhost/api/users",
+                new StringContent("""{"role":"User"}""", Encoding.UTF8, "application/json"));
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<UnexpectedRequestException>();
+            exception.Which.Message.Should()
+                .Contain("expected property \"role\" to be \"Admin\" but found \"User\"");
+        }
+
+        [Fact]
+        public async Task Reports_a_missing_json_property_in_the_closest_mock()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            mock.ForPost().WithPath("/api/users")
+                .WithBody(new { role = "Admin" })
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            mock.ForPost().WithPath("/api/other")
+                .RespondsWithStatus(HttpStatusCode.OK);
+
+            var client = mock.GetClient();
+
+            // Act
+            var act = () => client.PostAsync("https://localhost/api/users",
+                new StringContent("{}", Encoding.UTF8, "application/json"));
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<UnexpectedRequestException>();
+            exception.Which.Message.Should()
+                .Contain("expected property \"role\" to be \"Admin\" but it was missing");
+        }
+    }
+
+    public class WhenReportingTraffic
+    {
+        [Fact]
+        public void Reports_that_no_requests_have_been_captured_yet()
+        {
+            // Arrange
+            var mock = new HttpMock();
+
+            // Act
+            string report = mock.GetTrafficReport();
+
+            // Assert
+            report.Should().Contain("No requests have been captured yet.");
+        }
+
+        [Fact]
+        public async Task Includes_every_captured_request_in_order()
+        {
+            // Arrange
+            var mock = new HttpMock { FailOnUnexpectedCalls = false };
+
+            mock.ForGet().WithPath("/api/a").RespondsWithStatus(HttpStatusCode.OK);
+            mock.ForGet().WithPath("/api/b").RespondsWithStatus(HttpStatusCode.NotFound);
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.GetAsync("https://localhost/api/a");
+            await client.GetAsync("https://localhost/api/b");
+            await client.GetAsync("https://localhost/api/unexpected");
+
+            string report = mock.GetTrafficReport();
+
+            // Assert
+            report.Should().Contain("#1 GET https://localhost/api/a -> 200 OK");
+            report.Should().Contain("#2 GET https://localhost/api/b -> 404 NotFound");
+            report.Should().Contain("#3 GET https://localhost/api/unexpected -> 404 NotFound (unexpected)");
+        }
+
+        [Fact]
+        public async Task Includes_the_body_of_captured_requests_when_present()
+        {
+            // Arrange
+            var mock = new HttpMock();
+            mock.ForPost().WithPath("/api/users").RespondsWithStatus(HttpStatusCode.Created);
+
+            var client = mock.GetClient();
+
+            // Act
+            await client.PostAsync("https://localhost/api/users",
+                new StringContent("""{"name":"Alice"}""", Encoding.UTF8, "application/json"));
+
+            string report = mock.GetTrafficReport();
+
+            // Assert
+            report.Should().Contain("""body: {"name":"Alice"}""");
         }
     }
 

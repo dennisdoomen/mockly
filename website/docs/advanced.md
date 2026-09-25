@@ -324,6 +324,22 @@ capturedRequest.RawBody.Should().Equal(Encoding.UTF8.GetBytes("hello"));
 `Body` and `RawBody` are only populated when `HttpMock.PrefetchBody` is `true` (the default). See [Request Body Prefetching](#request-body-prefetching) above.
 :::
 
+## Traffic Report
+
+When a test fails for a reason that isn't captured by a single unexpected request — for example, a mock responded but with the wrong content, or the order of several requests matters — dump the whole conversation `HttpMock` has handled so far:
+
+```csharp
+output.WriteLine(mock.GetTrafficReport());
+```
+
+```
+Traffic report (3 request(s)):
+  #1 GET https://api.example.com/api/users -> 200 OK
+  #2 POST https://api.example.com/api/users -> 404 NotFound (unexpected)
+      body: {"role":"Admin"}
+  #3 GET https://api.example.com/api/users/123 -> 200 OK
+```
+
 ## Assertions
 
 Mockly provides extensive support for test assertions through **FluentAssertions**. For a full guide on available assertions for mocks, collections, and requests, see the [Assertions](./assertions.md) page.
