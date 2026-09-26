@@ -208,7 +208,9 @@ public class RequestInfo
             throw new ArgumentNullException(nameof(name));
         }
 
-        foreach (KeyValuePair<string, string> pair in Uri?.Query.ParseUrlEncoded() ?? [])
+        IEnumerable<KeyValuePair<string, string>> pairs = Uri?.Query.ParseUrlEncoded() ?? Enumerable.Empty<KeyValuePair<string, string>>();
+
+        foreach (KeyValuePair<string, string> pair in pairs)
         {
             if (string.Equals(pair.Key, name, StringComparison.OrdinalIgnoreCase))
             {

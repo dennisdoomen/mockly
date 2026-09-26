@@ -4885,11 +4885,11 @@ public class HttpMockSpecs
 
             mock.ForPost()
                 .WithPath("/api/users")
-                .With(req =>
+                .With(new Func<RequestInfo, bool>(req =>
                 {
                     captured = req;
                     return true;
-                })
+                }))
                 .RespondsWithStatus(HttpStatusCode.NoContent);
 
             var client = mock.GetClient();
@@ -4917,11 +4917,11 @@ public class HttpMockSpecs
             mock.ForPost()
                 .WithPath("/api/users")
                 .Using(options)
-                .With(req =>
+                .With(new Func<RequestInfo, bool>(req =>
                 {
                     captured = req;
                     return true;
-                })
+                }))
                 .RespondsWithStatus(HttpStatusCode.NoContent);
 
             var client = mock.GetClient();
@@ -4943,11 +4943,11 @@ public class HttpMockSpecs
 
             mock.ForGet()
                 .WithPath("/api/users")
-                .With(req =>
+                .With(new Func<RequestInfo, bool>(req =>
                 {
                     captured = req;
                     return true;
-                })
+                }))
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             var client = mock.GetClient();
@@ -4971,11 +4971,11 @@ public class HttpMockSpecs
 
             mock.ForGet()
                 .WithPath("/api/users/123")
-                .With(req =>
+                .With(new Func<RequestInfo, bool>(req =>
                 {
                     captured = req;
                     return true;
-                })
+                }))
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             var client = mock.GetClient();
@@ -4996,11 +4996,11 @@ public class HttpMockSpecs
 
             mock.ForGet()
                 .WithPath("/api/users")
-                .With(req =>
+                .With(new Func<RequestInfo, bool>(req =>
                 {
                     captured = req;
                     return true;
-                })
+                }))
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             var client = mock.GetClient();
@@ -5035,11 +5035,11 @@ public class HttpMockSpecs
             mock.ForGet()
                 .WithPath("/api/users")
                 .WithAnyQuery()
-                .With(req =>
+                .With(new Func<RequestInfo, bool>(req =>
                 {
                     captured = req;
                     return true;
-                })
+                }))
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             var client = mock.GetClient();
@@ -5075,11 +5075,11 @@ public class HttpMockSpecs
 
             mock.ForGet()
                 .WithPath("/api/users/{id}")
-                .With(req =>
+                .With(new Func<RequestInfo, bool>(req =>
                 {
                     captured = req;
                     return true;
-                })
+                }))
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             var client = mock.GetClient();
@@ -5101,11 +5101,11 @@ public class HttpMockSpecs
 
             mock.ForGet()
                 .WithPath("/api/users/{id}/*")
-                .With(req =>
+                .With(new Func<RequestInfo, bool>(req =>
                 {
                     captured = req;
                     return true;
-                })
+                }))
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             var client = mock.GetClient();
@@ -5126,11 +5126,11 @@ public class HttpMockSpecs
 
             mock.ForGet()
                 .WithPath("/api/users/*")
-                .With(req =>
+                .With(new Func<RequestInfo, bool>(req =>
                 {
                     captured = req;
                     return true;
-                })
+                }))
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             var client = mock.GetClient();
@@ -5157,11 +5157,11 @@ public class HttpMockSpecs
 
             mock.ForGet()
                 .WithPath("/api/users/*")
-                .With(req =>
+                .With(new Func<RequestInfo, bool>(req =>
                 {
                     captured = req;
                     return true;
-                })
+                }))
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             var client = mock.GetClient();
@@ -5232,11 +5232,11 @@ public class HttpMockSpecs
 
             mock.ForGet()
                 .WithPath("/api/{id}/orders/{id}")
-                .With(req =>
+                .With(new Func<RequestInfo, bool>(req =>
                 {
                     captured = req;
                     return true;
-                })
+                }))
                 .RespondsWithStatus(HttpStatusCode.OK);
 
             var client = mock.GetClient();
