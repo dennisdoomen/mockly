@@ -90,7 +90,9 @@ public class RequestMockBuilder
     }
 
     /// <summary>
-    /// Specifies the path pattern to match. Supports wildcards (*).
+    /// Specifies the path pattern to match. Supports wildcards (*) and named route placeholders written as
+    /// <c>{name}</c> (e.g. <c>/api/users/{id}</c>), whose captured values are available via
+    /// <see cref="RequestInfo.RouteValue(string)"/>.
     /// </summary>
     public RequestMockBuilder WithPath(string wildcardPattern)
     {
@@ -490,6 +492,7 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
             Responder = responder
         };
 
@@ -541,6 +544,30 @@ public class RequestMockBuilder
     {
         object content = builder.Build()!;
         return RespondsWithJsonContent(statusCode, content);
+    }
+
+    /// <summary>
+    /// Responds with JSON content serialized from the object returned by the specified factory and status code 200 (OK).
+    /// </summary>
+    /// <param name="contentFactory">A function that builds the object to serialize from the matched request.</param>
+    public SequencedResponseBuilder RespondsWithJsonContent(Func<RequestInfo, object> contentFactory)
+    {
+        return RespondsWithJsonContent(HttpStatusCode.OK, contentFactory);
+    }
+
+    /// <summary>
+    /// Responds with JSON content serialized from the object returned by the specified factory and a specific status code.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code to respond with.</param>
+    /// <param name="contentFactory">A function that builds the object to serialize from the matched request.</param>
+    public SequencedResponseBuilder RespondsWithJsonContent(HttpStatusCode statusCode, Func<RequestInfo, object> contentFactory)
+    {
+        if (contentFactory is null)
+        {
+            throw new ArgumentNullException(nameof(contentFactory));
+        }
+
+        return CreateResponse(ResponderFactory.JsonContent(statusCode, contentFactory, jsonSerializerOptions));
     }
 
     /// <summary>
@@ -612,6 +639,7 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
             Responder = _ =>
             {
                 var json = JsonSerializer.Serialize(problemDetails, options);
@@ -803,6 +831,7 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
             Responder = _ =>
             {
                 var stream = File.OpenRead(path);
@@ -854,6 +883,7 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
             Responder = _ =>
             {
                 var byteContent = new ByteArrayContent(content)
@@ -917,6 +947,7 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
             Responder = _ => new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = content
@@ -1003,6 +1034,7 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
         };
 
         mock.SetFirstAsyncResponder(responder);
@@ -1095,6 +1127,7 @@ public class RequestMockBuilder
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
             SimulatedFailure = new SimulatedFailureResponder(exceptionFactory)
         };
 

@@ -87,7 +87,11 @@ namespace Mockly
         public System.Uri? Uri { get; }
         public System.Version Version { get; set; }
         public System.Net.Http.HttpVersionPolicy VersionPolicy { get; set; }
+        public T? BodyAs<T>() { }
         public bool IsBodyLikelyTextual() { }
+        public string? PathSegment(int index) { }
+        public string? QueryValue(string name) { }
+        public string? RouteValue(string name) { }
     }
     public class RequestMatchingException : System.Exception
     {
@@ -126,7 +130,9 @@ namespace Mockly
         public Mockly.SequencedResponseBuilder RespondsWithContent(System.Net.HttpStatusCode statusCode, string content, string contentType = "application/json") { }
         public Mockly.SequencedResponseBuilder RespondsWithEmptyContent(System.Net.HttpStatusCode statusCode = 204) { }
         public Mockly.SequencedResponseBuilder RespondsWithFile(string path, string? contentType = null) { }
+        public Mockly.SequencedResponseBuilder RespondsWithJsonContent(System.Func<Mockly.RequestInfo, object> contentFactory) { }
         public Mockly.SequencedResponseBuilder RespondsWithJsonContent(object content) { }
+        public Mockly.SequencedResponseBuilder RespondsWithJsonContent(System.Net.HttpStatusCode statusCode, System.Func<Mockly.RequestInfo, object> contentFactory) { }
         public Mockly.SequencedResponseBuilder RespondsWithJsonContent(System.Net.HttpStatusCode statusCode, object content) { }
         public Mockly.SequencedResponseBuilder RespondsWithJsonContent<T>(Mockly.IResponseBuilder<T> builder) { }
         public Mockly.SequencedResponseBuilder RespondsWithJsonContent<T>(System.Net.HttpStatusCode statusCode, Mockly.IResponseBuilder<T> builder) { }
@@ -187,7 +193,9 @@ namespace Mockly
         public Mockly.SequencedResponseBuilder ThenRespondsWithContent(string content) { }
         public Mockly.SequencedResponseBuilder ThenRespondsWithContent(System.Net.HttpStatusCode statusCode, string content, string contentType = "application/json") { }
         public Mockly.SequencedResponseBuilder ThenRespondsWithEmptyContent(System.Net.HttpStatusCode statusCode = 204) { }
+        public Mockly.SequencedResponseBuilder ThenRespondsWithJsonContent(System.Func<Mockly.RequestInfo, object> contentFactory) { }
         public Mockly.SequencedResponseBuilder ThenRespondsWithJsonContent(object content) { }
+        public Mockly.SequencedResponseBuilder ThenRespondsWithJsonContent(System.Net.HttpStatusCode statusCode, System.Func<Mockly.RequestInfo, object> contentFactory) { }
         public Mockly.SequencedResponseBuilder ThenRespondsWithJsonContent(System.Net.HttpStatusCode statusCode, object content) { }
         public Mockly.SequencedResponseBuilder ThenRespondsWithJsonContent<T>(Mockly.IResponseBuilder<T> builder) { }
         public Mockly.SequencedResponseBuilder ThenRespondsWithJsonContent<T>(System.Net.HttpStatusCode statusCode, Mockly.IResponseBuilder<T> builder) { }
