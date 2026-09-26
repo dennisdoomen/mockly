@@ -14,6 +14,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "Verify.XunitV3"
+        versions:
+          - ">= 33"
     groups:
       minor-dependencies:
         applies-to: version-updates
