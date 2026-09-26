@@ -126,6 +126,35 @@ mock.ForPost()
     .RespondsWithStatus(HttpStatusCode.NoContent);
 ```
 
+## Request-Driven Responses
+
+`RequestInfo` offers a few accessors that make it easy to build a response directly from the matched
+request, without deserializing the body or picking a route segment apart by hand:
+
+```csharp
+req.BodyAs<User>();          // deserializes the body, honoring Using(options)
+req.PathSegment(2);          // "/api/users/123" -> "123" (zero-based)
+req.QueryValue("page");      // value of the "page" query parameter, or null
+req.RouteValue("id");        // value captured from a {id} placeholder in WithPath, or null
+```
+
+`WithPath` supports named route placeholders (`{name}`) alongside the existing `*` wildcard, and their
+captured values are exposed through `RouteValue`:
+
+```csharp
+mock.ForGet("/api/users/{id}")
+    .RespondsWithJsonContent(req => new { Id = req.RouteValue("id"), Status = "active" });
+```
+
+`RespondsWithJsonContent` (and the sequenced `ThenRespondsWithJsonContent`) accept a factory function so
+the response can be built from the request, instead of a fixed object:
+
+```csharp
+mock.ForPost("/api/users")
+    .RespondsWithJsonContent(HttpStatusCode.Created,
+        req => new { Id = Guid.NewGuid(), Name = req.BodyAs<User>().Name });
+```
+
 ## Request Body Prefetching
 
 By default, Mockly prefetches the request body for matchers. You can disable this to defer reading content inside your predicate:

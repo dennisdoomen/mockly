@@ -1,6 +1,9 @@
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
+using Mockly.Common;
 
 namespace Mockly;
 
@@ -24,6 +27,20 @@ public class RequestInfo
     /// <see cref="RequestMockBuilder.TreatBodyAsTextual"/>.
     /// </summary>
     internal bool ForceTextualBody { get; init; }
+
+    /// <summary>
+    /// The <see cref="System.Text.Json.JsonSerializerOptions"/> configured for the matched mock via
+    /// <see cref="RequestMockBuilder.Using(JsonSerializerOptions)"/>. Set internally by <see cref="RequestMock"/>
+    /// once a mock has matched. Used by <see cref="BodyAs{T}"/>.
+    /// </summary>
+    internal JsonSerializerOptions? JsonSerializerOptions { get; set; }
+
+    /// <summary>
+    /// The named route values captured from a <c>{name}</c> placeholder in the path template supplied to
+    /// <see cref="RequestMockBuilder.WithPath"/>, if any. Set internally by <see cref="RequestMock"/> once a mock
+    /// with a matching path template has matched.
+    /// </summary>
+    internal IReadOnlyDictionary<string, string>? RouteValues { get; set; }
 
     /// <summary>
     /// Gets the URI of the HTTP request, representing the full address, including the scheme, host, path, and query string, if present.
@@ -138,6 +155,85 @@ public class RequestInfo
             "application/x-www-form-urlencoded" or
             "application/graphql" or
             "application/sql";
+    }
+
+    /// <summary>
+    /// Deserializes the raw request body as JSON into <typeparamref name="T"/>, using the
+    /// <see cref="System.Text.Json.JsonSerializerOptions"/> configured for the matched mock via
+    /// <see cref="RequestMockBuilder.Using(JsonSerializerOptions)"/>.
+    /// </summary>
+    /// <typeparam name="T">The type to deserialize the body into.</typeparam>
+    /// <returns>
+    /// The deserialized object, or the default value of <typeparamref name="T"/> when there is no prefetched body.
+    /// </returns>
+    public T? BodyAs<T>()
+    {
+        if (RawBody is null || RawBody.Length == 0)
+        {
+            return default;
+        }
+
+        return JsonSerializer.Deserialize<T>(RawBody, JsonSerializerOptions);
+    }
+
+    /// <summary>
+    /// Gets the non-empty path segment at the specified zero-based <paramref name="index"/>, or <c>null</c> when
+    /// the path has fewer segments. For example, for <c>/api/users/123</c>, <c>PathSegment(2)</c> returns <c>"123"</c>.
+    /// </summary>
+    /// <param name="index">The zero-based index of the path segment to retrieve.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is negative.</exception>
+    public string? PathSegment(int index)
+    {
+        if (index < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index));
+        }
+
+        string path = WebUtility.UrlDecode(Uri?.AbsolutePath ?? string.Empty);
+        string[] segments = path.Split(['/'], StringSplitOptions.RemoveEmptyEntries);
+
+        return index < segments.Length ? segments[index] : null;
+    }
+
+    /// <summary>
+    /// Gets the value of the specified query string parameter, or <c>null</c> when it isn't present. The name is
+    /// matched case-insensitively, and when multiple values are present for the same name, the first is returned.
+    /// </summary>
+    /// <param name="name">The name of the query parameter to retrieve.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <c>null</c>.</exception>
+    public string? QueryValue(string name)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        foreach (KeyValuePair<string, string> pair in Uri?.Query.ParseUrlEncoded() ?? [])
+        {
+            if (string.Equals(pair.Key, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return pair.Value;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the value of the named route segment captured from a <c>{name}</c> placeholder in the path template
+    /// supplied to <see cref="RequestMockBuilder.WithPath"/>, or <c>null</c> when no template was used or the
+    /// request didn't match one.
+    /// </summary>
+    /// <param name="name">The name of the route placeholder to retrieve.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <c>null</c>.</exception>
+    public string? RouteValue(string name)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        return RouteValues is not null && RouteValues.TryGetValue(name, out string? value) ? value : null;
     }
 
     /// <summary>

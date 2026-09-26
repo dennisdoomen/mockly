@@ -31,6 +31,20 @@ internal static class ResponderFactory
         };
     }
 
+    public static Func<RequestInfo, HttpResponseMessage> JsonContent(HttpStatusCode statusCode,
+        Func<RequestInfo, object> contentFactory, JsonSerializerOptions? options)
+    {
+        return request =>
+        {
+            object content = contentFactory(request);
+            string json = JsonSerializer.Serialize(content, options);
+            return new HttpResponseMessage(statusCode)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            };
+        };
+    }
+
     public static Func<RequestInfo, HttpResponseMessage> ODataResult(HttpStatusCode statusCode,
         IEnumerable<object> value, string? odataContext, JsonSerializerOptions? options)
     {

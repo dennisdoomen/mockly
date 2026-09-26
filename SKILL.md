@@ -41,8 +41,9 @@ mock.For(new HttpMethod("PROPFIND"), "https://localhost/dav/*").RespondsWithStat
 ## URL Matching
 
 ```csharp
-// Exact path (leading slash optional); * is wildcard
+// Exact path (leading slash optional); * is wildcard; {name} is a named route placeholder
 mock.ForGet().WithPath("/api/users/*").RespondsWithStatus(HttpStatusCode.OK);
+mock.ForGet().WithPath("/api/users/{id}").RespondsWithJsonContent(req => new { Id = req.RouteValue("id") });
 
 // Query: omitting WithQuery() rejects requests that include a query string
 mock.ForGet().WithPath("/api/search").WithQuery("?q=*").RespondsWithStatus(HttpStatusCode.OK);
@@ -95,6 +96,9 @@ mock.ForGet().WithPath("/api/text").RespondsWithContent(HttpStatusCode.OK, "<xml
 mock.ForGet().WithPath("/api/empty").RespondsWithEmptyContent(); // 204 No Content
 mock.ForGet().WithPath("/api/binary").RespondsWith(new ByteArrayContent(bytes));
 mock.ForGet().WithPath("/api/custom").RespondsWith(_ => new HttpResponseMessage(HttpStatusCode.OK));
+
+// Build JSON content from the matched request: req.BodyAs<T>(), req.PathSegment(n), req.QueryValue(name), req.RouteValue(name)
+mock.ForPost().WithPath("/api/users").RespondsWithJsonContent(req => new { Id = Guid.NewGuid(), Name = req.BodyAs<User>().Name });
 
 // OData v4: wraps in { "value": [...] }
 mock.ForGet().WithPath("/odata/items").RespondsWithODataResult(new { Id = 1 });
