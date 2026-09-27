@@ -223,6 +223,31 @@ public class SequencedResponseBuilder : RequestMockResponseBuilder
     }
 
     /// <summary>
+    /// Appends a response to the sequence with JSON content serialized from the object returned by the specified factory and status code 200 (OK).
+    /// </summary>
+    /// <param name="contentFactory">A function that builds the object to serialize from the matched request.</param>
+    public SequencedResponseBuilder ThenRespondsWithJsonContent(Func<RequestInfo, object> contentFactory)
+    {
+        return ThenRespondsWithJsonContent(HttpStatusCode.OK, contentFactory);
+    }
+
+    /// <summary>
+    /// Appends a response to the sequence with JSON content serialized from the object returned by the specified factory and a specific status code.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code to respond with.</param>
+    /// <param name="contentFactory">A function that builds the object to serialize from the matched request.</param>
+    public SequencedResponseBuilder ThenRespondsWithJsonContent(HttpStatusCode statusCode, Func<RequestInfo, object> contentFactory)
+    {
+        if (contentFactory is null)
+        {
+            throw new ArgumentNullException(nameof(contentFactory));
+        }
+
+        requestMock.AppendResponder(ResponderFactory.JsonContent(statusCode, contentFactory, jsonSerializerOptions));
+        return this;
+    }
+
+    /// <summary>
     /// Appends a response to the sequence with an OData v4 result envelope containing a single entity and status code 200 (OK).
     /// </summary>
     /// <param name="value">The entity to include in the OData result.</param>

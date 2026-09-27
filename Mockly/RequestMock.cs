@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Mockly.Common;
 #if NET472_OR_GREATER
@@ -14,6 +15,15 @@ namespace Mockly;
 public class RequestMock
 {
     private static readonly ConcurrentDictionary<string, Regex> RegexCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly ConcurrentDictionary<string, (Regex Regex, string[] RouteNames)> PathPatternCache =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    // Regex.Escape escapes '{' (a regex quantifier metacharacter) but leaves '}' untouched, so a "{id}"
+    // placeholder becomes "\{id}" once the pattern has been through Regex.Escape.
+    private static readonly Regex RoutePlaceholderRegex =
+        new(@"\\\{(?<name>[A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.Compiled);
+
     private readonly object hostNormalizationLock = new();
     private readonly object respondersLock = new();
 
@@ -67,6 +77,13 @@ public class RequestMock
     /// Content-Type isn't recognized as textual. See <see cref="RequestMockBuilder.TreatBodyAsTextual"/>.
     /// </summary>
     internal bool ForceTextualBody { get; init; }
+
+    /// <summary>
+    /// Gets the <see cref="System.Text.Json.JsonSerializerOptions"/> configured for this mock via
+    /// <see cref="RequestMockBuilder.Using(JsonSerializerOptions)"/>. Stamped onto the matched
+    /// <see cref="RequestInfo"/> before invoking the responder, for use by <see cref="RequestInfo.BodyAs{T}"/>.
+    /// </summary>
+    internal JsonSerializerOptions? JsonSerializerOptions { get; init; }
 
     /// <summary>
     /// Gets or sets the responder used to produce a response for a matched request.
@@ -163,6 +180,8 @@ public class RequestMock
     {
         NormalizeHostPatternOnce();
 
+        IReadOnlyDictionary<string, string>? routeValues = null;
+
         // Check HTTP method
         if (!request.Method.Equals(Method))
         {
@@ -192,7 +211,8 @@ public class RequestMock
         if (PathPattern != null)
         {
             var path = WebUtility.UrlDecode(request.Uri?.AbsolutePath ?? string.Empty);
-            if (!MatchesPattern(path.TrimStart('/'), PathPattern.TrimStart('/')))
+            (bool pathMatched, routeValues) = MatchesPathPattern(path.TrimStart('/'), PathPattern.TrimStart('/'));
+            if (!pathMatched)
             {
                 return false;
             }
@@ -217,6 +237,12 @@ public class RequestMock
             // No query specified and no pattern configured, so this is a match
         }
 
+        // Make this mock's route values and JsonSerializerOptions visible on the shared request before evaluating
+        // custom matchers, so a predicate can use RequestInfo.RouteValue/BodyAs<T> against its own mock's
+        // configuration (e.g. `.WithPath("/api/{id}").With(req => req.RouteValue("id") == "42")`).
+        request.RouteValues = routeValues;
+        request.JsonSerializerOptions = JsonSerializerOptions;
+
         // Check custom matcher if specified
         if (CustomMatchers.Any())
         {
@@ -224,6 +250,9 @@ public class RequestMock
             {
                 if (!await matcher.IsMatch(request))
                 {
+                    // Roll back the tentative stamp so a later, unrelated mock doesn't see this mock's state.
+                    request.RouteValues = null;
+                    request.JsonSerializerOptions = null;
                     return false;
                 }
             }
@@ -400,7 +429,7 @@ public class RequestMock
         if (PathPattern != null)
         {
             string trimmedPattern = PathPattern.TrimStart('/');
-            if (MatchesPattern(path, trimmedPattern))
+            if (MatchesPathPattern(path, trimmedPattern).Matched)
             {
                 score += path.Length;
             }
@@ -460,6 +489,72 @@ public class RequestMock
 #endif
         var regex = RegexCache.GetOrAdd(regexPattern, p => new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled));
         return regex.IsMatch(value);
+    }
+
+    /// <summary>
+    /// Matches <paramref name="path"/> against <paramref name="pattern"/>, which may contain <c>*</c> wildcards
+    /// and/or named <c>{name}</c> route placeholders (e.g. <c>users/{id}</c>). When the pattern contains route
+    /// placeholders and the match succeeds, the returned <c>RouteValues</c> holds the captured values.
+    /// Compiled regexes are cached per pattern to avoid repeated compilation.
+    /// </summary>
+    private static (bool Matched, IReadOnlyDictionary<string, string>? RouteValues) MatchesPathPattern(string path, string pattern)
+    {
+        (Regex regex, string[] routeNames) = PathPatternCache.GetOrAdd(pattern, BuildPathRegex);
+
+        Match match = regex.Match(path);
+        if (!match.Success)
+        {
+            return (false, null);
+        }
+
+        if (routeNames.Length == 0)
+        {
+            return (true, null);
+        }
+
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string name in routeNames)
+        {
+            values[name] = match.Groups[name].Value;
+        }
+
+        return (true, values);
+    }
+
+    /// <summary>
+    /// Builds a regex (and the list of named route placeholders it captures) for a <see cref="RequestMockBuilder.WithPath(string)"/> pattern.
+    /// A well-formed <c>{name}</c> segment becomes a named capture group; <c>*</c> becomes a wildcard; anything
+    /// else, including a malformed <c>{...}</c> token, is matched literally, preserving backward compatibility.
+    /// A name reused more than once in the same pattern is only captured on its first occurrence, to avoid an
+    /// ambiguous "last value wins" route value.
+    /// </summary>
+    private static (Regex Regex, string[] RouteNames) BuildPathRegex(string pattern)
+    {
+        var routeNames = new List<string>();
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Same wildcard-to-regex conversion as MatchesPattern, applied before recognizing {name} placeholders,
+        // since Regex.Escape also escapes the braces (turning "{id}" into "\{id\}") for the pattern below to match.
+#if NETFRAMEWORK || NETSTANDARD2_0
+        string escaped = Regex.Escape(pattern).Replace("\\*", ".*");
+#else
+        string escaped = Regex.Escape(pattern).Replace("\\*", ".*", StringComparison.Ordinal);
+#endif
+
+        string body = RoutePlaceholderRegex.Replace(escaped, match =>
+        {
+            string name = match.Groups["name"].Value;
+            if (!seenNames.Add(name))
+            {
+                return "[^/]+";
+            }
+
+            routeNames.Add(name);
+            return $"(?<{name}>[^/]+)";
+        });
+
+        var regex = new Regex($"^{body}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        return (regex, [.. routeNames]);
     }
 
     /// <summary>
@@ -583,6 +678,10 @@ public class RequestMock
     internal async Task<CapturedRequest> TrackRequestAsync(RequestInfo request, CancellationToken cancellationToken)
     {
         int invocationIndex = Interlocked.Increment(ref invocationCount) - 1;
+
+        // Stamp this mock's configured JsonSerializerOptions onto the request now that it's known to be the
+        // matching mock, so BodyAs<T>() (called from within the responder) can honor it.
+        request.JsonSerializerOptions = JsonSerializerOptions;
 
         CapturedRequest capturedRequest = new(request)
         {

@@ -392,11 +392,11 @@ Configure a sequence of responses for the same matched request so consecutive ca
 mock.ForGet()
     .WithPath("/api/resource")
     .RespondsWithStatus(HttpStatusCode.ServiceUnavailable)
-    .Then(HttpStatusCode.ServiceUnavailable)
-    .Then(HttpStatusCode.OK);
+    .ThenRespondsWithStatus(HttpStatusCode.ServiceUnavailable)
+    .ThenRespondsWithStatus(HttpStatusCode.OK);
 ```
 
-`Then*` mirrors the `RespondsWith*` response methods, including JSON/content/OData variants and custom delegates (`Then(Func<RequestInfo, HttpResponseMessage>)`).
+`ThenRespondsWith*` mirrors the `RespondsWith*` response methods, including JSON/content/OData variants and custom delegates (`ThenRespondsWith(Func<RequestInfo, HttpResponseMessage>)`).
 
 Behavior notes:
 

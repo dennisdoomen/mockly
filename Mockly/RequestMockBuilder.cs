@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Http.Headers;
@@ -90,7 +91,9 @@ public class RequestMockBuilder
     }
 
     /// <summary>
-    /// Specifies the path pattern to match. Supports wildcards (*).
+    /// Specifies the path pattern to match. Supports wildcards (*) and named route placeholders written as
+    /// <c>{name}</c> (e.g. <c>/api/users/{id}</c>), whose captured values are available via
+    /// <see cref="RequestInfo.RouteValue(string)"/>.
     /// </summary>
     public RequestMockBuilder WithPath(string wildcardPattern)
     {
@@ -485,6 +488,66 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Configures the request mock to match requests that carry an <c>Authorization</c> header using the <c>Basic</c>
+    /// scheme with the specified username and password.
+    /// </summary>
+    /// <param name="username">The username that the request must be authenticated with.</param>
+    /// <param name="password">The password that the request must be authenticated with.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="username"/> or <paramref name="password"/> is <c>null</c>.</exception>
+    public RequestMockBuilder WithBasicAuth(string username, string password)
+    {
+        if (username is null)
+        {
+            throw new ArgumentNullException(nameof(username));
+        }
+
+        if (password is null)
+        {
+            throw new ArgumentNullException(nameof(password));
+        }
+
+        string expectedParameter = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}"));
+
+        return With(
+            request =>
+            {
+                var authorization = request.Headers.Authorization;
+                return authorization is not null &&
+                    string.Equals(authorization.Scheme, "Basic", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(authorization.Parameter, expectedParameter, StringComparison.Ordinal);
+            },
+            $"basic auth credentials for \"{username}\"");
+    }
+
+    /// <summary>
+    /// Configures the request mock to match requests that carry the specified API key header, with a value satisfying
+    /// the given wildcard pattern.
+    /// </summary>
+    /// <param name="headerName">The name of the header that carries the API key.</param>
+    /// <param name="valuePattern">
+    /// The wildcard pattern used to match the API key value, where '?' represents any single character and '*' represents
+    /// any sequence of characters. Defaults to '*', which matches any value.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="headerName"/> or <paramref name="valuePattern"/> is <c>null</c>.</exception>
+    public RequestMockBuilder WithApiKey(string headerName, string valuePattern = "*")
+    {
+        if (headerName is null)
+        {
+            throw new ArgumentNullException(nameof(headerName));
+        }
+
+        if (valuePattern is null)
+        {
+            throw new ArgumentNullException(nameof(valuePattern));
+        }
+
+        return With(
+            request => request.Headers.TryGetValues(headerName, out var values) &&
+                values.Any(value => value.MatchesWildcard(valuePattern)),
+            $"API key header \"{headerName}\" matches \"{valuePattern}\"");
+    }
+
+    /// <summary>
     /// Configures the request mock to match requests whose <c>Content-Type</c> media type satisfies the given wildcard
     /// pattern. Any parameters such as <c>charset</c> are ignored; only the media type is compared.
     /// </summary>
@@ -566,6 +629,7 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
             Responder = responder
         };
 
@@ -617,6 +681,30 @@ public class RequestMockBuilder
     {
         object content = builder.Build()!;
         return RespondsWithJsonContent(statusCode, content);
+    }
+
+    /// <summary>
+    /// Responds with JSON content serialized from the object returned by the specified factory and status code 200 (OK).
+    /// </summary>
+    /// <param name="contentFactory">A function that builds the object to serialize from the matched request.</param>
+    public SequencedResponseBuilder RespondsWithJsonContent(Func<RequestInfo, object> contentFactory)
+    {
+        return RespondsWithJsonContent(HttpStatusCode.OK, contentFactory);
+    }
+
+    /// <summary>
+    /// Responds with JSON content serialized from the object returned by the specified factory and a specific status code.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code to respond with.</param>
+    /// <param name="contentFactory">A function that builds the object to serialize from the matched request.</param>
+    public SequencedResponseBuilder RespondsWithJsonContent(HttpStatusCode statusCode, Func<RequestInfo, object> contentFactory)
+    {
+        if (contentFactory is null)
+        {
+            throw new ArgumentNullException(nameof(contentFactory));
+        }
+
+        return CreateResponse(ResponderFactory.JsonContent(statusCode, contentFactory, jsonSerializerOptions));
     }
 
     /// <summary>
@@ -688,6 +776,7 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
             Responder = _ =>
             {
                 var json = JsonSerializer.Serialize(problemDetails, options);
@@ -706,6 +795,36 @@ public class RequestMockBuilder
     {
         using var message = new HttpResponseMessage(statusCode);
         return message.ReasonPhrase;
+    }
+
+    /// <summary>
+    /// Responds with a standard OAuth2 token payload: <c>{ "access_token", "token_type", "expires_in" }</c>, and status
+    /// code 200 (OK), so that real client libraries that expect a token endpoint response accept it.
+    /// </summary>
+    /// <param name="accessToken">The access token to include as the <c>access_token</c> member.</param>
+    /// <param name="expiresIn">The lifetime of the token, included as the <c>expires_in</c> member in whole seconds.</param>
+    /// <param name="tokenType">The token type to include as the <c>token_type</c> member. Defaults to <c>"Bearer"</c>.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="accessToken"/> or <paramref name="tokenType"/> is <c>null</c>.</exception>
+    public SequencedResponseBuilder RespondsWithOAuthToken(string accessToken, TimeSpan expiresIn, string tokenType = "Bearer")
+    {
+        if (accessToken is null)
+        {
+            throw new ArgumentNullException(nameof(accessToken));
+        }
+
+        if (tokenType is null)
+        {
+            throw new ArgumentNullException(nameof(tokenType));
+        }
+
+        var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["access_token"] = accessToken,
+            ["token_type"] = tokenType,
+            ["expires_in"] = (int)expiresIn.TotalSeconds
+        };
+
+        return RespondsWithJsonContent(payload);
     }
 
     /// <summary>
@@ -847,6 +966,42 @@ public class RequestMockBuilder
     }
 
     /// <summary>
+    /// Responds with 401 (Unauthorized) on the first matching request, then with 200 (OK) and the specified JSON body
+    /// on every subsequent matching request. This is sugar over <see cref="SequencedResponseBuilder.ThenRespondsWithContent(HttpStatusCode, string, string)"/>
+    /// for the common token-refresh scenario: a client retries after refreshing its credentials.
+    /// </summary>
+    /// <param name="json">The JSON body to return once the request succeeds.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="json"/> is <c>null</c>.</exception>
+    public SequencedResponseBuilder RespondsWithUnauthorizedThenSuccess(string json)
+    {
+        if (json is null)
+        {
+            throw new ArgumentNullException(nameof(json));
+        }
+
+        return RespondsWithStatus(HttpStatusCode.Unauthorized)
+            .ThenRespondsWithContent(HttpStatusCode.OK, json);
+    }
+
+    /// <summary>
+    /// Responds with 429 (Too Many Requests) and a <c>Retry-After</c> header set to the specified duration in whole
+    /// seconds, for testing rate-limit and resilience handling such as <c>Microsoft.Extensions.Http.Resilience</c>.
+    /// </summary>
+    /// <param name="retryAfter">The duration to advertise in the <c>Retry-After</c> header.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryAfter"/> is negative.</exception>
+    public SequencedResponseBuilder RespondsWithRateLimit(TimeSpan retryAfter)
+    {
+        if (retryAfter < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(retryAfter), retryAfter,
+                "Cannot use a negative Retry-After duration");
+        }
+
+        return RespondsWithStatus((HttpStatusCode)429)
+            .WithHeader("Retry-After", ((int)retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
     /// Responds with the contents of the specified file, streamed freshly for each matching request, and status code 200 (OK).
     /// </summary>
     /// <remarks>
@@ -879,6 +1034,7 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
             Responder = _ =>
             {
                 var stream = File.OpenRead(path);
@@ -930,6 +1086,7 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
             Responder = _ =>
             {
                 var byteContent = new ByteArrayContent(content)
@@ -993,6 +1150,7 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
             Responder = _ => new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = content
@@ -1079,6 +1237,7 @@ public class RequestMockBuilder
             CustomMatchers = customMatchers,
             ForceTextualBody = forceTextualBody,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
         };
 
         mock.SetFirstAsyncResponder(responder);
@@ -1171,6 +1330,7 @@ public class RequestMockBuilder
             HostPattern = hostPattern,
             CustomMatchers = customMatchers,
             RequestCollection = requestCollection,
+            JsonSerializerOptions = jsonSerializerOptions,
             SimulatedFailure = new SimulatedFailureResponder(exceptionFactory)
         };
 
