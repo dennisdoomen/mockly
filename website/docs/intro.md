@@ -117,8 +117,8 @@ Configure a sequence of responses for the same matched request so consecutive ca
 ```csharp
 mock.ForGet().WithPath("/resource")
     .RespondsWithStatus(HttpStatusCode.ServiceUnavailable)
-    .Then(HttpStatusCode.ServiceUnavailable)
-    .Then(HttpStatusCode.OK);
+    .ThenRespondsWithStatus(HttpStatusCode.ServiceUnavailable)
+    .ThenRespondsWithStatus(HttpStatusCode.OK);
 ```
 
 Any calls after the configured sequence reuse the last response.
