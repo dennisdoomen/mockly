@@ -140,6 +140,21 @@ mock.ForPost().WithPath("/api/users")
 
 When an unexpected request occurs and there are configured mocks, Mockly helps you diagnose by reporting the closest matching mock, broken down criterion by criterion (method, scheme/host, path, query, headers, body), so you can quickly see exactly what to adjust in your setup.
 
+**Before**, the message only named the closest mock, leaving you to spot the difference yourself:
+
+```
+Unexpected request to:
+  POST https://api.example.com/api/users
+
+Closest matching mock:
+  POST https://*/api/users
+
+Registered mocks:
+ - POST https://*/api/users where header "X-Tenant" matches "acme"
+```
+
+**Now**, it explains exactly which criterion failed and why:
+
 ```
 Unexpected request to:
   POST https://api.example.com/api/users

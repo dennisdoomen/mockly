@@ -118,6 +118,9 @@ mock.Requests.First().WasExpected   // bool; .Uri, .Method, .Body, .Timestamp, .
 var captured = new RequestCollection();
 mock.ForPatch().WithPath("/api/items/1").CollectingRequestsIn(captured).RespondsWithStatus(HttpStatusCode.NoContent);
 captured.Count.Should().Be(1);
+
+// Dump every request handled so far (sequence, method/URI, status/response, body) for debugging
+output.WriteLine(mock.GetTrafficReport());
 ```
 
 ## Invocation Limits
