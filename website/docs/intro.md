@@ -55,21 +55,29 @@ mock.ForPost().WithPath("/api/data").WithQuery("?filter=*").RespondsWithStatus(H
 
 ### 📃 Clear Reporting
 
-When an unexpected request occurs and there are configured mocks, Mockly helps you diagnose by reporting the closest matching mock (method, scheme/host/path/query) so you can quickly see what to adjust in your setup.
+When an unexpected request occurs and there are configured mocks, Mockly helps you diagnose by reporting the closest matching mock, broken down criterion by criterion (method, scheme/host, path, query, headers, body), so you can quickly see exactly what to adjust in your setup.
 
 ```
 Unexpected request to:
-  GET http://localhost/fnv_collectiveschemes(111)
+  POST https://api.example.com/api/users
 
 Closest matching mock:
-  GET https://*/fnv_collectiveschemes(123*)
+  POST https://*/api/users
+    method       ✓ POST
+    scheme/host  ✓ api.example.com
+    path         ✓ /api/users
+    query        ✓ (none)
+    header       ✗ expected "X-Tenant: acme" but the request had no such header
+    body         ✗ expected property "role" to be "Admin" but found "User"
 
 Registered mocks:
- - GET https://*/fnv_collectiveschemes
- - POST https://*/fnv_collectiveschemes
- - GET https://*/fnv_collectiveschemes(123*)
- - GET https://*/fnv_collectiveschemes(123*) (1 custom matcher(s)) where (request => request.Uri?.Query == "?$count=1")
- - GET https://*/fnv_collectiveschemes(456)
+ - POST https://*/api/users where header "X-Tenant" matches "acme"
+```
+
+When the mismatch isn't on a single request, dump the whole conversation instead:
+
+```csharp
+output.WriteLine(mock.GetTrafficReport());
 ```
 
 ### 🔍 Request Capture & Inspection

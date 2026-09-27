@@ -239,7 +239,21 @@ public class RequestMockBuilder
     /// </param>
     public RequestMockBuilder WithBodyMatchingRegex([StringSyntax(StringSyntaxAttribute.Regex)] string regex)
     {
-        return With(request => request.Body is not null && Regex.IsMatch(request.Body, regex), $"body matches regex {regex}");
+        Task<string?> DescribeMismatch(RequestInfo request)
+        {
+            string? reason = request.Body is null
+                ? $"expected body matching regex {regex} but the request had no body"
+                : $"expected body matching regex {regex} but found \"{request.Body}\"";
+
+            return Task.FromResult<string?>(reason);
+        }
+
+        customMatchers.Add(new Matcher(
+            request => Task.FromResult(request.Body is not null && Regex.IsMatch(request.Body, regex)),
+            $"body matches regex {regex}",
+            DescribeMismatch));
+
+        return this;
     }
 
     /// <summary>
@@ -266,23 +280,47 @@ public class RequestMockBuilder
             expectedRoot = expectedDocument.RootElement.Clone();
         }
 
-        return With(request =>
+        bool Predicate(RequestInfo request)
+        {
+            if (request.Body is null)
             {
-                if (request.Body is null)
-                {
-                    return false;
-                }
+                return false;
+            }
 
-                try
-                {
-                    using var actualDocument = JsonDocument.Parse(request.Body);
-                    return expectedRoot.JsonEquals(actualDocument.RootElement);
-                }
-                catch (JsonException jsonException)
-                {
-                    throw new RequestMatchingException("Could not parse the request body as JSON", jsonException);
-                }
-            }, $"body matches JSON {json}");
+            try
+            {
+                using var actualDocument = JsonDocument.Parse(request.Body);
+                return expectedRoot.JsonEquals(actualDocument.RootElement);
+            }
+            catch (JsonException jsonException)
+            {
+                throw new RequestMatchingException("Could not parse the request body as JSON", jsonException);
+            }
+        }
+
+        Task<string?> DescribeMismatch(RequestInfo request)
+        {
+            if (request.Body is null)
+            {
+                return Task.FromResult<string?>("expected a JSON body but the request had no body");
+            }
+
+            try
+            {
+                using var actualDocument = JsonDocument.Parse(request.Body);
+                IReadOnlyList<string> differences = expectedRoot.Diff(actualDocument.RootElement);
+                return Task.FromResult<string?>(differences.Count > 0 ? string.Join("; ", differences) : null);
+            }
+            catch (JsonException)
+            {
+                return Task.FromResult<string?>("the request body was not valid JSON");
+            }
+        }
+
+        customMatchers.Add(new Matcher(request => Task.FromResult(Predicate(request)), $"body matches JSON {json}",
+            DescribeMismatch));
+
+        return this;
     }
 
     /// <summary>
@@ -316,9 +354,21 @@ public class RequestMockBuilder
     /// <returns>The current <see cref="RequestMockBuilder"/> instance, updated with the specified body matching condition.</returns>
     public RequestMockBuilder WithBody(string wildcardPattern)
     {
-        return With(
-            request => request.Body is not null && request.Body.MatchesWildcard(wildcardPattern),
-            $"body matches wildcard pattern \"{wildcardPattern}\"");
+        Task<string?> DescribeMismatch(RequestInfo request)
+        {
+            string? reason = request.Body is null
+                ? $"expected body matching wildcard pattern \"{wildcardPattern}\" but the request had no body"
+                : $"expected body matching wildcard pattern \"{wildcardPattern}\" but found \"{request.Body}\"";
+
+            return Task.FromResult<string?>(reason);
+        }
+
+        customMatchers.Add(new Matcher(
+            request => Task.FromResult(request.Body is not null && request.Body.MatchesWildcard(wildcardPattern)),
+            $"body matches wildcard pattern \"{wildcardPattern}\"",
+            DescribeMismatch));
+
+        return this;
     }
 
     /// <summary>
@@ -348,9 +398,21 @@ public class RequestMockBuilder
             throw new ArgumentNullException(nameof(name));
         }
 
-        return With(
-            request => request.Headers.TryGetValues(name, out _),
-            $"header \"{name}\" is present");
+        Task<string?> DescribeMismatch(RequestInfo request)
+        {
+            string? reason = request.Headers.TryGetValues(name, out _)
+                ? null
+                : $"expected header \"{name}\" but the request had no such header";
+
+            return Task.FromResult<string?>(reason);
+        }
+
+        customMatchers.Add(new Matcher(
+            request => Task.FromResult(request.Headers.TryGetValues(name, out _)),
+            $"header \"{name}\" is present",
+            DescribeMismatch));
+
+        return this;
     }
 
     /// <summary>
@@ -377,10 +439,24 @@ public class RequestMockBuilder
             throw new ArgumentNullException(nameof(valuePattern));
         }
 
-        return With(
-            request => request.Headers.TryGetValues(name, out var values) &&
-                values.Any(value => value.MatchesWildcard(valuePattern)),
-            $"header \"{name}\" matches \"{valuePattern}\"");
+        Task<string?> DescribeMismatch(RequestInfo request)
+        {
+            if (!request.Headers.TryGetValues(name, out var values))
+            {
+                return Task.FromResult<string?>($"expected \"{name}: {valuePattern}\" but the request had no such header");
+            }
+
+            string actualValue = string.Join(", ", values);
+            return Task.FromResult<string?>($"expected header \"{name}\" to match \"{valuePattern}\" but found \"{actualValue}\"");
+        }
+
+        customMatchers.Add(new Matcher(
+            request => Task.FromResult(request.Headers.TryGetValues(name, out var values) &&
+                values.Any(value => value.MatchesWildcard(valuePattern))),
+            $"header \"{name}\" matches \"{valuePattern}\"",
+            DescribeMismatch));
+
+        return this;
     }
 
     /// <summary>

@@ -518,15 +518,7 @@ public class HttpMock
 
         if (closestMock != null && highestScore > 0)
         {
-            messageBuilder.AppendLine();
-            messageBuilder.AppendLine("Closest matching mock:");
-            messageBuilder.Append($"  {closestMock}");
-            if (requestHasQuery && closestMock.QueryPattern == null)
-            {
-                messageBuilder.Append(" (without query string)");
-            }
-
-            messageBuilder.AppendLine();
+            await AppendClosestMockSection(messageBuilder, closestMock, request, requestHasQuery);
         }
 
         messageBuilder.AppendLine();
@@ -567,6 +559,38 @@ public class HttpMock
         }
 
         throw new UnexpectedRequestException(messageBuilder.ToString());
+    }
+
+    /// <summary>
+    /// Appends the "Closest matching mock:" section, including a per-criterion breakdown of why the closest mock
+    /// did or didn't match each part of the request, to <paramref name="messageBuilder"/>.
+    /// </summary>
+    private static async Task AppendClosestMockSection(StringBuilder messageBuilder, RequestMock closestMock,
+        RequestInfo request, bool requestHasQuery)
+    {
+        messageBuilder.AppendLine();
+        messageBuilder.AppendLine("Closest matching mock:");
+        messageBuilder.Append($"  {closestMock}");
+        if (requestHasQuery && closestMock.QueryPattern == null)
+        {
+            messageBuilder.Append(" (without query string)");
+        }
+
+        messageBuilder.AppendLine();
+
+        IReadOnlyList<MatchCriterion> criteria = await closestMock.GetMatchDetailsAsync(request);
+        int labelWidth = criteria.Max(c => c.Label.Length);
+
+        foreach (MatchCriterion criterion in criteria)
+        {
+            messageBuilder
+                .Append("    ")
+                .Append(criterion.Label.PadRight(labelWidth))
+                .Append("  ")
+                .Append(criterion.Passed ? '✓' : '✗')
+                .Append(' ')
+                .AppendLine(criterion.Detail);
+        }
     }
 
     /// <summary>
@@ -626,6 +650,54 @@ public class HttpMock
         return mocks
             .Where(m => m.MaxInvocations is not null ? m.InvocationCount < m.MaxInvocations : m.InvocationCount == 0)
             .ToList();
+    }
+
+    /// <summary>
+    /// Builds a human-readable report of every request this mock has handled so far, in the order they occurred.
+    /// </summary>
+    /// <remarks>
+    /// Use this to diagnose a test failure that doesn't hinge on a single unexpected request, for example when a
+    /// mock responded correctly but with unexpected content, or when the order of several requests matters.
+    /// </remarks>
+    public string GetTrafficReport()
+    {
+        var reportBuilder = new StringBuilder();
+
+        if (Requests.IsEmpty)
+        {
+            reportBuilder.AppendLine("No requests have been captured yet.");
+            return reportBuilder.ToString();
+        }
+
+        reportBuilder.AppendLine($"Traffic report ({Requests.Count} request(s)):");
+
+        foreach (CapturedRequest capturedRequest in Requests)
+        {
+            reportBuilder.Append($"  #{capturedRequest.Sequence} {capturedRequest.Method} {capturedRequest.Uri}");
+
+            if (capturedRequest.SimulatedFailure is not null)
+            {
+                reportBuilder.Append($" -> threw {capturedRequest.SimulatedFailure.GetType().Name}");
+            }
+            else
+            {
+                reportBuilder.Append($" -> {(int)capturedRequest.Response.StatusCode} {capturedRequest.Response.StatusCode}");
+            }
+
+            if (!capturedRequest.WasExpected)
+            {
+                reportBuilder.Append(" (unexpected)");
+            }
+
+            reportBuilder.AppendLine();
+
+            if (!string.IsNullOrEmpty(capturedRequest.Body))
+            {
+                reportBuilder.AppendLine($"      body: {capturedRequest.Body}");
+            }
+        }
+
+        return reportBuilder.ToString();
     }
 
     private class MockHttpMessageHandler(HttpMock mock) : HttpMessageHandler
