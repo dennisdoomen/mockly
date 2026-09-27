@@ -195,16 +195,16 @@ mock.Requests.Should().ContainRequestFor("https://api.example.com/*")
 
 ### 🔁 Sequenced Responses
 
-Configure a sequence of responses for the same matched request so consecutive calls get different responses (e.g. the classic "fail twice, then succeed" retry test). Chain `Then(...)` after any `RespondsWith*` method. The last response repeats for any calls beyond the configured sequence.
+Configure a sequence of responses for the same matched request so consecutive calls get different responses (e.g. the classic "fail twice, then succeed" retry test). Chain `ThenRespondsWith*(...)` after any `RespondsWith*` method. The last response repeats for any calls beyond the configured sequence.
 
 ```csharp
 mock.ForGet().WithPath("/resource")
     .RespondsWithStatus(HttpStatusCode.ServiceUnavailable)
-    .Then(HttpStatusCode.ServiceUnavailable)
-    .Then(HttpStatusCode.OK);
+    .ThenRespondsWithStatus(HttpStatusCode.ServiceUnavailable)
+    .ThenRespondsWithStatus(HttpStatusCode.OK);
 ```
 
-The `Then*` family mirrors the `RespondsWith*` methods (`ThenRespondsWithJsonContent`, `ThenRespondsWithContent`, `ThenRespondsWithODataResult`, and `Then(Func<RequestInfo, HttpResponseMessage>)`).
+The `ThenRespondsWith*` family mirrors the `RespondsWith*` methods (`ThenRespondsWithJsonContent`, `ThenRespondsWithContent`, `ThenRespondsWithODataResult`, and `ThenRespondsWith(Func<RequestInfo, HttpResponseMessage>)`).
 
 ### 🔐 Auth & Rate-Limit Scenarios
 
