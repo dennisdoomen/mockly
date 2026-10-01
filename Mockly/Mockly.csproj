@@ -27,7 +27,7 @@
     <PackageDescription>
       Fluent HTTP mocking for .NET like it should have done
     </PackageDescription>
-    <PackageProjectUrl>https://github.com/dennisdoomen/mockly</PackageProjectUrl>
+    <PackageProjectUrl>https://mockly.org</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dennisdoomen/mockly</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>HTTP;mocking;assertions;fluent</PackageTags>
