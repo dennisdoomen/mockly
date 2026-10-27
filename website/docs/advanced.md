@@ -318,6 +318,43 @@ mock.ForGet()
 - `ThrowsException(Exception)` throws the same instance on every matching invocation; `ThrowsException<TException>()` creates a fresh instance each time.
 - Combine with invocation limits (`Once()`, `Times(n)`) to fail only the first few calls before succeeding.
 
+## Real Socket Mode
+
+Some code does not let you inject an `HttpClient` or `HttpMessageHandler`. For example, an SDK that only accepts a base URL, or another process. For those cases, install the `Mockly.Server` package (.NET 8.0 or later):
+
+```bash
+dotnet add package Mockly.Server
+```
+
+`StartServer()` exposes the same mock through a real HTTP listener on the loopback interface:
+
+```csharp
+var mock = new HttpMock();
+mock.ForGet("/api/users").RespondsWithJsonContent(users);
+
+await using var server = mock.StartServer();
+sdk.BaseUrl = server.Url; // e.g. http://127.0.0.1:50123/
+
+// ... exercise the SDK ...
+
+mock.Should().HaveAllRequestsCalled();
+```
+
+By default, the server picks a free port. Pass a port to use a specific one:
+
+```csharp
+await using var server = mock.StartServer(5080);
+```
+
+### Behavior Notes
+
+- The server only listens on `127.0.0.1`, so it is not reachable from other machines.
+- Requests are matched as if they were sent to `https://localhost/`, the base address of `GetClient()`. Configure mocks by path, e.g. `ForGet("/api/users")`.
+- Request and response headers and bodies pass through unchanged. Captured requests, assertions and invocation limits work the same as with `GetClient()`.
+- An unmatched request gets a `404 Not Found` with the reason in the body.
+- A failure simulated with `ThrowsException` or `TimesOut` aborts the connection, so the caller sees a network error instead of a response.
+- Dispose the server (`await using`) to stop listening and free the port.
+
 ## Request Collection
 
 Capture requests for specific mocks:
