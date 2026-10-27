@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <LangVersion>14</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>1591;1573</NoWarn>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+    <AssemblyName>Mockly.Server</AssemblyName>
+    <RootNamespace>Mockly</RootNamespace>
+    <Authors>Dennis Doomen</Authors>
+    <PackageDescription>Exposes a Mockly HttpMock as a real loopback HTTP server for callers that cannot use an injected HttpClient</PackageDescription>
+    <PackageProjectUrl>https://mockly.org</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dennisdoomen/mockly</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>HTTP;mocking;server;fluent</PackageTags>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageIcon>PackageIcon.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\PackageIcon.png" Pack="true" Visible="false" PackagePath="" />
+    <None Include="..\LICENSE" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mockly\Mockly.csproj" />
+  </ItemGroup>
+
+</Project>

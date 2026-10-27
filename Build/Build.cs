@@ -244,6 +244,17 @@ class Build : FalloutBuild
                 .EnableNoRestore()
                 .EnableContinuousIntegrationBuild() // Necessary for deterministic builds
                 .SetVersion(SemVer));
+
+            // Pack the optional real-socket server add-on
+            DotNetPack(s => s
+                .SetProject(Solution.GetProject("Mockly.Server"))
+                .SetOutputDirectory(ArtifactsDirectory)
+                .SetConfiguration(Configuration)
+                .EnableNoBuild()
+                .EnableNoLogo()
+                .EnableNoRestore()
+                .EnableContinuousIntegrationBuild()
+                .SetVersion(SemVer));
         });
 
 

@@ -300,6 +300,20 @@ mock.Should().HaveAllRequestsCalled();
 > [!TIP]
 > This project ships an [Agent Skill](https://agentskills.io) that helps AI Coding Agents use Mockly effectively. [This file](./SKILL.md) will be stored in the `.agents/skills/mockly` directory of your project when you build the project. You can disable this behavior by setting `<MocklySkill>false</MocklySkill>` in your project or `Directory.Build.props`.
 
+## Real socket mode
+
+For SDKs or other processes that only accept a base URL, install `Mockly.Server` (net8.0+) and expose the same mock over a loopback listener:
+
+```csharp
+var mock = new HttpMock();
+mock.ForGet("/api/users").RespondsWithJsonContent(users);
+
+await using var server = mock.StartServer();   // 127.0.0.1, free port; StartServer(port) pins one
+sdk.BaseUrl = server.Url;
+```
+
+Requests are matched as if sent to `https://localhost/`, so configure mocks by path.
+
 ## Building
 
 To build this repository locally, you need:
