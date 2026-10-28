@@ -7,6 +7,8 @@ namespace Mockly.Server.Specs;
 
 public class MockServerSpecs
 {
+    private static readonly HttpClient Client = new();
+
     [Fact]
     public async Task Serves_configured_response_over_a_real_socket()
     {
@@ -15,10 +17,9 @@ public class MockServerSpecs
         mock.ForGet("/api/users").RespondsWithJsonContent(new { Name = "Jane" });
 
         await using var server = mock.StartServer();
-        using var client = new HttpClient { BaseAddress = server.Url };
 
         // Act
-        var response = await client.GetAsync("/api/users");
+        var response = await Client.GetAsync(new Uri(server.Url, "/api/users"));
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -53,10 +54,9 @@ public class MockServerSpecs
         mock.ForPost("/orders").RespondsWithStatus(HttpStatusCode.Created);
 
         await using var server = mock.StartServer();
-        using var client = new HttpClient { BaseAddress = server.Url };
 
         // Act
-        var response = await client.PostAsync("/orders", new StringContent("hello", Encoding.UTF8, "text/plain"));
+        var response = await Client.PostAsync(new Uri(server.Url, "/orders"), new StringContent("hello", Encoding.UTF8, "text/plain"));
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -69,10 +69,9 @@ public class MockServerSpecs
         // Arrange
         var mock = new HttpMock();
         await using var server = mock.StartServer();
-        using var client = new HttpClient { BaseAddress = server.Url };
 
         // Act
-        var response = await client.GetAsync("/nothing");
+        var response = await Client.GetAsync(new Uri(server.Url, "/nothing"));
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
