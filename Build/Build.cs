@@ -115,7 +115,7 @@ class Build : FalloutBuild
         .DependsOn(Compile)
         .Executes(() =>
         {
-            InspectCode($"Mockly.sln -o={ArtifactsDirectory / "CodeIssues.sarif"} --no-build --dotnetcoresdk=10.0.300");
+            InspectCode($"Mockly.sln -o={ArtifactsDirectory / "CodeIssues.sarif"} --no-build");
         });
 
     Target RunTests => _ => _
@@ -243,6 +243,17 @@ class Build : FalloutBuild
                 .EnableNoLogo()
                 .EnableNoRestore()
                 .EnableContinuousIntegrationBuild() // Necessary for deterministic builds
+                .SetVersion(SemVer));
+
+            // Pack the optional real-socket server add-on
+            DotNetPack(s => s
+                .SetProject(Solution.GetProject("Mockly.Server"))
+                .SetOutputDirectory(ArtifactsDirectory)
+                .SetConfiguration(Configuration)
+                .EnableNoBuild()
+                .EnableNoLogo()
+                .EnableNoRestore()
+                .EnableContinuousIntegrationBuild()
                 .SetVersion(SemVer));
         });
 
