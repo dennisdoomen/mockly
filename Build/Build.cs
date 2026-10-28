@@ -115,7 +115,7 @@ class Build : FalloutBuild
         .DependsOn(Compile)
         .Executes(() =>
         {
-            InspectCode($"Mockly.sln -o={ArtifactsDirectory / "CodeIssues.sarif"} --no-build --dotnetcoresdk=10.0.300");
+            InspectCode($"Mockly.sln -o={ArtifactsDirectory / "CodeIssues.sarif"} --no-build");
         });
 
     Target RunTests => _ => _
