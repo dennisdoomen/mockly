@@ -139,13 +139,8 @@ public sealed class MockServer : IAsyncDisposable, IDisposable
 
         CopyHeaders(target, response.Headers);
 
-        byte[] body = [];
-        if (response.Content is not null)
-        {
-            CopyHeaders(target, response.Content.Headers);
-            body = await response.Content.ReadAsByteArrayAsync();
-        }
-
+        CopyHeaders(target, response.Content.Headers);
+        byte[] body = await response.Content.ReadAsByteArrayAsync();
         target.ContentLength64 = body.Length;
         await target.OutputStream.WriteAsync(body);
         target.Close();
@@ -203,7 +198,7 @@ public sealed class MockServer : IAsyncDisposable, IDisposable
     {
         if (!cts.IsCancellationRequested)
         {
-            cts.Cancel();
+            await cts.CancelAsync();
             listener.Close();
             await loop;
             invoker.Dispose();
