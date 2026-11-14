@@ -326,7 +326,7 @@ var mock = new HttpMock()
 mock.ForGet("/pets/42").RespondsWithJsonContent(rex);   // explicit mocks always win, but are validated too
 ```
 
-A request that violates the document throws a `RequestContractViolationException` that lists every violation. JSON documents in OpenAPI 3.0, 3.1 and Swagger 2.0 format are supported.
+A request that violates the document throws a `RequestContractViolationException` that lists every violation. JSON documents in OpenAPI 3.0, 3.1 and Swagger 2.0 format are supported. Pass a URL such as `https://staging.example.com/swagger/v1/swagger.json` instead of a file path to use the latest document of a real environment.
 
 ## Building
 

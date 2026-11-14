@@ -2,7 +2,7 @@ namespace Mockly;
 
 /// <summary>
 /// Exception thrown when the system under test sends a request that does not comply with the OpenAPI document
-/// registered through <see cref="HttpMockOpenApiExtensions.UsingOpenApi"/>.
+/// registered through <see cref="HttpMockOpenApiExtensions.UsingOpenApi(HttpMock, string)"/>.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1032:Implement standard exception constructors",
     Justification = "Not all constructors are needed for this exception type")]

@@ -1,5 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Microsoft.OpenApi;
+#if NET472_OR_GREATER
+using System.Net.Http;
+#endif
 
 namespace Mockly;
 
@@ -11,7 +15,7 @@ public static class HttpMockOpenApiExtensions
     private static readonly ConditionalWeakTable<HttpMock, OpenApiSupport> Supports = new();
 
     /// <summary>
-    /// Responds to every request that maps onto an operation of the OpenAPI document at <paramref name="path"/> with
+    /// Responds to every request that maps onto an operation of the OpenAPI document at <paramref name="pathOrUrl"/> with
     /// the operation's success response, using the examples from the document or values generated from its schemas.
     /// </summary>
     /// <remarks>
@@ -22,23 +26,85 @@ public static class HttpMockOpenApiExtensions
     /// combine several documents.
     /// </remarks>
     /// <param name="mock">The mock to configure.</param>
-    /// <param name="path">The path to the JSON OpenAPI document.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="mock"/> or <paramref name="path"/> is <c>null</c>.</exception>
+    /// <param name="pathOrUrl">
+    /// The path to the JSON OpenAPI document, or an absolute <c>http</c> or <c>https</c> URL to download it from,
+    /// such as <c>https://staging.example.com/swagger/v1/swagger.json</c>.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="mock"/> or <paramref name="pathOrUrl"/> is <c>null</c>.</exception>
     /// <exception cref="NotSupportedException">The document is not in JSON format.</exception>
-    /// <exception cref="InvalidOperationException">The document is not a valid OpenAPI document.</exception>
-    public static HttpMock UsingOpenApi(this HttpMock mock, string path)
+    /// <exception cref="InvalidOperationException">
+    /// The document could not be downloaded or is not a valid OpenAPI document.
+    /// </exception>
+    [SuppressMessage("Design", "CA1054:URI-like parameters should not be strings",
+        Justification = "Accepts a file path as well as a URL; the Uri overload covers the URL-only case.")]
+    public static HttpMock UsingOpenApi(this HttpMock mock, string pathOrUrl)
     {
         if (mock is null)
         {
             throw new ArgumentNullException(nameof(mock));
         }
 
-        if (path is null)
+        if (pathOrUrl is null)
         {
-            throw new ArgumentNullException(nameof(path));
+            throw new ArgumentNullException(nameof(pathOrUrl));
         }
 
-        OpenApiContract contract = OpenApiContract.Load(path);
+        if (Uri.TryCreate(pathOrUrl, UriKind.Absolute, out Uri? url) && IsHttp(url))
+        {
+            return mock.UsingOpenApi(url);
+        }
+
+        return Register(mock, OpenApiContract.Load(pathOrUrl));
+    }
+
+    /// <summary>
+    /// Downloads the OpenAPI document from <paramref name="url"/>, for instance from a real (test) environment of
+    /// the API, and responds to every request that maps onto one of its operations like
+    /// <see cref="UsingOpenApi(HttpMock, string)"/> does.
+    /// </summary>
+    /// <remarks>
+    /// The document is downloaded once, when this method is called.
+    /// </remarks>
+    /// <param name="mock">The mock to configure.</param>
+    /// <param name="url">The absolute <c>http</c> or <c>https</c> URL of the JSON OpenAPI document.</param>
+    /// <param name="httpClient">
+    /// The client to download the document with, for instance to add authentication headers. If <c>null</c>, a new
+    /// client is used. Don't pass the client of the mock itself.
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="mock"/> or <paramref name="url"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="url"/> is not an absolute HTTP(S) URL.</exception>
+    /// <exception cref="HttpRequestException">The server could not be reached.</exception>
+    /// <exception cref="NotSupportedException">The document is not in JSON format.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The server did not return a success status code, or the document is not a valid OpenAPI document.
+    /// </exception>
+    public static HttpMock UsingOpenApi(this HttpMock mock, Uri url, HttpClient? httpClient = null)
+    {
+        if (mock is null)
+        {
+            throw new ArgumentNullException(nameof(mock));
+        }
+
+        if (url is null)
+        {
+            throw new ArgumentNullException(nameof(url));
+        }
+
+        if (!url.IsAbsoluteUri || !IsHttp(url))
+        {
+            throw new ArgumentException($"The URL {url} must be an absolute http or https URL.", nameof(url));
+        }
+
+        return Register(mock, OpenApiContract.Download(url, httpClient));
+    }
+
+    private static bool IsHttp(Uri url)
+    {
+        return url.Scheme == Uri.UriSchemeHttp || url.Scheme == Uri.UriSchemeHttps;
+    }
+
+    private static HttpMock Register(HttpMock mock, OpenApiContract contract)
+    {
         GetSupport(mock).Contracts.Add(contract);
 
         mock.AddFallbackResponder(request =>
@@ -52,7 +118,7 @@ public static class HttpMockOpenApiExtensions
 
     /// <summary>
     /// Fails every request of the system under test that calls an operation that doesn't exist in the OpenAPI
-    /// document(s) registered through <see cref="UsingOpenApi"/>, omits a required parameter or body, or sends a
+    /// document(s) registered through <see cref="UsingOpenApi(HttpMock, string)"/>, omits a required parameter or body, or sends a
     /// parameter or JSON body that violates the schema of that operation.
     /// </summary>
     /// <remarks>
@@ -63,7 +129,7 @@ public static class HttpMockOpenApiExtensions
     /// <param name="mock">The mock to configure.</param>
     /// <exception cref="ArgumentNullException"><paramref name="mock"/> is <c>null</c>.</exception>
     /// <exception cref="InvalidOperationException">
-    /// No OpenAPI document was registered through <see cref="UsingOpenApi"/>.
+    /// No OpenAPI document was registered through <see cref="UsingOpenApi(HttpMock, string)"/>.
     /// </exception>
     public static HttpMock ValidateRequestsAgainstSpec(this HttpMock mock)
     {

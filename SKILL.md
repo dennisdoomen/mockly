@@ -149,6 +149,10 @@ mock.ForGet().WithPath("/slow").RespondsWithStatus(HttpStatusCode.OK).After(Time
 // Explicit mocks (ForGet(...) etc.) always win over generated responses, whatever the registration order.
 mock.UsingOpenApi("petstore.json");
 
+// Or download the latest document from a real environment (once, at setup); the Uri overload takes an optional HttpClient for auth
+mock.UsingOpenApi("https://staging.example.com/swagger/v1/swagger.json");
+mock.UsingOpenApi(new Uri("https://staging.example.com/swagger/v1/swagger.json"), authenticatedHttpClient);
+
 // Throw RequestContractViolationException when a request hits an undocumented path/method, omits a required
 // parameter or body, or sends a parameter/JSON body that violates the schema. Also applies to explicit mocks.
 mock.ValidateRequestsAgainstSpec();

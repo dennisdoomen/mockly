@@ -38,11 +38,39 @@ internal sealed class OpenApiContract
     /// </summary>
     public static OpenApiContract Load(string path)
     {
-        string content = File.ReadAllText(path);
+        return Parse(File.ReadAllText(path), path);
+    }
+
+    /// <summary>
+    /// Downloads and parses the OpenAPI 3.x or Swagger 2.0 JSON document at <paramref name="url"/>.
+    /// </summary>
+    /// <param name="url">The absolute HTTP(S) URL of the document.</param>
+    /// <param name="httpClient">The client to download with, or <c>null</c> to use a new one.</param>
+    public static OpenApiContract Download(Uri url, HttpClient? httpClient)
+    {
+        using HttpClient? ownedClient = httpClient is null ? new HttpClient() : null;
+        HttpClient client = httpClient ?? ownedClient!;
+
+        // The mock is configured synchronously, so block on the download. ConfigureAwait(false) avoids
+        // deadlocks in environments with a synchronization context.
+        using HttpResponseMessage response = client.GetAsync(url).ConfigureAwait(false).GetAwaiter().GetResult();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"The OpenAPI document {url} could not be downloaded: the server responded with " +
+                $"{(int)response.StatusCode} {response.ReasonPhrase}.");
+        }
+
+        string content = response.Content.ReadAsStringAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+        return Parse(content, url.ToString());
+    }
+
+    private static OpenApiContract Parse(string content, string source)
+    {
         if (!content.TrimStart().StartsWith("{", StringComparison.Ordinal))
         {
             throw new NotSupportedException(
-                $"The OpenAPI document {path} is not a JSON document. Only JSON documents are supported.");
+                $"The OpenAPI document {source} is not a JSON document. Only JSON documents are supported.");
         }
 
         ReadResult result = OpenApiDocument.Parse(content, "json", new OpenApiReaderSettings());
@@ -51,11 +79,11 @@ internal sealed class OpenApiContract
         if (result.Document is null || errors.Count > 0)
         {
             throw new InvalidOperationException(
-                $"The OpenAPI document {path} could not be loaded:" + Environment.NewLine +
+                $"The OpenAPI document {source} could not be loaded:" + Environment.NewLine +
                 string.Join(Environment.NewLine, errors.Select(error => "  - " + error)));
         }
 
-        return new OpenApiContract(path, result.Document);
+        return new OpenApiContract(source, result.Document);
     }
 
     /// <summary>

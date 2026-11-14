@@ -275,6 +275,65 @@ public static class OpenApiSpecs
             // Assert
             act.Should().Throw<InvalidOperationException>().WithMessage("*could not be loaded*");
         }
+
+        [Fact]
+        public async Task Downloads_the_document_from_a_url()
+        {
+            // Arrange
+            var environment = new HttpMock();
+            environment.ForGet("https://staging.example.com/swagger/v1/swagger.json")
+                .RespondsWithContent(HttpStatusCode.OK, OpenApiDocuments.PetStore, "application/json");
+
+            var mock = new HttpMock().UsingOpenApi(
+                new Uri("https://staging.example.com/swagger/v1/swagger.json"), environment.GetClient());
+
+            HttpClient client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://api.example.com/v1/pets?limit=10");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            body.RootElement[0].GetProperty("name").GetString().Should().Be("Rex");
+        }
+
+        [Fact]
+        public void Rejects_a_url_that_does_not_return_the_document()
+        {
+            // Arrange
+            var environment = new HttpMock();
+            environment.ForGet("https://staging.example.com/swagger/v1/swagger.json")
+                .RespondsWithStatus(HttpStatusCode.NotFound);
+
+            // Act
+            Action act = () => new HttpMock().UsingOpenApi(
+                new Uri("https://staging.example.com/swagger/v1/swagger.json"), environment.GetClient());
+
+            // Assert
+            act.Should().Throw<InvalidOperationException>().WithMessage("*could not be downloaded*404*");
+        }
+
+        [Fact]
+        public void Treats_an_http_string_as_a_url_to_download_from()
+        {
+            // Act
+            Action act = () => new HttpMock().UsingOpenApi("http://127.0.0.1:1/swagger.json");
+
+            // Assert
+            act.Should().Throw<HttpRequestException>();
+        }
+
+        [Fact]
+        public void Rejects_a_url_that_is_not_http()
+        {
+            // Act
+            Action act = () => new HttpMock().UsingOpenApi(new Uri("ftp://staging.example.com/swagger.json"));
+
+            // Assert
+            act.Should().Throw<ArgumentException>().WithMessage("*http or https*");
+        }
     }
 
     public class RequestValidation

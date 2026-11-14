@@ -383,6 +383,25 @@ mock.UsingOpenApi("petstore.json");
 mock.ForGet("/pets/42").RespondsWithJsonContent(new { id = 42, name = "Rex" });
 ```
 
+### Loading the Document from a URL
+
+To keep the mocks in sync with the API, download the document from a real environment instead of keeping a copy in your repository:
+
+```csharp
+var mock = new HttpMock().UsingOpenApi("https://staging.example.com/swagger/v1/swagger.json");
+```
+
+The document is downloaded once, when `UsingOpenApi` is called. To add authentication headers or a proxy, pass your own `HttpClient`:
+
+```csharp
+var http = new HttpClient();
+http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+var mock = new HttpMock().UsingOpenApi(new Uri("https://staging.example.com/swagger/v1/swagger.json"), http);
+```
+
+If the server returns an error status code, `UsingOpenApi` throws an `InvalidOperationException`.
+
 ### Request Contract Validation
 
 `ValidateRequestsAgainstSpec` checks every request your code sends against the document(s) registered through `UsingOpenApi`:
