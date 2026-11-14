@@ -153,9 +153,9 @@ mock.UsingOpenApi("petstore.json");
 mock.UsingOpenApi("https://staging.example.com/swagger/v1/swagger.json");
 mock.UsingOpenApi(new Uri("https://staging.example.com/swagger/v1/swagger.json"), authenticatedHttpClient);
 
-// Throw RequestContractViolationException when a request hits an undocumented path/method, omits a required
-// parameter or body, or sends a parameter/JSON body that violates the schema. Also applies to explicit mocks.
-mock.ValidateRequestsAgainstSpec();
+// UsingOpenApi also validates every request under the document's base path/paths (explicit mocks included):
+// an undocumented path/method, a missing required parameter or body, or a parameter/JSON body that violates the
+// schema throws RequestContractViolationException (or returns 400 Bad Request if FailOnUnexpectedCalls = false).
 ```
 
 ## Reset / Clear

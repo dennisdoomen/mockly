@@ -319,14 +319,14 @@ Requests are matched as if sent to `https://localhost/`, so configure mocks by p
 Hand-written mocks keep passing when the real API changes. Install `Mockly.OpenApi` to let an OpenAPI (Swagger) document answer requests and police the requests your code sends:
 
 ```csharp
-var mock = new HttpMock()
-    .UsingOpenApi("petstore.json")      // respond to every documented operation with its example or a generated body
-    .ValidateRequestsAgainstSpec();     // fail on unknown operations, missing parameters and invalid bodies
+// Respond to every documented operation with its example or a generated body,
+// and fail on unknown operations, missing parameters and invalid bodies
+var mock = new HttpMock().UsingOpenApi("petstore.json");
 
 mock.ForGet("/pets/42").RespondsWithJsonContent(rex);   // explicit mocks always win, but are validated too
 ```
 
-A request that violates the document throws a `RequestContractViolationException` that lists every violation. JSON documents in OpenAPI 3.0, 3.1 and Swagger 2.0 format are supported. Pass a URL such as `https://staging.example.com/swagger/v1/swagger.json` instead of a file path to use the latest document of a real environment.
+Like any other unexpected call, a request that violates the document throws an exception (a `RequestContractViolationException` that lists every violation) unless you set `FailOnUnexpectedCalls` to `false`. JSON documents in OpenAPI 3.0, 3.1 and Swagger 2.0 format are supported. Pass a URL such as `https://staging.example.com/swagger/v1/swagger.json` instead of a file path to use the latest document of a real environment.
 
 ## Building
 

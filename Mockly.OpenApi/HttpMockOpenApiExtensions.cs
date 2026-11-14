@@ -12,18 +12,30 @@ namespace Mockly;
 /// </summary>
 public static class HttpMockOpenApiExtensions
 {
-    private static readonly ConditionalWeakTable<HttpMock, OpenApiSupport> Supports = new();
+    private static readonly ConditionalWeakTable<HttpMock, List<OpenApiContract>> Contracts = new();
 
     /// <summary>
     /// Responds to every request that maps onto an operation of the OpenAPI document at <paramref name="pathOrUrl"/> with
-    /// the operation's success response, using the examples from the document or values generated from its schemas.
+    /// the operation's success response, using the examples from the document or values generated from its schemas,
+    /// and rejects every request that violates the document.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Explicitly configured mocks, such as <c>ForGet("/pets/1")</c>, always take precedence over the generated
     /// responses, regardless of the order in which they were configured. Supports OpenAPI 3.0 and 3.1 as well as
     /// Swagger 2.0 documents in JSON format. Request paths are matched both as-is and relative to the paths of the
     /// <c>servers</c> (or Swagger 2.0 <c>basePath</c>) declared by the document. Can be called multiple times to
     /// combine several documents.
+    /// </para>
+    /// <para>
+    /// Like any other unexpected call, a request that belongs to the API but violates the document is captured as
+    /// unexpected in <see cref="HttpMock.Requests"/>. If <see cref="HttpMock.FailOnUnexpectedCalls"/> is <c>true</c>
+    /// (the default), it throws a <see cref="RequestContractViolationException"/> that lists every violation;
+    /// otherwise it returns <c>400 Bad Request</c>. This includes requests handled by explicitly configured mocks.
+    /// A request violates the document if it calls an undocumented operation, omits a required parameter or body,
+    /// or sends a parameter or JSON body that violates the schema of the operation. Requests that are not under the
+    /// base path of any document, and don't match any of its paths, are not validated.
+    /// </para>
     /// </remarks>
     /// <param name="mock">The mock to configure.</param>
     /// <param name="pathOrUrl">
@@ -105,7 +117,16 @@ public static class HttpMockOpenApiExtensions
 
     private static HttpMock Register(HttpMock mock, OpenApiContract contract)
     {
-        GetSupport(mock).Contracts.Add(contract);
+        if (!Contracts.TryGetValue(mock, out List<OpenApiContract>? contracts))
+        {
+            contracts = [];
+            Contracts.Add(mock, contracts);
+
+            // A single validator checks the request against all documents, so it is valid if any of them allows it.
+            mock.AddRequestValidator(request => ContractValidator.Validate(request, contracts));
+        }
+
+        contracts.Add(contract);
 
         mock.AddFallbackResponder(request =>
         {
@@ -114,55 +135,5 @@ public static class HttpMockOpenApiExtensions
         });
 
         return mock;
-    }
-
-    /// <summary>
-    /// Fails every request of the system under test that calls an operation that doesn't exist in the OpenAPI
-    /// document(s) registered through <see cref="UsingOpenApi(HttpMock, string)"/>, omits a required parameter or body, or sends a
-    /// parameter or JSON body that violates the schema of that operation.
-    /// </summary>
-    /// <remarks>
-    /// The validation applies to all requests, including those handled by explicitly configured mocks. A violating
-    /// request is captured as unexpected in <see cref="HttpMock.Requests"/> and causes the call of the system under
-    /// test to throw a <see cref="RequestContractViolationException"/> that lists every violation.
-    /// </remarks>
-    /// <param name="mock">The mock to configure.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="mock"/> is <c>null</c>.</exception>
-    /// <exception cref="InvalidOperationException">
-    /// No OpenAPI document was registered through <see cref="UsingOpenApi(HttpMock, string)"/>.
-    /// </exception>
-    public static HttpMock ValidateRequestsAgainstSpec(this HttpMock mock)
-    {
-        if (mock is null)
-        {
-            throw new ArgumentNullException(nameof(mock));
-        }
-
-        OpenApiSupport support = GetSupport(mock);
-        if (support.Contracts.Count == 0)
-        {
-            throw new InvalidOperationException(
-                $"Call {nameof(UsingOpenApi)} to register an OpenAPI document before validating requests against it.");
-        }
-
-        if (!support.IsValidating)
-        {
-            support.IsValidating = true;
-            mock.AddRequestValidator(request => ContractValidator.Validate(request, support.Contracts));
-        }
-
-        return mock;
-    }
-
-    private static OpenApiSupport GetSupport(HttpMock mock)
-    {
-        return Supports.GetValue(mock, _ => new OpenApiSupport());
-    }
-
-    private sealed class OpenApiSupport
-    {
-        public List<OpenApiContract> Contracts { get; } = new();
-
-        public bool IsValidating { get; set; }
     }
 }

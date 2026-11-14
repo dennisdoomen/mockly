@@ -20,6 +20,10 @@ internal static class ContractValidator
     /// Throws a <see cref="RequestContractViolationException"/> when <paramref name="request"/> does not map onto
     /// an operation of any of the <paramref name="contracts"/>, or violates the operation it maps onto.
     /// </summary>
+    /// <remarks>
+    /// A request that matches none of the paths and is not under the base path of any of the documents is
+    /// considered to be meant for another API, so it is not validated.
+    /// </remarks>
     public static void Validate(RequestInfo request, IReadOnlyList<OpenApiContract> contracts)
     {
         PathMatch? pathMatch = null;
@@ -41,6 +45,11 @@ internal static class ContractValidator
             }
 
             pathMatch ??= match;
+        }
+
+        if (pathMatch is null && !contracts.Any(contract => contract.IsUnderBasePath(request.Uri)))
+        {
+            return;
         }
 
         string violation = pathMatch is null

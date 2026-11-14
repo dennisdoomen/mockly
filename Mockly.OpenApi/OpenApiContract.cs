@@ -93,13 +93,7 @@ internal sealed class OpenApiContract
     /// <returns>The matching path and the values of its path parameters, or <c>null</c> if no path matches.</returns>
     public PathMatch? FindPath(Uri? requestUri)
     {
-        string requestPath = requestUri?.AbsolutePath ?? "/";
-        if (requestPath.Length > 1)
-        {
-            requestPath = requestPath.TrimEnd('/');
-        }
-
-        foreach (string candidate in GetCandidatePaths(requestPath))
+        foreach (string candidate in GetCandidatePaths(GetRequestPath(requestUri)))
         {
             foreach (PathTemplate template in pathTemplates)
             {
@@ -111,6 +105,24 @@ internal sealed class OpenApiContract
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Determines whether the path of <paramref name="requestUri"/> lies under the path of one of the servers declared
+    /// by the document, such as <c>/v1/owners</c> for a server <c>https://api.example.com/v1</c>.
+    /// </summary>
+    public bool IsUnderBasePath(Uri? requestUri)
+    {
+        string requestPath = GetRequestPath(requestUri);
+
+        return basePaths.Exists(basePath => requestPath.Equals(basePath, StringComparison.Ordinal) ||
+            requestPath.StartsWith(basePath + "/", StringComparison.Ordinal));
+    }
+
+    private static string GetRequestPath(Uri? requestUri)
+    {
+        string requestPath = requestUri?.AbsolutePath ?? "/";
+        return requestPath.Length > 1 ? requestPath.TrimEnd('/') : requestPath;
     }
 
     private IEnumerable<string> GetCandidatePaths(string requestPath)

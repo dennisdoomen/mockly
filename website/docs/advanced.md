@@ -404,21 +404,13 @@ If the server returns an error status code, `UsingOpenApi` throws an `InvalidOpe
 
 ### Request Contract Validation
 
-`ValidateRequestsAgainstSpec` checks every request your code sends against the document(s) registered through `UsingOpenApi`:
-
-```csharp
-var mock = new HttpMock()
-    .UsingOpenApi("petstore.json")
-    .ValidateRequestsAgainstSpec();
-```
-
-A request fails when:
+`UsingOpenApi` also checks every request your code sends to the API against the document(s). Mockly treats a request that violates the document like any other unexpected call. A request fails when:
 
 - No path of the document matches it, or the path does not support the HTTP method.
 - A required path, query, header or cookie parameter is missing, or a parameter value does not match its schema.
 - A required request body is missing, the content type is not accepted, or a JSON body does not match its schema (types, required and unknown properties, enumerations, lengths, ranges, patterns, array sizes and `allOf`/`anyOf`/`oneOf`).
 
-The validation also applies to requests handled by explicitly configured mocks. A violating request is captured as unexpected in `HttpMock.Requests` and throws a `RequestContractViolationException` that lists every violation:
+The validation also applies to requests handled by explicitly configured mocks. A violating request is captured as unexpected in `HttpMock.Requests`. If `FailOnUnexpectedCalls` is `true` (the default), it throws a `RequestContractViolationException` that lists every violation. Otherwise, it returns `400 Bad Request` with the violations in the body:
 
 ```text
 Request violates the API contract:
@@ -435,7 +427,7 @@ Validated against operation 'createPet' (POST /pets):
 - Request paths are matched both as-is and relative to the path of each server URL (or the Swagger 2.0 `basePath`) of the document. The host is ignored, so the base address of `GetClient()` works too.
 - Concrete paths such as `/pets/mine` take precedence over templated ones such as `/pets/{petId}`.
 - Call `UsingOpenApi` multiple times to combine several documents. A request is valid if it complies with any of them.
-- Requests that do not map onto an operation are handled as usual: recordings, pass-through, or an `UnexpectedRequestException`.
+- Only requests for the API are validated: requests that match a path of the document, or that are under the path of one of its server URLs. Other requests, such as calls to an identity provider, are handled as usual: explicit mocks, recordings, pass-through, or an `UnexpectedRequestException`.
 
 ## Request Collection
 

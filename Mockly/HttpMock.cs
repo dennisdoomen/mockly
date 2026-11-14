@@ -406,7 +406,10 @@ public class HttpMock
     {
         RequestInfo request = await BuildRequestInfo(httpRequest);
 
-        ValidateRequest(request);
+        if (ValidateRequest(request) is { } rejectedRequest)
+        {
+            return rejectedRequest.Response;
+        }
 
         // Try to find a matching mock
         bool foundMatch = true;
@@ -473,9 +476,11 @@ public class HttpMock
 
     /// <summary>
     /// Runs all registered request validators. When one of them rejects the request, the request is captured as
-    /// unexpected so it still shows up in <see cref="Requests"/> and <see cref="GetTrafficReport"/>.
+    /// unexpected so it still shows up in <see cref="Requests"/> and <see cref="GetTrafficReport"/>. Like any other
+    /// unexpected call, the rejection is rethrown if <see cref="FailOnUnexpectedCalls"/> is <c>true</c>.
     /// </summary>
-    private void ValidateRequest(RequestInfo request)
+    /// <returns>The captured request with a <c>400 Bad Request</c> response, or <c>null</c> if the request is valid.</returns>
+    private CapturedRequest? ValidateRequest(RequestInfo request)
     {
         try
         {
@@ -483,20 +488,30 @@ public class HttpMock
             {
                 validator(request);
             }
+
+            return null;
         }
-        catch
+        catch (Exception exception)
         {
-            Requests.Add(new CapturedRequest(request)
+            var rejectedRequest = new CapturedRequest(request)
             {
                 Response = new HttpResponseMessage(HttpStatusCode.BadRequest)
                 {
-                    ReasonPhrase = "Request rejected by a request validator"
+                    ReasonPhrase = "Request rejected by a request validator",
+                    Content = new StringContent(exception.Message)
                 },
                 WasExpected = false,
                 Timestamp = DateTime.UtcNow
-            });
+            };
 
-            throw;
+            Requests.Add(rejectedRequest);
+
+            if (FailOnUnexpectedCalls)
+            {
+                throw;
+            }
+
+            return rejectedRequest;
         }
     }
 
