@@ -355,6 +355,80 @@ await using var server = mock.StartServer(5080);
 - A failure simulated with `ThrowsException` or `TimesOut` aborts the connection, so the caller sees a network error instead of a response.
 - Dispose the server (`await using`) to stop listening and free the port.
 
+## OpenAPI-Driven Mocks
+
+Hand-written mocks encode what you *believe* an API looks like. When the real API changes, those mocks keep passing and the bug only shows up in production. The `Mockly.OpenApi` package uses the OpenAPI (Swagger) document of the API instead:
+
+```bash
+dotnet add package Mockly.OpenApi
+```
+
+### Generated Responses
+
+`UsingOpenApi` answers every request that maps onto an operation of the document, without any further setup:
+
+```csharp
+var mock = new HttpMock().UsingOpenApi("petstore.json");
+HttpClient client = mock.GetClient();
+
+// GET /pets/42 returns the success response of the 'getPet' operation
+```
+
+The response uses the lowest `2xx` status code of the operation (or its `default` response). The body is the example from the document. If the document has no example, Mockly generates a value from the schema: it uses `example`, `default` and `enum` values where possible, and fills in plausible values that respect the type, format, length and range constraints.
+
+Explicitly configured mocks always take precedence over the generated responses, regardless of the order in which you set them up:
+
+```csharp
+mock.UsingOpenApi("petstore.json");
+mock.ForGet("/pets/42").RespondsWithJsonContent(new { id = 42, name = "Rex" });
+```
+
+### Loading the Document from a URL
+
+To keep the mocks in sync with the API, download the document from a real environment instead of keeping a copy in your repository:
+
+```csharp
+var mock = new HttpMock().UsingOpenApi("https://staging.example.com/swagger/v1/swagger.json");
+```
+
+The document is downloaded once, when `UsingOpenApi` is called. To add authentication headers or a proxy, pass your own `HttpClient`:
+
+```csharp
+var http = new HttpClient();
+http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+var mock = new HttpMock().UsingOpenApi(new Uri("https://staging.example.com/swagger/v1/swagger.json"), http);
+```
+
+If the server returns an error status code, `UsingOpenApi` throws an `InvalidOperationException`.
+
+### Request Contract Validation
+
+`UsingOpenApi` also checks every request your code sends to the API against the document(s). Mockly treats a request that violates the document like any other unexpected call. A request fails when:
+
+- No path of the document matches it, or the path does not support the HTTP method.
+- A required path, query, header or cookie parameter is missing, or a parameter value does not match its schema.
+- A required request body is missing, the content type is not accepted, or a JSON body does not match its schema (types, required and unknown properties, enumerations, lengths, ranges, patterns, array sizes and `allOf`/`anyOf`/`oneOf`).
+
+The validation also applies to requests handled by explicitly configured mocks. A violating request is captured as unexpected in `HttpMock.Requests`. If `FailOnUnexpectedCalls` is `true` (the default), it throws a `RequestContractViolationException` that lists every violation. Otherwise, it returns `400 Bad Request` with the violations in the body:
+
+```text
+Request violates the API contract:
+  POST https://api.example.com/v1/pets
+
+Validated against operation 'createPet' (POST /pets):
+    ✗ $ is missing required property 'name'
+    ✗ $.status must be a string, but found an integer 3
+```
+
+### Behavior Notes
+
+- JSON documents in OpenAPI 3.0, OpenAPI 3.1 and Swagger 2.0 format are supported. YAML documents are not.
+- Request paths are matched both as-is and relative to the path of each server URL (or the Swagger 2.0 `basePath`) of the document. The host is ignored, so the base address of `GetClient()` works too.
+- Concrete paths such as `/pets/mine` take precedence over templated ones such as `/pets/{petId}`.
+- Call `UsingOpenApi` multiple times to combine several documents. A request is valid if it complies with any of them.
+- Only requests for the API are validated: requests that match a path of the document, or that are under the path of one of its server URLs. Other requests, such as calls to an identity provider, are handled as usual: explicit mocks, recordings, pass-through, or an `UnexpectedRequestException`.
+
 ## Request Collection
 
 Capture requests for specific mocks:

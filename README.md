@@ -314,6 +314,20 @@ sdk.BaseUrl = server.Url;
 
 Requests are matched as if sent to `https://localhost/`, so configure mocks by path. An unmatched request gets a `404 Not Found`. A failure simulated with `ThrowsException` or `TimesOut` aborts the connection, so the caller sees a network error.
 
+## OpenAPI-driven mocks and contract validation
+
+Hand-written mocks keep passing when the real API changes. Install `Mockly.OpenApi` to let an OpenAPI (Swagger) document answer requests and police the requests your code sends:
+
+```csharp
+// Respond to every documented operation with its example or a generated body,
+// and fail on unknown operations, missing parameters and invalid bodies
+var mock = new HttpMock().UsingOpenApi("petstore.json");
+
+mock.ForGet("/pets/42").RespondsWithJsonContent(rex);   // explicit mocks always win, but are validated too
+```
+
+Like any other unexpected call, a request that violates the document throws an exception (a `RequestContractViolationException` that lists every violation) unless you set `FailOnUnexpectedCalls` to `false`. JSON documents in OpenAPI 3.0, 3.1 and Swagger 2.0 format are supported. Pass a URL such as `https://staging.example.com/swagger/v1/swagger.json` instead of a file path to use the latest document of a real environment.
+
 ## Building
 
 To build this repository locally, you need:

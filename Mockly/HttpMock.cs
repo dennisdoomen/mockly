@@ -32,6 +32,8 @@ public class HttpMock
     private readonly List<RequestMock> mocks = new();
     private readonly List<HttpArchiveEntry> replayRecordings = new();
     private readonly List<HttpArchiveEntry> recordedEntries = new();
+    private readonly List<Func<RequestInfo, HttpResponseMessage?>> fallbackResponders = new();
+    private readonly List<Action<RequestInfo>> requestValidators = new();
     private RequestMockBuilder? previousBuilder;
     private string? recordingPath;
     private bool passThroughUnmatched;
@@ -375,6 +377,26 @@ public class HttpMock
     }
 
     /// <summary>
+    /// Registers a responder that is consulted, in registration order, when none of the configured mocks match a
+    /// request. Explicitly configured mocks therefore always take precedence. The responder returns <c>null</c>
+    /// when it cannot handle the request.
+    /// </summary>
+    internal void AddFallbackResponder(Func<RequestInfo, HttpResponseMessage?> responder)
+    {
+        fallbackResponders.Add(responder);
+    }
+
+    /// <summary>
+    /// Registers a validator that inspects every request before it is matched against the configured mocks. A
+    /// validator rejects a request by throwing an exception, which is propagated to the caller after the request
+    /// has been captured as unexpected.
+    /// </summary>
+    internal void AddRequestValidator(Action<RequestInfo> validator)
+    {
+        requestValidators.Add(validator);
+    }
+
+    /// <summary>
     /// Intercepts an outgoing HTTP request, finds the first non-exhausted matching mock,
     /// and returns its configured response. Records the request in <see cref="Requests"/> and
     /// throws <see cref="UnexpectedRequestException"/> when no mock matches and
@@ -384,9 +406,16 @@ public class HttpMock
     {
         RequestInfo request = await BuildRequestInfo(httpRequest);
 
+        if (ValidateRequest(request) is { } rejectedRequest)
+        {
+            return rejectedRequest.Response;
+        }
+
         // Try to find a matching mock
         bool foundMatch = true;
-        CapturedRequest? capturedRequest = await TryFindMatchingMock(request, cancellationToken);
+        CapturedRequest? capturedRequest = await TryFindMatchingMock(request, cancellationToken) ??
+            TryFallbackResponders(request);
+
         if (capturedRequest == null)
         {
             capturedRequest = new CapturedRequest(request)
@@ -443,6 +472,69 @@ public class HttpMock
         }
 
         return capturedRequest.Response;
+    }
+
+    /// <summary>
+    /// Runs all registered request validators. When one of them rejects the request, the request is captured as
+    /// unexpected so it still shows up in <see cref="Requests"/> and <see cref="GetTrafficReport"/>. Like any other
+    /// unexpected call, the rejection is rethrown if <see cref="FailOnUnexpectedCalls"/> is <c>true</c>.
+    /// </summary>
+    /// <returns>The captured request with a <c>400 Bad Request</c> response, or <c>null</c> if the request is valid.</returns>
+    private CapturedRequest? ValidateRequest(RequestInfo request)
+    {
+        try
+        {
+            foreach (Action<RequestInfo> validator in requestValidators)
+            {
+                validator(request);
+            }
+
+            return null;
+        }
+        catch (Exception exception)
+        {
+            var rejectedRequest = new CapturedRequest(request)
+            {
+                Response = new HttpResponseMessage(HttpStatusCode.BadRequest)
+                {
+                    ReasonPhrase = "Request rejected by a request validator",
+                    Content = new StringContent(exception.Message)
+                },
+                WasExpected = false,
+                Timestamp = DateTime.UtcNow
+            };
+
+            Requests.Add(rejectedRequest);
+
+            if (FailOnUnexpectedCalls)
+            {
+                throw;
+            }
+
+            return rejectedRequest;
+        }
+    }
+
+    /// <summary>
+    /// Asks the registered fallback responders, in order, to handle a request that none of the mocks matched.
+    /// </summary>
+    private CapturedRequest? TryFallbackResponders(RequestInfo request)
+    {
+        foreach (Func<RequestInfo, HttpResponseMessage?> responder in fallbackResponders)
+        {
+            HttpResponseMessage? response = responder(request);
+            if (response is not null)
+            {
+                return new CapturedRequest(request)
+                {
+                    Response = response,
+                    WasExpected = true,
+                    Timestamp = DateTime.UtcNow
+                };
+            }
+        }
+
+        return null;
     }
 
     private async Task RecordAsync(HttpResponseMessage response, HttpRequestMessage request, byte[]? requestBody)
@@ -600,7 +692,8 @@ public class HttpMock
     private async Task<RequestInfo> BuildRequestInfo(HttpRequestMessage httpRequest)
     {
         byte[]? rawBody = null;
-        if ((PrefetchBody || passThroughUnmatched || replayRecordings.Count > 0) && httpRequest.Content is not null)
+        if ((PrefetchBody || passThroughUnmatched || replayRecordings.Count > 0 || requestValidators.Count > 0) &&
+            httpRequest.Content is not null)
         {
             rawBody = await httpRequest.Content.ReadAsByteArrayAsync();
         }

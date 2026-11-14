@@ -123,23 +123,25 @@ class Build : FalloutBuild
         .Executes(() =>
         {
             TestResultsDirectory.CreateOrCleanDirectory();
-            var project = Solution.GetProject("Mockly.Specs");
 
-            DotNetTest(s => s
-                // We run tests in debug mode so that Fluent Assertions can show the names of variables
-                .SetConfiguration(Configuration.Debug)
-                // To prevent the machine language to affect tests sensitive to the current thread's culture
-                .SetProcessEnvironmentVariable("DOTNET_CLI_UI_LANGUAGE", "en-US")
-                .SetDataCollector("XPlat Code Coverage")
-                .SetCollectCoverage(true)
-                .SetCoverletOutputFormat(CoverletOutputFormat.cobertura)
-                .SetResultsDirectory(TestResultsDirectory)
-                .SetProjectFile(project)
-                .CombineWith(project.GetTargetFrameworks(),
-                    (ss, framework) => ss
-                        .SetFramework(framework)
-                        .AddLoggers($"trx;LogFileName={framework}.trx")
-                ));
+            foreach (var project in new[] { Solution.GetProject("Mockly.Specs"), Solution.GetProject("Mockly.OpenApi.Specs") })
+            {
+                DotNetTest(s => s
+                    // We run tests in debug mode so that Fluent Assertions can show the names of variables
+                    .SetConfiguration(Configuration.Debug)
+                    // To prevent the machine language to affect tests sensitive to the current thread's culture
+                    .SetProcessEnvironmentVariable("DOTNET_CLI_UI_LANGUAGE", "en-US")
+                    .SetDataCollector("XPlat Code Coverage")
+                    .SetCollectCoverage(true)
+                    .SetCoverletOutputFormat(CoverletOutputFormat.cobertura)
+                    .SetResultsDirectory(TestResultsDirectory)
+                    .SetProjectFile(project)
+                    .CombineWith(project.GetTargetFrameworks(),
+                        (ss, framework) => ss
+                            .SetFramework(framework)
+                            .AddLoggers($"trx;LogFileName={project.Name}.{framework}.trx")
+                    ));
+            }
         });
 
     Target ApiChecks => _ => _
@@ -243,6 +245,17 @@ class Build : FalloutBuild
                 .EnableNoLogo()
                 .EnableNoRestore()
                 .EnableContinuousIntegrationBuild() // Necessary for deterministic builds
+                .SetVersion(SemVer));
+
+            // Pack the optional OpenAPI-driven mocking and contract validation add-on
+            DotNetPack(s => s
+                .SetProject(Solution.GetProject("Mockly.OpenApi"))
+                .SetOutputDirectory(ArtifactsDirectory)
+                .SetConfiguration(Configuration)
+                .EnableNoBuild()
+                .EnableNoLogo()
+                .EnableNoRestore()
+                .EnableContinuousIntegrationBuild()
                 .SetVersion(SemVer));
 
             // Pack the optional real-socket server add-on
