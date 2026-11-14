@@ -283,7 +283,7 @@ public static class OpenApiSpecs
             // Arrange
             var environment = new HttpMock();
             environment.ForGet("https://staging.example.com/swagger/v1/swagger.json")
-                .RespondsWithContent(HttpStatusCode.OK, OpenApiDocuments.PetStore, "application/json");
+                .RespondsWithContent(HttpStatusCode.OK, OpenApiDocuments.PetStore);
 
             var mock = new HttpMock().UsingOpenApi(
                 new Uri("https://staging.example.com/swagger/v1/swagger.json"), environment.GetClient());
