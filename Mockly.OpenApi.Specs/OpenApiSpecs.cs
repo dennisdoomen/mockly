@@ -462,7 +462,7 @@ public static class OpenApiSpecs
                 .ValidateRequestsAgainstSpec();
 
             HttpClient client = mock.GetClient();
-            using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/pets");
+            var request = new HttpRequestMessage(HttpMethod.Post, "/v1/pets");
             request.Headers.Add("X-Tenant", "acme");
 
             // Act

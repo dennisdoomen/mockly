@@ -49,37 +49,25 @@ internal static class SchemaValidator
         ValidateEnumeration(value, schema, location, violations);
         ValidateComposition(value, schema, location, violations);
 
-        switch (value)
+        if (value is JsonObject jsonObject)
         {
-            case JsonObject jsonObject:
-            {
-                ValidateObject(jsonObject, schema, location, violations);
-                break;
-            }
-
-            case JsonArray jsonArray:
-            {
-                ValidateArray(jsonArray, schema, location, violations);
-                break;
-            }
-
-            case JsonValue jsonValue when jsonValue.GetValueKind() == JsonValueKind.String:
-            {
-                ValidateString(jsonValue.GetValue<string>(), schema, location, violations);
-                break;
-            }
-
-            case JsonValue jsonValue when jsonValue.GetValueKind() == JsonValueKind.Number:
-            {
-                ValidateNumber(jsonValue.GetValue<decimal>(), schema, location, violations);
-                break;
-            }
-
-            default:
-            {
-                // Booleans and nulls have no further constraints
-                break;
-            }
+            ValidateObject(jsonObject, schema, location, violations);
+        }
+        else if (value is JsonArray jsonArray)
+        {
+            ValidateArray(jsonArray, schema, location, violations);
+        }
+        else if (value is JsonValue jsonValue && jsonValue.GetValueKind() == JsonValueKind.String)
+        {
+            ValidateString(jsonValue.GetValue<string>(), schema, location, violations);
+        }
+        else if (value is JsonValue numberValue && numberValue.GetValueKind() == JsonValueKind.Number)
+        {
+            ValidateNumber(numberValue.GetValue<decimal>(), schema, location, violations);
+        }
+        else
+        {
+            // Booleans and nulls have no further constraints
         }
     }
 

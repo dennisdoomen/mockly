@@ -117,7 +117,7 @@ internal static class ContractValidator
             return;
         }
 
-        JsonNode? value = schema.Type?.HasFlag(JsonSchemaType.Array) == true
+        JsonNode value = schema.Type?.HasFlag(JsonSchemaType.Array) == true
             ? new JsonArray(values
                 .SelectMany(item => values.Count == 1 ? item.Split(',') : [item])
                 .Select(item => ParameterValueToJson(item, schema.Items))
