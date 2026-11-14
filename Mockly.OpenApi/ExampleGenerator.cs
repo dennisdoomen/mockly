@@ -94,13 +94,11 @@ internal static class ExampleGenerator
             }
         }
 
-        if (GenerateObject(schema, depth) is JsonObject own)
+        JsonObject own = GenerateObject(schema, depth);
+        foreach (KeyValuePair<string, JsonNode?> property in own.ToList())
         {
-            foreach (KeyValuePair<string, JsonNode?> property in own.ToList())
-            {
-                own.Remove(property.Key);
-                merged[property.Key] = property.Value;
-            }
+            own.Remove(property.Key);
+            merged[property.Key] = property.Value;
         }
 
         return merged;

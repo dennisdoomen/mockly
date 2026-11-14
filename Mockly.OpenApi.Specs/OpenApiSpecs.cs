@@ -1,13 +1,15 @@
 using System.Net;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using Xunit;
+#if NET472_OR_GREATER
+using System.Net.Http;
+#endif
 
 namespace Mockly.OpenApi.Specs;
 
-public class OpenApiSpecs
+public static class OpenApiSpecs
 {
     public class GeneratedResponses
     {
@@ -16,7 +18,7 @@ public class OpenApiSpecs
         {
             // Arrange
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             var response = await client.GetAsync("https://api.example.com/v1/pets?limit=10");
@@ -35,7 +37,7 @@ public class OpenApiSpecs
         {
             // Arrange
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             var response = await client.GetAsync("https://api.example.com/v1/pets/42");
@@ -59,7 +61,7 @@ public class OpenApiSpecs
         {
             // Arrange
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             var response = await client.GetAsync("https://api.example.com/v1/pets/42");
@@ -74,7 +76,7 @@ public class OpenApiSpecs
         {
             // Arrange
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             var response = await client.PostAsync("https://api.example.com/v1/pets",
@@ -89,7 +91,7 @@ public class OpenApiSpecs
         {
             // Arrange
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             var response = await client.DeleteAsync("https://api.example.com/v1/pets/42");
@@ -105,7 +107,7 @@ public class OpenApiSpecs
             // Arrange
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
             mock.ForGet("https://api.example.com/v1/pets/42").RespondsWithJsonContent(new { id = 42, name = "Explicit" });
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             string body = await client.GetStringAsync("https://api.example.com/v1/pets/42");
@@ -120,7 +122,7 @@ public class OpenApiSpecs
         {
             // Arrange
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             var withBasePath = await client.GetAsync("/v1/pets/mine");
@@ -136,7 +138,7 @@ public class OpenApiSpecs
         {
             // Arrange
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             string body = await client.GetStringAsync("/pets/mine");
@@ -150,7 +152,7 @@ public class OpenApiSpecs
         {
             // Arrange
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             Func<Task> act = () => client.GetAsync("/owners");
@@ -189,7 +191,7 @@ public class OpenApiSpecs
                 """;
 
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(document));
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             string body = await client.GetStringAsync("https://orders.example.com/api/orders/A1");
@@ -237,7 +239,7 @@ public class OpenApiSpecs
                 """;
 
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(document));
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             string body = await client.GetStringAsync("/users/1");
@@ -285,13 +287,11 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
-            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.example.com/v1/pets")
-            {
-                Content = new StringContent(
-                    """{ "name": "Rex", "status": "sold", "nickname": null, "tags": [ "good" ] }""",
-                    Encoding.UTF8, "application/json")
-            };
+            HttpClient client = mock.GetClient();
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.example.com/v1/pets");
+            request.Content = new StringContent(
+                """{ "name": "Rex", "status": "sold", "nickname": null, "tags": [ "good" ] }""",
+                Encoding.UTF8, "application/json");
 
             request.Headers.Add("X-Tenant", "acme");
 
@@ -310,7 +310,7 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             Func<Task> act = () => client.GetAsync("https://api.example.com/v1/owners");
@@ -328,7 +328,7 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             Func<Task> act = () => client.PutAsync("/v1/pets/1", new StringContent("{}"));
@@ -346,7 +346,7 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             Func<Task> act = () => client.GetAsync("/v1/pets");
@@ -364,7 +364,7 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             Func<Task> act = () => client.GetAsync("/v1/pets?limit=500&status=lost");
@@ -383,7 +383,7 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             Func<Task> act = () => client.GetAsync("/v1/pets/rex");
@@ -401,7 +401,7 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             Func<Task> act = () => client.PostAsync("/v1/pets",
@@ -420,7 +420,7 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             Func<Task> act = () => PostPet(client, """{ "petName": "Rex", "status": 3, "tags": [ "a", "b", "c" ] }""");
@@ -443,7 +443,7 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             Func<Task> act = () => PostPet(client, "{ name: ");
@@ -461,7 +461,7 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
             using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/pets");
             request.Headers.Add("X-Tenant", "acme");
 
@@ -481,7 +481,7 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             Func<Task> act = () => PostPet(client, "name=Rex", "application/x-www-form-urlencoded");
@@ -500,7 +500,7 @@ public class OpenApiSpecs
                 .ValidateRequestsAgainstSpec();
 
             mock.ForPost("/v1/pets").RespondsWithStatus(HttpStatusCode.Created);
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             Func<Task> act = () => PostPet(client, """{ "name": "" }""");
@@ -520,7 +520,7 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             try
@@ -554,7 +554,7 @@ public class OpenApiSpecs
                 .UsingOpenApi(OpenApiDocuments.WriteToFile(owners))
                 .ValidateRequestsAgainstSpec();
 
-            using HttpClient client = mock.GetClient();
+            HttpClient client = mock.GetClient();
 
             // Act
             var response = await client.GetAsync("/owners");
@@ -576,10 +576,8 @@ public class OpenApiSpecs
         private static async Task<HttpResponseMessage> PostPet(HttpClient client, string body,
             string contentType = "application/json")
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/pets")
-            {
-                Content = new StringContent(body, Encoding.UTF8, contentType)
-            };
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/pets");
+            request.Content = new StringContent(body, Encoding.UTF8, contentType);
 
             request.Headers.Add("X-Tenant", "acme");
             return await client.SendAsync(request);

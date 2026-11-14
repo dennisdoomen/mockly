@@ -164,7 +164,7 @@ internal static class ContractValidator
     /// Parameters arrive as text, so interpret numbers and booleans as such when the schema asks for them. Text that
     /// can't be interpreted stays a string, which the schema validation will then report.
     /// </summary>
-    private static JsonNode? ParameterValueToJson(string value, IOpenApiSchema? schema)
+    private static JsonNode ParameterValueToJson(string value, IOpenApiSchema? schema)
     {
         JsonSchemaType? type = schema?.Type;
 

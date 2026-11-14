@@ -136,7 +136,7 @@ internal static class SchemaValidator
         }
 
         if (schema.AnyOf is { Count: > 0 } anyOf &&
-            !anyOf.Any(alternative => Validate(value, alternative, location).Count == 0))
+            anyOf.All(alternative => Validate(value, alternative, location).Count > 0))
         {
             violations.Add($"{location} does not match any of the {anyOf.Count} allowed schemas (anyOf)");
         }

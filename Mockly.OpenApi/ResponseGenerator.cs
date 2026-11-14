@@ -32,7 +32,7 @@ internal static class ResponseGenerator
         IOpenApiMediaType media = mediaType.Value;
 #pragma warning disable CS0618 // OpenAPI 3.0 documents still use the singular example
         JsonNode? body = media.Example?.DeepClone() ??
-            media.Examples?.Values.Select(example => example.Value).FirstOrDefault(value => value is not null)?.DeepClone() ??
+            media.Examples?.Values.Select(example => example.Value).FirstOrDefault(example => example is not null)?.DeepClone() ??
             ExampleGenerator.Generate(media.Schema);
 #pragma warning restore CS0618
 

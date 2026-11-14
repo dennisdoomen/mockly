@@ -22,7 +22,7 @@ internal sealed class OpenApiContract
     {
         Source = source;
         basePaths = GetBasePaths(document);
-        pathTemplates = (document.Paths ?? new OpenApiPaths())
+        pathTemplates = document.Paths
             .Select(path => new PathTemplate(path.Key, path.Value))
             .OrderByDescending(template => template.LiteralLength)
             .ToList();
