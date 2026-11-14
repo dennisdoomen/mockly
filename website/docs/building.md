@@ -59,5 +59,6 @@ Analyzers only run on `net8.0` target to speed up builds.
 The project produces multiple packages:
 - `Mockly` - Core library
 - `Mockly.Server` - Exposes a mock as a real loopback HTTP server
+- `Mockly.OpenApi` - Generates responses from an OpenAPI document and validates requests against it
 - `FluentAssertions.Mockly.v7` - Assertions for FluentAssertions 7.x
 - `FluentAssertions.Mockly.v8` - Assertions for FluentAssertions 8.x

@@ -142,6 +142,18 @@ mock.ForGet().WithPath("/slow").RespondsWithStatus(HttpStatusCode.OK).After(Time
 // A shorter HttpClient.Timeout or a cancelled token throws TaskCanceledException/OperationCanceledException.
 ```
 
+## OpenAPI (`Mockly.OpenApi` package)
+
+```csharp
+// Respond to every operation in the document with its example or a schema-generated body (JSON, OpenAPI 3.x or Swagger 2.0).
+// Explicit mocks (ForGet(...) etc.) always win over generated responses, whatever the registration order.
+mock.UsingOpenApi("petstore.json");
+
+// Throw RequestContractViolationException when a request hits an undocumented path/method, omits a required
+// parameter or body, or sends a parameter/JSON body that violates the schema. Also applies to explicit mocks.
+mock.ValidateRequestsAgainstSpec();
+```
+
 ## Reset / Clear
 
 ```csharp
