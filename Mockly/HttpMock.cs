@@ -413,8 +413,12 @@ public class HttpMock
 
         // Try to find a matching mock
         bool foundMatch = true;
-        CapturedRequest? capturedRequest = await TryFindMatchingMock(request, cancellationToken) ??
-            TryFallbackResponders(request);
+        CapturedRequest? capturedRequest = await TryFindMatchingMock(request, cancellationToken);
+        if (capturedRequest is null && !await MatchesExhaustedMock(request))
+        {
+            // A request for an exhausted mock is unexpected, so it should not get a fallback response
+            capturedRequest = TryFallbackResponders(request);
+        }
 
         if (capturedRequest == null)
         {
@@ -513,6 +517,19 @@ public class HttpMock
 
             return rejectedRequest;
         }
+    }
+
+    private async Task<bool> MatchesExhaustedMock(RequestInfo request)
+    {
+        if (fallbackResponders.Count == 0)
+        {
+            return false;
+        }
+
+        RequestMock? exhaustedMock = await mocks.FirstOrDefaultAsync(m =>
+            m.IsExhausted ? m.Matches(request) : Task.FromResult(false));
+
+        return exhaustedMock is not null;
     }
 
     /// <summary>

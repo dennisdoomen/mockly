@@ -22,29 +22,41 @@ public class ApiApproval
 
     [Theory]
     [ClassData(typeof(TargetFrameworksTheoryData))]
-    public Task ApproveApi(string framework)
+    public Task ApproveApi(string project, string framework)
     {
         var configuration = typeof(ApiApproval).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()!.Configuration;
-        var assemblyFile = SourcePath / "Mockly" / "bin" / configuration / framework / "Mockly.dll";
+        var assemblyFile = SourcePath / project / "bin" / configuration / framework / $"{project}.dll";
         var assembly = Assembly.LoadFile(assemblyFile);
         string publicApi = assembly.GeneratePublicApi(options: null).ReplaceLineEndings("\n");
+
+        // The approved API of the core package predates the add-on packages, so it keeps its original file names
+        string fileName = project == "Mockly" ? framework : $"{project}.{framework}";
 
         return Verifier
             .Verify(publicApi)
             .ScrubLinesContaining("FrameworkDisplayName")
             .UseDirectory("ApprovedApi")
-            .UseFileName(framework)
+            .UseFileName(fileName)
             .DisableDiff();
     }
 
-    private class TargetFrameworksTheoryData : TheoryData<string>
+    private class TargetFrameworksTheoryData : TheoryData<string, string>
     {
+        private static readonly string[] Projects = { "Mockly", "Mockly.OpenApi" };
+
         public TargetFrameworksTheoryData()
         {
-            var csproj = SourcePath / "Mockly" / "Mockly.csproj";
-            var project = XDocument.Load(csproj);
-            var targetFrameworks = project.XPathSelectElement("/Project/PropertyGroup/TargetFrameworks");
-            AddRange(targetFrameworks!.Value.Split(';'));
+            foreach (string project in Projects)
+            {
+                var csproj = SourcePath / project / $"{project}.csproj";
+                var document = XDocument.Load(csproj);
+                var targetFrameworks = document.XPathSelectElement("/Project/PropertyGroup/TargetFrameworks");
+
+                foreach (string framework in targetFrameworks!.Value.Split(';'))
+                {
+                    Add(project, framework);
+                }
+            }
         }
     }
 }

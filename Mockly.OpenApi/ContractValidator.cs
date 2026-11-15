@@ -27,6 +27,7 @@ internal static class ContractValidator
     public static void Validate(RequestInfo request, IReadOnlyList<OpenApiContract> contracts)
     {
         PathMatch? pathMatch = null;
+        var failedOperations = new List<(string Against, List<string> Violations)>();
 
         foreach (OpenApiContract contract in contracts)
         {
@@ -35,19 +36,24 @@ internal static class ContractValidator
             if (operation is not null)
             {
                 List<string> violations = ValidateOperation(request, match!, operation);
-                if (violations.Count > 0)
+                if (violations.Count == 0)
                 {
-                    throw new RequestContractViolationException(
-                        BuildMessage(request, $"operation {Describe(request.Method, match!, operation)}", violations));
+                    // The request is valid as long as one of the documents allows it
+                    return;
                 }
 
-                return;
+                failedOperations.Add(($"operation {Describe(request.Method, match!, operation)}", violations));
             }
 
             pathMatch ??= match;
         }
 
-        if (pathMatch is null && !contracts.Any(contract => contract.IsUnderBasePath(request.Uri)))
+        if (failedOperations.Count > 0)
+        {
+            throw new RequestContractViolationException(BuildMessage(request, failedOperations));
+        }
+
+        if (pathMatch is null && !contracts.Any(contract => contract.Covers(request.Uri)))
         {
             return;
         }
@@ -57,8 +63,8 @@ internal static class ContractValidator
             : $"Path {pathMatch.Template} does not support {request.Method.Method.ToUpperInvariant()}, only " +
             string.Join(", ", pathMatch.PathItem.Operations?.Keys.Select(method => method.Method.ToUpperInvariant()) ?? []);
 
-        throw new RequestContractViolationException(BuildMessage(request,
-            "the OpenAPI document(s) " + string.Join(", ", contracts.Select(contract => contract.Source)), [violation]));
+        string documents = "the OpenAPI document(s) " + string.Join(", ", contracts.Select(contract => contract.Source));
+        throw new RequestContractViolationException(BuildMessage(request, [(documents, [violation])]));
     }
 
     private static List<string> ValidateOperation(RequestInfo request, PathMatch match, OpenApiOperation operation)
@@ -106,6 +112,14 @@ internal static class ContractValidator
     private static void ValidateParameter(RequestInfo request, PathMatch match, IOpenApiParameter parameter,
         List<string> violations)
     {
+        IOpenApiSchema? schema = parameter.Schema ?? parameter.Content?.Values.FirstOrDefault()?.Schema;
+        if (schema?.Type?.HasFlag(JsonSchemaType.Object) == true)
+        {
+            // Objects can be serialized in many ways, such as ?filter[status]=sold (deepObject) or ?status=sold
+            // (form, exploded), so we can't reliably tell whether they are present, let alone valid.
+            return;
+        }
+
         string name = parameter.Name ?? string.Empty;
         string location = $"{Describe(parameter.In)} parameter '{name}'";
         List<string> values = GetParameterValues(request, match, parameter);
@@ -120,15 +134,21 @@ internal static class ContractValidator
             return;
         }
 
-        IOpenApiSchema? schema = parameter.Schema ?? parameter.Content?.Values.FirstOrDefault()?.Schema;
         if (schema is null)
         {
             return;
         }
 
+        char separator = parameter.Style switch
+        {
+            ParameterStyle.PipeDelimited => '|',
+            ParameterStyle.SpaceDelimited => ' ',
+            _ => ','
+        };
+
         JsonNode value = schema.Type?.HasFlag(JsonSchemaType.Array) == true
             ? new JsonArray(values
-                .SelectMany(item => values.Count == 1 ? item.Split(',') : [item])
+                .SelectMany(item => values.Count == 1 ? item.Split(separator) : [item])
                 .Select(item => ParameterValueToJson(item, schema.Items))
                 .ToArray())
             : ParameterValueToJson(values[0], schema);
@@ -147,12 +167,25 @@ internal static class ContractValidator
                 .Where(pair => string.Equals(pair.Key, name, StringComparison.Ordinal))
                 .Select(pair => pair.Value)
                 .ToList(),
-            ParameterLocation.Header => request.Headers.TryGetValues(name, out IEnumerable<string>? headerValues)
-                ? [string.Join(",", headerValues)]
-                : [],
+            ParameterLocation.Header => GetHeaderValues(request, name),
             ParameterLocation.Cookie => GetCookieValues(request, name),
             _ => []
         };
+    }
+
+    /// <summary>
+    /// Looks for the header on the request as well as on its body, since HttpClient only allows headers such as
+    /// <c>Content-Language</c> on the latter.
+    /// </summary>
+    private static List<string> GetHeaderValues(RequestInfo request, string name)
+    {
+        if (request.Headers.TryGetValues(name, out IEnumerable<string>? headerValues) ||
+            request.ContentHeaders?.TryGetValues(name, out headerValues) == true)
+        {
+            return [string.Join(",", headerValues)];
+        }
+
+        return [];
     }
 
     private static List<string> GetCookieValues(RequestInfo request, string name)
@@ -264,17 +297,22 @@ internal static class ContractValidator
         return operation.OperationId is null ? description : $"'{operation.OperationId}' ({description})";
     }
 
-    private static string BuildMessage(RequestInfo request, string against, IEnumerable<string> violations)
+    private static string BuildMessage(RequestInfo request,
+        IEnumerable<(string Against, List<string> Violations)> validations)
     {
         var builder = new StringBuilder();
         builder.AppendLine("Request violates the API contract:");
         builder.AppendLine($"  {request.Method} {request.Uri}");
-        builder.AppendLine();
-        builder.AppendLine($"Validated against {against}:");
 
-        foreach (string violation in violations)
+        foreach ((string against, List<string> violations) in validations)
         {
-            builder.Append("    ✗ ").AppendLine(violation);
+            builder.AppendLine();
+            builder.AppendLine($"Validated against {against}:");
+
+            foreach (string violation in violations)
+            {
+                builder.Append("    ✗ ").AppendLine(violation);
+            }
         }
 
         builder.AppendLine();

@@ -13,6 +13,22 @@ internal static class OpenApiDocuments
     }
 
     /// <summary>
+    /// Writes an OpenAPI 3.1 document with the given <c>paths</c> object and server URL to a temporary file.
+    /// </summary>
+    public static string WriteToFile(string paths, string serverUrl)
+    {
+        return WriteToFile(
+            $$"""
+            {
+              "openapi": "3.1.0",
+              "info": { "title": "Test", "version": "1.0" },
+              "servers": [ { "url": "{{serverUrl}}" } ],
+              "paths": {{paths}}
+            }
+            """);
+    }
+
+    /// <summary>
     /// An OpenAPI 3.0 pet store that covers path, query and header parameters, request bodies and responses
     /// with and without examples.
     /// </summary>

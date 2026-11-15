@@ -61,13 +61,15 @@ internal static class SchemaValidator
         {
             ValidateString(jsonValue.GetValue<string>(), schema, location, violations);
         }
-        else if (value is JsonValue numberValue && numberValue.GetValueKind() == JsonValueKind.Number)
+        else if (value is JsonValue numberValue && numberValue.GetValueKind() == JsonValueKind.Number &&
+            TryGetDecimal(numberValue, out decimal number))
         {
-            ValidateNumber(numberValue.GetValue<decimal>(), schema, location, violations);
+            ValidateNumber(number, schema, location, violations);
         }
         else
         {
-            // Booleans and nulls have no further constraints
+            // Booleans and nulls have no further constraints, and numbers beyond the range of a decimal are too
+            // large or too precise to be checked against numeric bounds
         }
     }
 
@@ -109,9 +111,9 @@ internal static class SchemaValidator
                 $"{location} must be one of {string.Join(", ", allowed.Select(Format))}, but found {Format(value)}");
         }
 
-        if (schema.Const is not null && !JsonNode.DeepEquals(JsonValue.Create(schema.Const), value))
+        if (GetConst(schema) is { } constant && !JsonNode.DeepEquals(constant, value))
         {
-            violations.Add($"{location} must be \"{schema.Const}\", but found {Format(value)}");
+            violations.Add($"{location} must be {Format(constant)}, but found {Format(value)}");
         }
     }
 
@@ -298,11 +300,59 @@ internal static class SchemaValidator
             {
                 JsonValueKind.String => JsonSchemaType.String,
                 JsonValueKind.True or JsonValueKind.False => JsonSchemaType.Boolean,
-                JsonValueKind.Number when value.GetValue<decimal>() % 1 == 0 => JsonSchemaType.Integer,
+                JsonValueKind.Number when IsInteger(value.AsValue()) => JsonSchemaType.Integer,
                 JsonValueKind.Number => JsonSchemaType.Number,
                 _ => JsonSchemaType.Null
             }
         };
+    }
+
+    /// <summary>
+    /// Gets the <c>const</c> of <paramref name="schema"/> as JSON. The object model exposes it as a string, so a numeric
+    /// or boolean constant has to be parsed, unless the schema says it is a string.
+    /// </summary>
+    public static JsonNode? GetConst(IOpenApiSchema schema)
+    {
+        if (schema.Const is null)
+        {
+            return null;
+        }
+
+        if (schema.Type?.HasFlag(JsonSchemaType.String) != true)
+        {
+            try
+            {
+                if (JsonNode.Parse(schema.Const) is { } parsed)
+                {
+                    return parsed;
+                }
+            }
+            catch (JsonException)
+            {
+                // Not valid JSON, so it can only be a string
+            }
+        }
+
+        return JsonValue.Create(schema.Const);
+    }
+
+    /// <summary>
+    /// Reads a JSON number as a decimal, which fails for numbers beyond its range, such as <c>1e40</c>.
+    /// </summary>
+    private static bool TryGetDecimal(JsonValue value, out decimal number)
+    {
+        return decimal.TryParse(value.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture, out number);
+    }
+
+    private static bool IsInteger(JsonValue value)
+    {
+        if (TryGetDecimal(value, out decimal number))
+        {
+            return number % 1 == 0;
+        }
+
+        return double.TryParse(value.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double large) &&
+            Math.Floor(large) == large;
     }
 
     private static string Describe(JsonSchemaType type)

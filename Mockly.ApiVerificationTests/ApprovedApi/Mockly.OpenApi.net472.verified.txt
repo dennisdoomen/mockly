@@ -1,0 +1,14 @@
+﻿[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/dennisdoomen/mockly")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Mockly.OpenApi.Specs")]
+namespace Mockly
+{
+    public static class HttpMockOpenApiExtensions
+    {
+        public static Mockly.HttpMock UsingOpenApi(this Mockly.HttpMock mock, string pathOrUrl) { }
+        public static Mockly.HttpMock UsingOpenApi(this Mockly.HttpMock mock, System.Uri url, System.Net.Http.HttpClient? httpClient = null) { }
+    }
+    public class RequestContractViolationException : System.Exception
+    {
+        public RequestContractViolationException(string message) { }
+    }
+}

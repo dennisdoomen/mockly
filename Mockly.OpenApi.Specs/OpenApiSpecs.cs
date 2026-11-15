@@ -33,7 +33,7 @@ public static class OpenApiSpecs
         }
 
         [Fact]
-        public async Task Generates_a_schema_conforming_body_when_the_document_has_no_example()
+        public async Task Generates_a_schema_conforming_body_for_a_response_without_an_example()
         {
             // Arrange
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
@@ -88,7 +88,7 @@ public static class OpenApiSpecs
         }
 
         [Fact]
-        public async Task Responds_without_content_when_the_response_declares_none()
+        public async Task Responds_without_content_for_a_response_that_declares_none()
         {
             // Arrange
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
@@ -249,6 +249,88 @@ public static class OpenApiSpecs
             using var json = JsonDocument.Parse(body);
             json.RootElement.GetProperty("email").GetString().Should().Be("user@example.com");
             json.RootElement.GetProperty("manager").GetString().Should().Be("jane");
+        }
+
+        [Fact]
+        public async Task Does_not_answer_a_request_for_an_exhausted_mock()
+        {
+            // Arrange
+            var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
+            mock.ForGet("https://api.example.com/v1/pets/mine").RespondsWithStatus(HttpStatusCode.NoContent).Once();
+
+            HttpClient client = mock.GetClient();
+            await client.GetAsync("https://api.example.com/v1/pets/mine");
+
+            // Act
+            Func<Task> act = () => client.GetAsync("https://api.example.com/v1/pets/mine");
+
+            // Assert
+            await act.Should().ThrowAsync<UnexpectedRequestException>();
+        }
+
+        [Fact]
+        public async Task Generates_a_number_within_a_narrow_exclusive_range()
+        {
+            // Arrange
+            const string paths =
+                """
+                {
+                  "/ratio": {
+                    "get": {
+                      "responses": {
+                        "200": {
+                          "description": "Ratio",
+                          "content": {
+                            "application/json": {
+                              "schema": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.5 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                """;
+
+            var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(paths, "https://api.example.com"));
+            HttpClient client = mock.GetClient();
+
+            // Act
+            string body = await client.GetStringAsync("https://api.example.com/ratio");
+
+            // Assert
+            decimal ratio = decimal.Parse(body, System.Globalization.CultureInfo.InvariantCulture);
+            ratio.Should().BeGreaterThan(0).And.BeLessThanOrEqualTo(0.5m);
+        }
+
+        [Fact]
+        public async Task Generates_numeric_constants_as_numbers()
+        {
+            // Arrange
+            const string paths =
+                """
+                {
+                  "/version": {
+                    "get": {
+                      "responses": {
+                        "200": {
+                          "description": "Version",
+                          "content": { "application/json": { "schema": { "type": "integer", "const": 2 } } }
+                        }
+                      }
+                    }
+                  }
+                }
+                """;
+
+            var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(paths, "https://api.example.com"));
+            HttpClient client = mock.GetClient();
+
+            // Act
+            string body = await client.GetStringAsync("https://api.example.com/version");
+
+            // Assert
+            body.Should().Be("2");
         }
 
         [Fact]
@@ -626,7 +708,191 @@ public static class OpenApiSpecs
         }
 
         [Fact]
-        public async Task Responds_with_bad_request_when_unexpected_calls_do_not_fail()
+        public async Task Accepts_numbers_beyond_the_range_of_a_decimal()
+        {
+            // Arrange
+            var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(MeasurementsApi, "https://api.example.com"));
+            HttpClient client = mock.GetClient();
+
+            // Act
+            var response = await client.PostAsync("https://api.example.com/measurements",
+                new StringContent("""{ "distance": 1e40, "version": 2 }""", Encoding.UTF8, "application/json"));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+
+        [Fact]
+        public async Task Compares_numeric_constants_by_value()
+        {
+            // Arrange
+            var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(MeasurementsApi, "https://api.example.com"));
+            HttpClient client = mock.GetClient();
+
+            // Act
+            Func<Task> act = () => client.PostAsync("https://api.example.com/measurements",
+                new StringContent("""{ "distance": 1, "version": 3 }""", Encoding.UTF8, "application/json"));
+
+            // Assert
+            await act.Should().ThrowAsync<RequestContractViolationException>().WithMessage("*$.version must be 2, but found 3*");
+        }
+
+        [Fact]
+        public async Task Accepts_a_request_that_only_one_of_several_documents_allows()
+        {
+            // Arrange
+            const string version1 =
+                """
+                {
+                  "/orders": {
+                    "post": {
+                      "requestBody": {
+                        "content": {
+                          "application/json": {
+                            "schema": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": { "id": { "type": "integer" } }
+                            }
+                          }
+                        }
+                      },
+                      "responses": { "201": { "description": "Created" } }
+                    }
+                  }
+                }
+                """;
+
+            string version2 = version1.Replace("""{ "id": { "type": "integer" } }""",
+                """{ "id": { "type": "integer" }, "note": { "type": "string" } }""");
+
+            var mock = new HttpMock()
+                .UsingOpenApi(OpenApiDocuments.WriteToFile(version1, "https://api.example.com"))
+                .UsingOpenApi(OpenApiDocuments.WriteToFile(version2, "https://api.example.com"));
+
+            HttpClient client = mock.GetClient();
+
+            // Act
+            var response = await client.PostAsync("https://api.example.com/orders",
+                new StringContent("""{ "id": 1, "note": "urgent" }""", Encoding.UTF8, "application/json"));
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+
+        [Fact]
+        public async Task Does_not_validate_object_parameters()
+        {
+            // Arrange
+            const string paths =
+                """
+                {
+                  "/pets": {
+                    "get": {
+                      "parameters": [
+                        {
+                          "name": "filter", "in": "query", "required": true, "style": "deepObject",
+                          "schema": { "type": "object", "properties": { "status": { "type": "string" } } }
+                        }
+                      ],
+                      "responses": { "200": { "description": "Pets" } }
+                    }
+                  }
+                }
+                """;
+
+            var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(paths, "https://api.example.com"));
+            HttpClient client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://api.example.com/pets?filter[status]=sold");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Splits_pipe_delimited_array_parameters()
+        {
+            // Arrange
+            const string paths =
+                """
+                {
+                  "/pets": {
+                    "get": {
+                      "parameters": [
+                        {
+                          "name": "ids", "in": "query", "style": "pipeDelimited", "explode": false,
+                          "schema": { "type": "array", "items": { "type": "integer" } }
+                        }
+                      ],
+                      "responses": { "200": { "description": "Pets" } }
+                    }
+                  }
+                }
+                """;
+
+            var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(paths, "https://api.example.com"));
+            HttpClient client = mock.GetClient();
+
+            // Act
+            var response = await client.GetAsync("https://api.example.com/pets?ids=1|2");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task Finds_header_parameters_that_describe_the_body()
+        {
+            // Arrange
+            const string paths =
+                """
+                {
+                  "/notes": {
+                    "post": {
+                      "parameters": [
+                        { "name": "Content-Language", "in": "header", "required": true, "schema": { "type": "string" } }
+                      ],
+                      "requestBody": { "content": { "text/plain": { "schema": { "type": "string" } } } },
+                      "responses": { "201": { "description": "Created" } }
+                    }
+                  }
+                }
+                """;
+
+            var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(paths, "https://api.example.com"));
+            HttpClient client = mock.GetClient();
+
+            var content = new StringContent("Hallo", Encoding.UTF8, "text/plain");
+            content.Headers.ContentLanguage.Add("nl");
+
+            // Act
+            var response = await client.PostAsync("https://api.example.com/notes", content);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+
+        [Fact]
+        public async Task Rejects_an_undocumented_path_on_the_host_of_the_server()
+        {
+            // Arrange
+            var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(MeasurementsApi, "https://api.example.com"));
+            mock.ForGet("https://api.example.com/legacy/orders").RespondsWithStatus(HttpStatusCode.OK);
+
+            HttpClient client = mock.GetClient();
+
+            // Act
+            Func<Task> act = () => client.GetAsync("https://api.example.com/legacy/orders");
+
+            // Assert
+            await act.Should().ThrowAsync<RequestContractViolationException>()
+                .WithMessage("*No path in the OpenAPI document matches*");
+        }
+
+        [Fact]
+        public async Task Responds_with_bad_request_if_unexpected_calls_are_allowed()
         {
             // Arrange
             var mock = new HttpMock().UsingOpenApi(OpenApiDocuments.WriteToFile(OpenApiDocuments.PetStore));
@@ -642,6 +908,30 @@ public static class OpenApiSpecs
             (await response.Content.ReadAsStringAsync()).Should().Contain("does not support PUT");
             mock.Requests.Should().ContainSingle().Which.WasExpected.Should().BeFalse();
         }
+
+        private const string MeasurementsApi =
+            """
+            {
+              "/measurements": {
+                "post": {
+                  "requestBody": {
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "distance": { "type": "number" },
+                            "version": { "type": "integer", "const": 2 }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "responses": { "201": { "description": "Created" } }
+                }
+              }
+            }
+            """;
 
         private static async Task<HttpResponseMessage> PostPet(HttpClient client, string body,
             string contentType = "application/json")

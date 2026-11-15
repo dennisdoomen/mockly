@@ -16,12 +16,13 @@ internal sealed class OpenApiContract
     private static readonly TimeSpan MatchTimeout = TimeSpan.FromSeconds(1);
 
     private readonly List<string> basePaths;
+    private readonly List<string> hosts;
     private readonly List<PathTemplate> pathTemplates;
 
     private OpenApiContract(string source, OpenApiDocument document)
     {
         Source = source;
-        basePaths = GetBasePaths(document);
+        (basePaths, hosts) = GetServers(document);
         pathTemplates = document.Paths
             .Select(path => new PathTemplate(path.Key, path.Value))
             .OrderByDescending(template => template.LiteralLength)
@@ -108,15 +109,22 @@ internal sealed class OpenApiContract
     }
 
     /// <summary>
-    /// Determines whether the path of <paramref name="requestUri"/> lies under the path of one of the servers declared
-    /// by the document, such as <c>/v1/owners</c> for a server <c>https://api.example.com/v1</c>.
+    /// Determines whether <paramref name="requestUri"/> is meant for the API that the document describes. That is the
+    /// case if its path lies under the path of one of the servers declared by the document, such as
+    /// <c>/v1/owners</c> for a server <c>https://api.example.com/v1</c>, or if it is sent to the host of a server
+    /// that declares no path, such as <c>https://api.example.com</c>.
     /// </summary>
-    public bool IsUnderBasePath(Uri? requestUri)
+    public bool Covers(Uri? requestUri)
     {
         string requestPath = GetRequestPath(requestUri);
 
-        return basePaths.Exists(basePath => requestPath.Equals(basePath, StringComparison.Ordinal) ||
+        bool isUnderBasePath = basePaths.Exists(basePath => requestPath.Equals(basePath, StringComparison.Ordinal) ||
             requestPath.StartsWith(basePath + "/", StringComparison.Ordinal));
+
+        bool isSentToHost = requestUri is { IsAbsoluteUri: true } &&
+            hosts.Contains(requestUri.Authority, StringComparer.OrdinalIgnoreCase);
+
+        return isUnderBasePath || isSentToHost;
     }
 
     private static string GetRequestPath(Uri? requestUri)
@@ -147,13 +155,14 @@ internal sealed class OpenApiContract
     }
 
     /// <summary>
-    /// Extracts the path portion of every server URL (e.g. <c>/api/v3</c> from <c>https://host/api/v3</c>),
-    /// substituting server variables with their default values. For Swagger 2.0 documents, the parser converts
-    /// <c>host</c> and <c>basePath</c> into a server.
+    /// Extracts the path portion of every server URL (e.g. <c>/api/v3</c> from <c>https://host/api/v3</c>), as well as
+    /// the host of every server URL without a path, substituting server variables with their default values. For
+    /// Swagger 2.0 documents, the parser converts <c>host</c> and <c>basePath</c> into a server.
     /// </summary>
-    private static List<string> GetBasePaths(OpenApiDocument document)
+    private static (List<string> BasePaths, List<string> Hosts) GetServers(OpenApiDocument document)
     {
-        var result = new List<string>();
+        var serverPaths = new List<string>();
+        var serverHosts = new List<string>();
 
         foreach (OpenApiServer server in document.Servers ?? [])
         {
@@ -164,22 +173,36 @@ internal sealed class OpenApiContract
 
             // Strip the scheme and authority, including scheme-relative ones like //host/api, which is what
             // the parser produces for a Swagger 2.0 document without schemes.
+            string host = string.Empty;
             int authorityStart = url.IndexOf("//", StringComparison.Ordinal);
             if (authorityStart >= 0)
             {
                 string afterScheme = url.Substring(authorityStart + 2);
                 int pathStart = afterScheme.IndexOf("/", StringComparison.Ordinal);
+                host = pathStart >= 0 ? afterScheme.Substring(0, pathStart) : afterScheme;
                 url = pathStart >= 0 ? afterScheme.Substring(pathStart) : string.Empty;
             }
 
+            // Paths and hosts that still contain an unresolved variable can't be matched
             string basePath = url.TrimEnd('/');
-            if (basePath.Length > 0 && basePath.IndexOf("{", StringComparison.Ordinal) < 0 && !result.Contains(basePath))
+            if (basePath.Length > 0)
             {
-                result.Add(basePath);
+                if (basePath.IndexOf("{", StringComparison.Ordinal) < 0 && !serverPaths.Contains(basePath))
+                {
+                    serverPaths.Add(basePath);
+                }
+            }
+            else if (host.Length > 0 && host.IndexOf("{", StringComparison.Ordinal) < 0 && !serverHosts.Contains(host))
+            {
+                serverHosts.Add(host);
+            }
+            else
+            {
+                // A relative server URL such as / says nothing about where the API lives
             }
         }
 
-        return result.OrderByDescending(path => path.Length).ToList();
+        return (serverPaths.OrderByDescending(path => path.Length).ToList(), serverHosts);
     }
 
     /// <summary>

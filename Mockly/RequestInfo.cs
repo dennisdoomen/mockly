@@ -64,6 +64,11 @@ public class RequestInfo
         get => request.Headers;
     }
 
+    /// <summary>
+    /// Gets the headers that describe the request body, such as <c>Content-Language</c>, if the request has a body.
+    /// </summary>
+    internal HttpContentHeaders? ContentHeaders => request.Content?.Headers;
+
     public HttpMethod Method
     {
         get => request.Method;

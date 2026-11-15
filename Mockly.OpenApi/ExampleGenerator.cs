@@ -37,9 +37,9 @@ internal static class ExampleGenerator
             return declared.DeepClone();
         }
 
-        if (schema.Const is not null)
+        if (SchemaValidator.GetConst(schema) is { } constant)
         {
-            return JsonValue.Create(schema.Const);
+            return constant;
         }
 
         if (schema.AllOf is { Count: > 0 })
@@ -195,14 +195,17 @@ internal static class ExampleGenerator
         decimal? maximum = SchemaBounds.Parse(schema.Maximum);
         decimal? exclusiveMaximum = SchemaBounds.Parse(schema.ExclusiveMaximum);
 
-        if (minimum is not null)
-        {
-            return minimum.Value;
-        }
+        decimal? lower = minimum ?? exclusiveMinimum;
+        decimal? upper = maximum ?? exclusiveMaximum;
 
-        if (exclusiveMinimum is not null)
+        if (lower is not null)
         {
-            return exclusiveMinimum.Value + 1;
+            decimal candidate = minimum ?? (exclusiveMinimum!.Value + 1);
+
+            // Stepping over an exclusive minimum can overshoot a narrow range, so fall back to its middle
+            return upper is not null && SchemaBounds.IsAboveMaximum(schema, candidate)
+                ? (lower.Value + upper.Value) / 2
+                : candidate;
         }
 
         if (maximum is not null && maximum.Value < 0)

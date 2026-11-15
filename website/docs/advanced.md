@@ -427,7 +427,9 @@ Validated against operation 'createPet' (POST /pets):
 - Request paths are matched both as-is and relative to the path of each server URL (or the Swagger 2.0 `basePath`) of the document. The host is ignored, so the base address of `GetClient()` works too.
 - Concrete paths such as `/pets/mine` take precedence over templated ones such as `/pets/{petId}`.
 - Call `UsingOpenApi` multiple times to combine several documents. A request is valid if it complies with any of them.
-- Only requests for the API are validated: requests that match a path of the document, or that are under the path of one of its server URLs. Other requests, such as calls to an identity provider, are handled as usual: explicit mocks, recordings, pass-through, or an `UnexpectedRequestException`.
+- Only requests for the API are validated: requests that match a path of the document, that are under the path of one of its server URLs, or that are sent to the host of a server URL without a path (such as `https://api.example.com`). Other requests, such as calls to an identity provider, are handled as usual: explicit mocks, recordings, pass-through, or an `UnexpectedRequestException`.
+- A request for an explicit mock that has reached its maximum number of calls (for example through `Once()`) is unexpected, so it doesn't get a generated response.
+- Object parameters are not validated, because they can be serialized in many ways (such as `deepObject`). Array parameters can be comma, pipe or space delimited, or repeated.
 
 ## Request Collection
 
