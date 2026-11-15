@@ -346,13 +346,9 @@ internal static class SchemaValidator
 
     private static bool IsInteger(JsonValue value)
     {
-        if (TryGetDecimal(value, out decimal number))
-        {
-            return number % 1 == 0;
-        }
-
-        return double.TryParse(value.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double large) &&
-            Math.Floor(large) == large;
+        // A number beyond the range of a decimal (about 7.9e28) is far beyond 2^53, from where on doubles can't
+        // represent fractions anymore, so it is an integer by any practical measure.
+        return !TryGetDecimal(value, out decimal number) || number % 1 == 0;
     }
 
     private static string Describe(JsonSchemaType type)
