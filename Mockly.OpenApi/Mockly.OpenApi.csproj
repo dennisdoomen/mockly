@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net472</TargetFrameworks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <LangVersion>14</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>1591;1573</NoWarn>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <AssemblyName>Mockly.OpenApi</AssemblyName>
+    <RootNamespace>Mockly</RootNamespace>
+    <Authors>Dennis Doomen</Authors>
+    <PackageDescription>Generates Mockly responses from an OpenAPI (Swagger) document and validates the requests of the system under test against it</PackageDescription>
+    <PackageProjectUrl>https://mockly.org</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dennisdoomen/mockly</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>HTTP;mocking;OpenAPI;Swagger;contract;fluent</PackageTags>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageIcon>PackageIcon.png</PackageIcon>
+    <PackageReadmeFile>Readme.md</PackageReadmeFile>
+    <PackageReleaseNotes>https://github.com/dennisdoomen/mockly/releases</PackageReleaseNotes>
+    <Copyright>Copyright 2025-$([System.DateTime]::Now.ToString(yyyy)) Dennis Doomen</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\PackageIcon.png" Pack="true" Visible="false" PackagePath="" />
+    <None Include="..\LICENSE" Pack="true" PackagePath="" />
+    <None Include="..\Artifacts\Readme.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.OpenApi" Version="3.11.0" />
+    <PackageReference Include="PolySharp" Version="1.16.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mockly\Mockly.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>Mockly.OpenApi.Specs</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

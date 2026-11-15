@@ -1,6 +1,7 @@
 ﻿[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/dennisdoomen/mockly")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluentAssertions.Mockly.v7")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluentAssertions.Mockly.v8")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Mockly.OpenApi")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Mockly.Specs")]
 namespace Mockly
 {
