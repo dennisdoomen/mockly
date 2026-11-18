@@ -56,9 +56,11 @@ internal static class ExampleGenerator
         JsonSchemaType? type = schema.Type & ~JsonSchemaType.Null;
         if (type is null || !SchemaValidator.HasAnyType(type.Value))
         {
-            type = schema.Properties is { Count: > 0 } ? JsonSchemaType.Object
-                : schema.Items is not null ? JsonSchemaType.Array
-                : null;
+            type = schema.Properties is { Count: > 0 }
+                ? JsonSchemaType.Object
+                : schema.Items is not null
+                    ? JsonSchemaType.Array
+                    : null;
         }
 
         return type switch

@@ -61,7 +61,7 @@ internal static class ContractValidator
         string violation = pathMatch is null
             ? "No path in the OpenAPI document matches the request path"
             : $"Path {pathMatch.Template} does not support {request.Method.Method.ToUpperInvariant()}, only " +
-            string.Join(", ", pathMatch.PathItem.Operations?.Keys.Select(method => method.Method.ToUpperInvariant()) ?? []);
+                string.Join(", ", pathMatch.PathItem.Operations?.Keys.Select(method => method.Method.ToUpperInvariant()) ?? []);
 
         string documents = "the OpenAPI document(s) " + string.Join(", ", contracts.Select(contract => contract.Source));
         throw new RequestContractViolationException(BuildMessage(request, [(documents, [violation])]));
