@@ -15,7 +15,7 @@
 
     <ItemGroup>
       <PackageReference Include="FluentAssertions" Version="8.10.0" />
-      <PackageReference Include="FluentAssertions.Web.v8" Version="3.0.0" />
+      <PackageReference Include="FluentAssertions.Web.v8" Version="3.0.4" />
       <!-- Lifts the transitive dependency of FluentAssertions.Web.v8 above the vulnerable 2.3.0 (GHSA-6527-9fp8-r4x6) -->
       <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.3.14" />
       <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" />
@@ -27,7 +27,7 @@
         <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
       </PackageReference>
       <PackageReference Include="JetBrains.Annotations" Version="2026.2.0" />
-      <PackageReference Include="coverlet.collector" Version="10.1.0" PrivateAssets="all">
+      <PackageReference Include="coverlet.collector" Version="10.1.1" PrivateAssets="all">
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
       </ItemGroup>
@@ -37,7 +37,7 @@
     </ItemGroup>
 
     <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
     </ItemGroup>
 
 
